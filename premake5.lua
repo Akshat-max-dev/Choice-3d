@@ -15,6 +15,7 @@ Dependency = {}
 Dependency["glfw"] = "%{wks.location}/vendor/glfw"
 Dependency["glad"] = "%{wks.location}/vendor/glad"
 Dependency["glm"] = "%{wks.location}/vendor/glm"
+Dependency["cgltf"] = "%{wks.location}/vendor/cgltf"
 
 include "Choice"
 include "Quatation"

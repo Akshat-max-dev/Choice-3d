@@ -21,7 +21,8 @@ project "Choice"
         "%{wks.location}/Quatation/src",
         "%{Dependency.glfw}/include",
         "%{Dependency.glad}/include",
-        "%{Dependency.glm}"
+        "%{Dependency.glm}",
+        "%{Dependency.cgltf}"
     }
 
     links

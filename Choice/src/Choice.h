@@ -5,6 +5,7 @@
 #include "Camera/EditorCamera.h"
 #include "OpenGL/Shader.h"
 #include "OpenGL/VertexArray.h"
+#include "Model.h"
 
 namespace choice
 {
@@ -28,6 +29,6 @@ namespace choice
 		std::unique_ptr<Camera> mCamera;
 		//Temp
 		std::unique_ptr<Shader> mShader;
-		std::unique_ptr<VertexArray> mVertexArray;
+		Model* mModel;
 	};
 }

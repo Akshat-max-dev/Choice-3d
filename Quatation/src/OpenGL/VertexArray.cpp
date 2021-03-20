@@ -49,6 +49,7 @@ namespace choice
 
 	void VertexArray::IndexBuffer(void* data, uint32_t count)
 	{
+		mCount = count;
 		glCreateBuffers(1, &mIndexBuffer);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mIndexBuffer);
 		glBufferData(GL_ELEMENT_ARRAY_BUFFER, count * sizeof(uint32_t), data, GL_STATIC_DRAW);

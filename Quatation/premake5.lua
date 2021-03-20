@@ -29,7 +29,10 @@ project "Quatation"
         --Glad
         "%{Dependency.glad}/include/glad/glad.h",
         "%{Dependency.glad}/include/KHR/khrplatform.h",
-        "%{Dependency.glad}/src/glad.c"
+        "%{Dependency.glad}/src/glad.c",
+
+        --cgltf
+        "%{Dependency.cgltf}/cgltf.h"
     }
 
     includedirs
@@ -38,7 +41,8 @@ project "Quatation"
         "%{wks.location}/Choice/src",
         "%{Dependency.glfw}/include",
         "%{Dependency.glad}/include",
-        "%{Dependency.glm}"
+        "%{Dependency.glm}",
+        "%{Dependency.cgltf}"
     }
 
     defines
