@@ -12,7 +12,24 @@ project "Choice"
     files
     {
         "src/**.h",
-        "src/**.cpp"
+        "src/**.cpp",
+
+        --ImGui
+        "%{Dependency.imgui}/imgui.h",
+        "%{Dependency.imgui}/imgui.cpp",
+        "%{Dependency.imgui}/imconfig.h",
+        "%{Dependency.imgui}/imgui_demo.cpp",
+        "%{Dependency.imgui}/imgui_draw.cpp",
+        "%{Dependency.imgui}/imgui_internal.h",
+        "%{Dependency.imgui}/imgui_tables.cpp",
+        "%{Dependency.imgui}/imgui_widgets.cpp",
+        "%{Dependency.imgui}/imstb_rectpack.h",
+        "%{Dependency.imgui}/imstb_textedit.h",
+        "%{Dependency.imgui}/imstb_truetype.h",
+        "%{Dependency.imgui}/backends/imgui_impl_glfw.h",
+        "%{Dependency.imgui}/backends/imgui_impl_glfw.cpp",
+        "%{Dependency.imgui}/backends/imgui_impl_opengl3.h",
+        "%{Dependency.imgui}/backends/imgui_impl_opengl3.cpp"
     }
 
     includedirs
@@ -22,7 +39,8 @@ project "Choice"
         "%{Dependency.glfw}/include",
         "%{Dependency.glad}/include",
         "%{Dependency.glm}",
-        "%{Dependency.cgltf}"
+        "%{Dependency.cgltf}",
+        "%{Dependency.imgui}"
     }
 
     links
