@@ -12,3 +12,10 @@
 	path = vendor/imgui
 	url = https://github.com/Akshat-max-dev/imgui.git
 	branch = docking
+[submodule "vendor/ImGuiFileDialog"]
+	path = vendor/ImGuiFileDialog
+	url = https://github.com/Akshat-max-dev/ImGuiFileDialog.git
+	branch = Lib_Only
+[submodule "vendor/compressonator"]
+	path = vendor/compressonator
+	url = https://github.com/Akshat-max-dev/compressonator.git

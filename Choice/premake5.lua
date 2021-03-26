@@ -29,7 +29,13 @@ project "Choice"
         "%{Dependency.imgui}/backends/imgui_impl_glfw.h",
         "%{Dependency.imgui}/backends/imgui_impl_glfw.cpp",
         "%{Dependency.imgui}/backends/imgui_impl_opengl3.h",
-        "%{Dependency.imgui}/backends/imgui_impl_opengl3.cpp"
+        "%{Dependency.imgui}/backends/imgui_impl_opengl3.cpp",
+        
+        --ImGuiFileDialogs
+        "%{Dependency.ImGuiFileDialog}/ImGuiFileDialog.h",
+        "%{Dependency.ImGuiFileDialog}/ImGuiFileDialog.cpp",
+        "%{Dependency.ImGuiFileDialog}/ImGuiFileDialogConfig.h",
+        "%{Dependency.ImGuiFileDialog}/dirent/dirent.h"
     }
 
     includedirs
@@ -40,7 +46,8 @@ project "Choice"
         "%{Dependency.glad}/include",
         "%{Dependency.glm}",
         "%{Dependency.cgltf}",
-        "%{Dependency.imgui}"
+        "%{Dependency.imgui}",
+        "%{Dependency.ImGuiFileDialog}"
     }
 
     links

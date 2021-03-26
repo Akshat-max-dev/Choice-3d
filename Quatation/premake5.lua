@@ -43,7 +43,8 @@ project "Quatation"
         "%{Dependency.glad}/include",
         "%{Dependency.glm}",
         "%{Dependency.cgltf}",
-        "%{Dependency.imgui}"
+        "%{Dependency.imgui}",
+        "%{Dependency.ImGuiFileDialog}"
     }
 
     defines

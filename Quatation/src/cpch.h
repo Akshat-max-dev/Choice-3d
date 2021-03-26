@@ -17,3 +17,10 @@ if(!msg){__debugbreak();}
 #include <cstdlib>
 #include <optional>
 #include <vector>
+#include <sstream>
+#include <direct.h>
+
+#ifdef EXE
+#include <filesystem>
+#include <Window.h>
+#endif

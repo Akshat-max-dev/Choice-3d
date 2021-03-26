@@ -7,6 +7,8 @@
 #include "OpenGL/Shader.h"
 #include "Model.h"
 
+#include "Project/Project.h"
+
 namespace choice
 {
 	class Editor
@@ -25,5 +27,13 @@ namespace choice
 		//Temp
 		std::unique_ptr<Shader> mShader;
 		Model* mModel;
+
+		std::unique_ptr<Project> mActiveProject;
+		enum class ModalPurpose
+		{
+			NONE = -1, NEWPROJECT = 0
+		};
+		ModalPurpose mModalPurpose = ModalPurpose::NONE;
+		bool mShowModal = false;
 	};
 }

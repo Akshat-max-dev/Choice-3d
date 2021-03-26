@@ -15,6 +15,8 @@ namespace choice
 		GLFWwindow* GetWindow() { return mWindow; }
 		const uint32_t& GetWidth()const { return mWidth; }
 		const uint32_t& GetHeight()const { return mHeight; }
+
+		void UpdateTitle(const char* title) { glfwSetWindowTitle(mWindow, title); }
 	private:
 		GLFWwindow* mWindow;
 		uint32_t mWidth = 1600;
