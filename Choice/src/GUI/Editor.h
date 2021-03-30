@@ -4,9 +4,6 @@
 #include "Camera/Camera.h"
 #include "Camera/EditorCamera.h"
 
-#include "OpenGL/Shader.h"
-#include "Model.h"
-
 #include "Project/Project.h"
 
 namespace choice
@@ -24,10 +21,6 @@ namespace choice
 	private:
 		std::unique_ptr<Camera> mCamera;
 
-		//Temp
-		std::unique_ptr<Shader> mShader;
-		Model* mModel;
-
 		std::unique_ptr<Project> mActiveProject;
 		enum class ModalPurpose
 		{
@@ -35,5 +28,6 @@ namespace choice
 		};
 		ModalPurpose mModalPurpose = ModalPurpose::NONE;
 		bool mShowModal = false;
+		bool mIsBlenderLinked = false;
 	};
 }

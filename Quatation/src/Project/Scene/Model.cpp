@@ -65,7 +65,7 @@ namespace choice
 		"POSITION", "NORMAL", "TEXCOORD_0", "TANGENT"
 	};
 
-	void loadNode(const cgltf_node* node, Model* model)
+	void loadNode(const cgltf_node* node, std::vector<DumpableMeshData>* meshdata)
 	{
 		if (node->mesh)
 		{
@@ -132,13 +132,13 @@ namespace choice
 				}
 			}
 
+			DumpableMeshData data;
+
 			//Index Buffer
 			const cgltf_accessor* accessor = primitive.indices;
 			const auto* view = accessor->buffer_view;
 
 			auto componentsize = component_size(accessor->component_type);
-
-			std::vector<uint32_t> indices;
 
 			switch (componentsize)
 			{
@@ -147,7 +147,7 @@ namespace choice
 				const auto* source = reinterpret_cast<uint32_t const*>((char*)view->buffer->data + view->offset);
 				for (auto i = 0; i < accessor->count; i++)
 				{
-					indices.push_back(source[i]);
+					data.Indices.push_back(source[i]);
 				}
 			}
 				break;
@@ -156,7 +156,7 @@ namespace choice
 				const auto* source = reinterpret_cast<uint16_t const*>((char*)view->buffer->data + view->offset);
 				for (auto i = 0; i < accessor->count; i++)
 				{
-					indices.push_back(source[i]);
+					data.Indices.push_back(source[i]);
 				}
 			}
 				break;
@@ -165,52 +165,89 @@ namespace choice
 				return;
 			}
 
-			std::vector<float> vertices;
-
 			for (auto i = 0; i < fullMeshData[0].size(); i++)
 			{
-				vertices.push_back(fullMeshData[0][i].x);
-				vertices.push_back(fullMeshData[0][i].y);
-				vertices.push_back(fullMeshData[0][i].z);
+				data.Vertices.push_back(fullMeshData[0][i].x);
+				data.Vertices.push_back(fullMeshData[0][i].y);
+				data.Vertices.push_back(fullMeshData[0][i].z);
 
-				vertices.push_back(fullMeshData[1][i].x);
-				vertices.push_back(fullMeshData[1][i].y);
-				vertices.push_back(fullMeshData[1][i].z);
+				data.Vertices.push_back(fullMeshData[1][i].x);
+				data.Vertices.push_back(fullMeshData[1][i].y);
+				data.Vertices.push_back(fullMeshData[1][i].z);
 
-				vertices.push_back(fullMeshData[2][i].x);
-				vertices.push_back(fullMeshData[2][i].y);
+				data.Vertices.push_back(fullMeshData[2][i].x);
+				data.Vertices.push_back(fullMeshData[2][i].y);
 
-				vertices.push_back(fullMeshData[3][i].x);
-				vertices.push_back(fullMeshData[3][i].y);
-				vertices.push_back(fullMeshData[3][i].z);
+				data.Vertices.push_back(fullMeshData[3][i].x);
+				data.Vertices.push_back(fullMeshData[3][i].y);
+				data.Vertices.push_back(fullMeshData[3][i].z);
 			}
 
-			std::pair<VertexArray*, uint32_t> mesh;
-			mesh.first = new VertexArray();
-			mesh.second = 0;
-
-			mesh.first->VertexBuffer(vertices.data(), vertices.size() * sizeof(float), "3 3 2 3");
-			mesh.first->IndexBuffer(indices.data(), (uint32_t)indices.size());
-
-			model->Meshes.push_back(mesh);
+			meshdata->push_back(data);
 		}
 
 		for (auto i = 0; i < node->children_count; i++)
 		{
 			const auto* child = node->children[i];
-			loadNode(child, model);
+			loadNode(child, meshdata);
 		}
 	}
 
 	Model* LoadModel(const std::string& srcFile)
 	{
+		std::ifstream cmodel(srcFile, std::ios::in | std::ios::binary);
+		if (cmodel.fail() || cmodel.bad())
+		{
+			std::cout << "Error Loading Model" << std::endl;
+			cmodel.close();
+			return nullptr;
+		}
+
+		Model* model = new Model();
+
+		std::string temp = srcFile.substr(srcFile.find_last_of('\\') + 1, srcFile.size());
+		model->Name = temp.substr(0, temp.find_last_of('.'));
+
+		uint32_t meshsize;
+		cmodel.read((char*)&meshsize, sizeof(meshsize));
+		model->Meshes.resize(meshsize);
+
+		for (auto& mesh : model->Meshes)
+		{
+			uint32_t verticessize;
+			cmodel.read((char*)&verticessize, sizeof(verticessize));
+			std::vector<float> vertices;
+			vertices.resize(verticessize);
+			cmodel.read((char*)vertices.data(), verticessize * sizeof(float));
+
+			uint32_t indicessize;
+			cmodel.read((char*)&indicessize, sizeof(indicessize));
+			std::vector<uint32_t> indices;
+			indices.resize(indicessize);
+			cmodel.read((char*)indices.data(), indicessize * sizeof(uint32_t));
+		}
+
+		cmodel.close();
+		return model;
+	}
+
+	const std::string DumpModel(const std::string& srcFile, const std::string& dstDirectory)
+	{
+		std::string temp = srcFile.substr(srcFile.find_last_of('\\') + 1, srcFile.size());
+		std::string dstFile = dstDirectory + "\\" + temp.substr(0, temp.find_last_of('.')) + ".cmodel";
+
+		//To Check If Model Already Exists
+		std::ifstream check(dstFile, std::ios::in | std::ios::binary);
+		if (check.is_open()) { check.close(); return dstFile; }
+		check.close();
+
 		cgltf_options options = {};
 		cgltf_data* data = nullptr;
 		cgltf_result result = cgltf_parse_file(&options, srcFile.c_str(), &data);
 		if (result != cgltf_result_success)
 		{
 			std::cout << "Error Loading Model" << std::endl;
-			return nullptr;
+			return {};
 		}
 
 		result = cgltf_load_buffers(&options, data, srcFile.c_str());
@@ -218,20 +255,45 @@ namespace choice
 		{
 			cgltf_free(data);
 			std::cout << "Error Loading Buffers" << std::endl;
-			return nullptr;
+			return {};
 		}
 
-		Model* model = new Model();
+		std::vector<DumpableMeshData>* meshdata = new std::vector<DumpableMeshData>();
 
 		cgltf_scene* scene = data->scene;
 		auto nodescount = scene->nodes_count;
 		for (auto i = 0; i < nodescount; i++)
 		{
 			const auto* node = scene->nodes[i];
-			loadNode(node, model);
+			loadNode(node, meshdata);
 		}
-		
+
+		std::ofstream cmodel(dstFile, std::ios::out | std::ios::binary);
+		if (cmodel.fail())
+		{
+			std::cout << "Cannot Dump Model Data" << std::endl;
+			cmodel.close();
+			return {};
+		}
+
+		uint32_t meshsize = (uint32_t)meshdata->size();
+		cmodel.write((char*)&meshsize, sizeof(meshsize));
+		for (auto& mesh : *meshdata)
+		{
+			uint32_t verticessize = (uint32_t)mesh.Vertices.size();
+			cmodel.write((char*)&verticessize, sizeof(verticessize));
+			cmodel.write((char*)mesh.Vertices.data(), verticessize * sizeof(float));
+
+			uint32_t indicessize = (uint32_t)mesh.Indices.size();
+			cmodel.write((char*)&indicessize, sizeof(indicessize));
+			cmodel.write((char*)mesh.Indices.data(), indicessize * sizeof(uint32_t));
+		}
+
+		delete meshdata;
+
 		cgltf_free(data);
-		return model;
+
+		return dstFile;
 	}
+
 }

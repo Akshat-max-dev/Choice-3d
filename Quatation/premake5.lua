@@ -44,7 +44,18 @@ project "Quatation"
         "%{Dependency.glm}",
         "%{Dependency.cgltf}",
         "%{Dependency.imgui}",
-        "%{Dependency.ImGuiFileDialog}"
+        "%{Dependency.ImGuiFileDialog}",
+        "%{Dependency.compressonator}"
+    }
+
+    libdirs
+    {
+        "%{Dependency.compressonator}/bin"
+    }
+
+    links
+    {
+        "CMP_Framework.lib"
     }
 
     defines

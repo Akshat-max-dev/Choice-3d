@@ -38,9 +38,10 @@ namespace choice
 		readcproj.read((char*)&activescenenamesize, sizeof(activescenenamesize));
 		std::string activescenename;
 		activescenename.resize(activescenenamesize);
-		readcproj.read((char*)activescenename.data(), sizeof(activescenenamesize));
+		readcproj.read((char*)activescenename.data(), activescenenamesize);
 		if (mActiveScene) { mActiveScene.reset(); }
-		mActiveScene = std::make_unique<Scene>(mDirectory + "\\" + activescenename);
+		std::cout << activescenename << std::endl;
+		mActiveScene = std::make_unique<Scene>(mDirectory + "\\" + mName + "\\" + activescenename + "\\" + activescenename + ".cscene");
 		readcproj.close();
 	}
 
@@ -65,7 +66,7 @@ namespace choice
 		}
 		uint32_t activescenenamesize = (uint32_t)mActiveScene->Name().size();
 		cproj.write((char*)&activescenenamesize, sizeof(activescenenamesize));
-		cproj.write((char*)mActiveScene->Name().data(), sizeof(activescenenamesize));
+		cproj.write((char*)mActiveScene->Name().data(), activescenenamesize);
 		cproj.close();
 
 		mActiveScene->Save();

@@ -3,10 +3,7 @@
 #include <imgui.h>
 #include <ImGuiFileDialog.h>
 
-#include <glad/glad.h>
-#include <dirent/dirent.h>
 #include "Input.h"
-
 #include "Choice.h"
 
 namespace choice
@@ -14,8 +11,9 @@ namespace choice
 	Editor::Editor(uint32_t w, uint32_t h)
 	{
 		mCamera = std::make_unique<EditorCamera>((float)w / (float)h);
-
-		mShader = std::make_unique<Shader>("Choice/assets/shaders/Test.glsl");
+		std::ifstream checkblenderlink("gltf.bat", std::ios::in);
+		if (checkblenderlink.is_open()) { mIsBlenderLinked = true; }
+		checkblenderlink.close();
 	}
 
 	Editor::~Editor()
@@ -38,7 +36,7 @@ namespace choice
 
 				if (ImGui::MenuItem("Save Project", "Ctrl + S"))
 				{
-					mActiveProject->Save();
+					if (mActiveProject) { mActiveProject->Save(); }
 				}
 
 				if (ImGui::MenuItem("Open Project", "Ctrl + O"))
@@ -49,7 +47,7 @@ namespace choice
 
 				ImGui::Separator();
 
-				if (ImGui::MenuItem("Blender"))
+				if (ImGui::MenuItem("Blender", nullptr, mIsBlenderLinked))
 				{
 #ifdef EXE
 					ImGuiFileDialog::Instance()->SetExtentionInfos(".exe", { 0.5f, 0.1f, 0.6f, 1.0f });
@@ -59,6 +57,36 @@ namespace choice
 				ImGui::EndMenu();
 			}
 			ImGui::EndMainMenuBar();
+		}
+
+		if (Input::IsKeyPressed(GLFW_KEY_LEFT_CONTROL))
+		{
+			if (Input::IsKeyPressed(GLFW_KEY_N))
+			{
+				mModalPurpose = ModalPurpose::NEWPROJECT; mShowModal = true;
+			}
+			if (Input::IsKeyPressed(GLFW_KEY_S))
+			{
+				if (mActiveProject) { mActiveProject->Save(); }
+			}
+			if (Input::IsKeyPressed(GLFW_KEY_O))
+			{
+				ImGuiFileDialog::Instance()->SetExtentionInfos(".cproj", { 1.0f, 0.0f, 1.0f, 1.0f });
+				ImGuiFileDialog::Instance()->OpenModal("OpenProject", "Open Project", ".cproj", "");
+			}
+		}
+
+		if (mActiveProject)
+		{
+			if (ImGui::BeginPopupContextVoid())
+			{
+				if (ImGui::MenuItem("Add Model"))
+				{
+					ImGuiFileDialog::Instance()->SetExtentionInfos(".obj", { 0.1f, 1.0f, 0.1f, 1.0f });
+					ImGuiFileDialog::Instance()->OpenModal("AddModel", "Import Model", ".obj", "");
+				}
+				ImGui::EndPopup();
+			}
 		}
 
 		auto* viewport = ImGui::GetMainViewport();
@@ -115,7 +143,7 @@ namespace choice
 
 					ImGui::Separator();
 
-					if (ImGui::Button("Create"))
+					if (ImGui::Button("Create") || Input::IsKeyPressed(GLFW_KEY_ENTER))
 					{
 						if (strlen(namebuf) == 0) { std::cout << "Project Name Cant Be Empty" << std::endl; return; }
 						if (strlen(dirbuf) == 0) { std::cout << "No Directory Selected" << std::endl; return; }
@@ -131,7 +159,7 @@ namespace choice
 						mModalPurpose = ModalPurpose::NONE;
 					}
 					ImGui::SameLine();
-					if (ImGui::Button("Cancel"))
+					if (ImGui::Button("Cancel") || Input::IsKeyPressed(GLFW_KEY_ESCAPE))
 					{
 						memset(namebuf, 0, sizeof(namebuf));
 						memset(dirbuf, 0, sizeof(dirbuf));
@@ -192,7 +220,7 @@ namespace choice
 			ImGuiFileDialog::Instance()->Close();
 		}
 
-		if (ImGuiFileDialog::Instance()->Display("ImportModel", ImGuiWindowFlags_NoCollapse, { IFDModalWidth, IFDModalHeight }))
+		if (ImGuiFileDialog::Instance()->Display("AddModel", ImGuiWindowFlags_NoCollapse, { IFDModalWidth, IFDModalHeight }))
 		{
 			if (ImGuiFileDialog::Instance()->IsOk())
 			{
@@ -220,12 +248,12 @@ namespace choice
 				std::system("gltf.bat");
 				std::remove("Temporary");
 				
-				if (mModel)
-				{
-					delete mModel;
-					mModel = LoadModel(modelfilepath.substr(0, modelfilepath.find_last_of('.')) + ".glb");
-					std::remove((modelfilepath.substr(0, modelfilepath.find_last_of('.')) + ".glb").c_str());
-				}
+				std::string srcFile = DumpModel(modelfilepath.substr(0, modelfilepath.find_last_of('.')) + ".glb", 
+					mActiveProject->ActiveScene()->Directory() + "\\" + 
+					mActiveProject->ActiveScene()->Name() + "\\" + "Assets");
+
+				mActiveProject->ActiveScene()->AddObject<Model>(LoadModel(srcFile));
+				std::remove((modelfilepath.substr(0, modelfilepath.find_last_of('.')) + ".glb").c_str());
 			}
 			ImGuiFileDialog::Instance()->Close();
 		}

@@ -47,7 +47,8 @@ project "Choice"
         "%{Dependency.glm}",
         "%{Dependency.cgltf}",
         "%{Dependency.imgui}",
-        "%{Dependency.ImGuiFileDialog}"
+        "%{Dependency.ImGuiFileDialog}",
+        "%{Dependency.compressonator}"
     }
 
     links
