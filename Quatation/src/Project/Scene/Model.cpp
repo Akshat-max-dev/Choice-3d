@@ -15,6 +15,11 @@ namespace choice
 		{
 			delete mesh.first;
 		}
+
+		for (auto& material : Materials)
+		{
+			delete material;
+		}
 	}
 
 	static cgltf_size component_size(cgltf_component_type component_tpe)
@@ -80,13 +85,21 @@ namespace choice
 			{
 				DumpableMaterialData data;
 				const auto* diffusemap = material->pbr_metallic_roughness.base_color_texture.texture;
-				data.DiffuseMap = CompressTexture((void*)diffusemap, dstDirectory,
+				data.DiffuseMap.Source = CompressTexture((void*)diffusemap, dstDirectory,
 					BlockCompressionFormat::BC1, true);
+				data.DiffuseMap.magFilter = (uint32_t)diffusemap->sampler->mag_filter;
+				data.DiffuseMap.minFilter = (uint32_t)diffusemap->sampler->min_filter;
+				data.DiffuseMap.wrapS = (uint32_t)diffusemap->sampler->wrap_s;
+				data.DiffuseMap.wrapT = (uint32_t)diffusemap->sampler->wrap_t;
 				const auto* normalmap = material->normal_texture.texture;
 				if (normalmap)
 				{
-					data.NormalMap = CompressTexture((void*)normalmap, dstDirectory,
+					data.NormalMap.Source = CompressTexture((void*)normalmap, dstDirectory,
 						BlockCompressionFormat::BC5, true);
+					data.NormalMap.magFilter = (uint32_t)normalmap->sampler->mag_filter;
+					data.NormalMap.minFilter = (uint32_t)normalmap->sampler->min_filter;
+					data.NormalMap.wrapS = (uint32_t)normalmap->sampler->wrap_s;
+					data.NormalMap.wrapT = (uint32_t)normalmap->sampler->wrap_t;
 				}
 				else { data.NormalMap = {}; }
 				materialdata->push_back(data);
@@ -230,6 +243,41 @@ namespace choice
 		std::string temp = srcFile.substr(srcFile.find_last_of('\\') + 1, srcFile.size());
 		model->Name = temp.substr(0, temp.find_last_of('.'));
 
+		uint32_t materialsize;
+		cmodel.read((char*)&materialsize, sizeof(materialsize));
+		model->Materials.resize(materialsize);
+
+		for (auto& material : model->Materials)
+		{
+			material = new Material();
+
+			Texture2DData data = {};
+
+			uint32_t diffusemapnamesize;
+			cmodel.read((char*)&diffusemapnamesize, sizeof(diffusemapnamesize));
+			data.Source.resize(diffusemapnamesize);
+			cmodel.read((char*)data.Source.data(), diffusemapnamesize);
+			
+			cmodel.read((char*)&data.magFilter, sizeof(data.magFilter));
+			cmodel.read((char*)&data.minFilter, sizeof(data.minFilter));
+			cmodel.read((char*)&data.wrapS, sizeof(data.wrapS));
+			cmodel.read((char*)&data.wrapT, sizeof(data.wrapT));
+
+			material->DiffuseMap = new Texture2D(LoadTexture2D(data));
+
+			uint32_t normalmapnamesize;
+			cmodel.read((char*)&normalmapnamesize, sizeof(normalmapnamesize));
+			data.Source.resize(normalmapnamesize);
+			cmodel.read((char*)data.Source.data(), normalmapnamesize);
+
+			cmodel.read((char*)&data.magFilter, sizeof(data.magFilter));
+			cmodel.read((char*)&data.minFilter, sizeof(data.minFilter));
+			cmodel.read((char*)&data.wrapS, sizeof(data.wrapS));
+			cmodel.read((char*)&data.wrapT, sizeof(data.wrapT));
+
+			material->NormalMap = new Texture2D(LoadTexture2D(data));
+		}
+
 		uint32_t meshsize;
 		cmodel.read((char*)&meshsize, sizeof(meshsize));
 		model->Meshes.resize(meshsize);
@@ -303,13 +351,23 @@ namespace choice
 		cmodel.write((char*)&materialsize, sizeof(materialsize));
 		for (auto& material : *materialdata)
 		{
-			uint32_t diffusemapnamesize = (uint32_t)material.DiffuseMap.size();
+			uint32_t diffusemapnamesize = (uint32_t)material.DiffuseMap.Source.size();
 			cmodel.write((char*)&diffusemapnamesize, sizeof(diffusemapnamesize));
-			cmodel.write((char*)material.DiffuseMap.data(), diffusemapnamesize);
+			cmodel.write((char*)material.DiffuseMap.Source.data(), diffusemapnamesize);
 
-			uint32_t normalmapnamesize = (uint32_t)material.NormalMap.size();
+			cmodel.write((char*)&material.DiffuseMap.magFilter, sizeof(material.DiffuseMap.magFilter));
+			cmodel.write((char*)&material.DiffuseMap.minFilter, sizeof(material.DiffuseMap.minFilter));
+			cmodel.write((char*)&material.DiffuseMap.wrapS, sizeof(material.DiffuseMap.wrapS));
+			cmodel.write((char*)&material.DiffuseMap.wrapT, sizeof(material.DiffuseMap.wrapT));
+
+			uint32_t normalmapnamesize = (uint32_t)material.NormalMap.Source.size();
 			cmodel.write((char*)&normalmapnamesize, sizeof(normalmapnamesize));
-			cmodel.write((char*)material.NormalMap.data(), normalmapnamesize);
+			cmodel.write((char*)material.NormalMap.Source.data(), normalmapnamesize);
+
+			cmodel.write((char*)&material.NormalMap.magFilter, sizeof(material.NormalMap.magFilter));
+			cmodel.write((char*)&material.NormalMap.minFilter, sizeof(material.NormalMap.minFilter));
+			cmodel.write((char*)&material.NormalMap.wrapS, sizeof(material.NormalMap.wrapS));
+			cmodel.write((char*)&material.NormalMap.wrapT, sizeof(material.NormalMap.wrapT));
 		}
 
 		delete materialdata;
@@ -332,6 +390,12 @@ namespace choice
 		cgltf_free(data);
 
 		return dstFile;
+	}
+
+	Material::~Material()
+	{
+		if (DiffuseMap) { delete DiffuseMap; }
+		if (NormalMap) { delete NormalMap; }
 	}
 
 }

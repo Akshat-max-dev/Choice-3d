@@ -12,4 +12,34 @@ namespace choice
 		BlockCompressionFormat format, bool generateMips);
 	const std::string CompressTexture(void* data, const std::string& dstDirectory,
 		BlockCompressionFormat format, bool generateMips);
+
+	class Texture
+	{
+	public:
+		virtual void Bind(uint32_t slot)const {}
+	protected:
+		void Destroy() { glDeleteTextures(1, &mRendererId); }
+		uint32_t mRendererId;
+	};
+
+	struct Texture2DData
+	{
+		std::string Source;
+		uint32_t magFilter, minFilter, wrapS, wrapT;
+	};
+
+	const uint32_t LoadTexture2D(Texture2DData data);
+
+	class Texture2D :public Texture
+	{
+	public:
+		Texture2D(uint32_t id) { mRendererId = id; }
+		~Texture2D() { Texture::Destroy(); }
+
+		void Bind(uint32_t slot)const override 
+		{
+			glActiveTexture(GL_TEXTURE0 + slot);
+			glBindTexture(GL_TEXTURE_2D, mRendererId);
+		}
+	};
 }
