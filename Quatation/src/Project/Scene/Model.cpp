@@ -5,6 +5,8 @@
 
 #include <glm/glm.hpp>
 
+#include "OpenGL/Texture.h"
+
 namespace choice
 {
 	Model::~Model()
@@ -65,12 +67,32 @@ namespace choice
 		"POSITION", "NORMAL", "TEXCOORD_0", "TANGENT"
 	};
 
-	void loadNode(const cgltf_node* node, std::vector<DumpableMeshData>* meshdata)
+	void loadNode(const cgltf_node* node, std::vector<DumpableMeshData>* meshdata,
+		std::vector<DumpableMaterialData>* materialdata, const std::string& dstDirectory)
 	{
 		if (node->mesh)
 		{
 			auto& primitive = node->mesh->primitives[0];
 
+			//Load Material
+			auto& material = primitive.material;
+			if (material)
+			{
+				DumpableMaterialData data;
+				const auto* diffusemap = material->pbr_metallic_roughness.base_color_texture.texture;
+				data.DiffuseMap = CompressTexture((void*)diffusemap, dstDirectory,
+					BlockCompressionFormat::BC1, true);
+				const auto* normalmap = material->normal_texture.texture;
+				if (normalmap)
+				{
+					data.NormalMap = CompressTexture((void*)normalmap, dstDirectory,
+						BlockCompressionFormat::BC5, true);
+				}
+				else { data.NormalMap = {}; }
+				materialdata->push_back(data);
+			}
+
+			//Load Mesh
 			std::vector<glm::vec3> fullMeshData[MESH_ATTRIBUTE_TYPE::COUNT];
 
 			bool attribFound = false;
@@ -189,7 +211,7 @@ namespace choice
 		for (auto i = 0; i < node->children_count; i++)
 		{
 			const auto* child = node->children[i];
-			loadNode(child, meshdata);
+			loadNode(child, meshdata, materialdata, dstDirectory);
 		}
 	}
 
@@ -259,13 +281,14 @@ namespace choice
 		}
 
 		std::vector<DumpableMeshData>* meshdata = new std::vector<DumpableMeshData>();
+		std::vector<DumpableMaterialData>* materialdata = new std::vector<DumpableMaterialData>();
 
 		cgltf_scene* scene = data->scene;
 		auto nodescount = scene->nodes_count;
 		for (auto i = 0; i < nodescount; i++)
 		{
 			const auto* node = scene->nodes[i];
-			loadNode(node, meshdata);
+			loadNode(node, meshdata, materialdata, dstDirectory);
 		}
 
 		std::ofstream cmodel(dstFile, std::ios::out | std::ios::binary);
@@ -275,6 +298,21 @@ namespace choice
 			cmodel.close();
 			return {};
 		}
+
+		uint32_t materialsize = (uint32_t)materialdata->size();
+		cmodel.write((char*)&materialsize, sizeof(materialsize));
+		for (auto& material : *materialdata)
+		{
+			uint32_t diffusemapnamesize = (uint32_t)material.DiffuseMap.size();
+			cmodel.write((char*)&diffusemapnamesize, sizeof(diffusemapnamesize));
+			cmodel.write((char*)material.DiffuseMap.data(), diffusemapnamesize);
+
+			uint32_t normalmapnamesize = (uint32_t)material.NormalMap.size();
+			cmodel.write((char*)&normalmapnamesize, sizeof(normalmapnamesize));
+			cmodel.write((char*)material.NormalMap.data(), normalmapnamesize);
+		}
+
+		delete materialdata;
 
 		uint32_t meshsize = (uint32_t)meshdata->size();
 		cmodel.write((char*)&meshsize, sizeof(meshsize));

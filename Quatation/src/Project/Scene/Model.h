@@ -13,6 +13,12 @@ namespace choice
 		std::vector<uint32_t> Indices;
 	};
 
+	struct DumpableMaterialData
+	{
+		std::string DiffuseMap;
+		std::string NormalMap;
+	};
+
 	struct Model
 	{
 		std::string Name;
