@@ -19,3 +19,6 @@
 [submodule "vendor/compressonator"]
 	path = vendor/compressonator
 	url = https://github.com/Akshat-max-dev/compressonator.git
+[submodule "vendor/gli"]
+	path = vendor/gli
+	url = https://github.com/Akshat-max-dev/gli.git
