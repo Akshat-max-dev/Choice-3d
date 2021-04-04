@@ -48,7 +48,7 @@ namespace choice
 	Project::~Project()
 	{
 		std::ifstream open(mDirectory + "\\" + mName + "\\" + mName + ".cproj", std::ios::in | std::ios::binary);
-		if (open.fail())
+		if (!open.is_open())
 		{
 			Save();
 		}

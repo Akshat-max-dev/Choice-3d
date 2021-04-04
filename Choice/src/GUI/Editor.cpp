@@ -252,7 +252,9 @@ namespace choice
 					mActiveProject->ActiveScene()->Directory() + "\\" + 
 					mActiveProject->ActiveScene()->Name() + "\\" + "Assets");
 
-				mActiveProject->ActiveScene()->AddObject<Model>(LoadModel(srcFile));
+				SceneObject* sceneobject = new SceneObject();
+				sceneobject->AddProperty<Model>(LoadModel(srcFile));
+				mActiveProject->ActiveScene()->AddObject(sceneobject);
 				std::remove((modelfilepath.substr(0, modelfilepath.find_last_of('.')) + ".glb").c_str());
 			}
 			ImGuiFileDialog::Instance()->Close();
