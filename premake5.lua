@@ -19,6 +19,8 @@ Dependency["cgltf"] = "%{wks.location}/vendor/cgltf"
 Dependency["imgui"] = "%{wks.location}/vendor/imgui"
 Dependency["ImGuiFileDialog"] = "%{wks.location}/vendor/ImGuiFileDialog"
 Dependency["compressonator"] = "%{wks.location}/vendor/compressonator"
+Dependency["stb_image"] = "%{wks.location}/vendor/stb_image"
+Dependency["gli"] = "%{wks.location}/vendor/gli"
 
 include "Choice"
 include "Quatation"

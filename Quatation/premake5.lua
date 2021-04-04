@@ -32,7 +32,11 @@ project "Quatation"
         "%{Dependency.glad}/src/glad.c",
 
         --cgltf
-        "%{Dependency.cgltf}/cgltf.h"
+        "%{Dependency.cgltf}/cgltf.h",
+
+        --stb_image
+        "%{Dependency.stb_image}/stb_image.h",
+        "%{Dependency.stb_image}/stb_image.cpp"
     }
 
     includedirs
@@ -45,7 +49,9 @@ project "Quatation"
         "%{Dependency.cgltf}",
         "%{Dependency.imgui}",
         "%{Dependency.ImGuiFileDialog}",
-        "%{Dependency.compressonator}"
+        "%{Dependency.compressonator}",
+        "%{Dependency.stb_image}",
+        "%{Dependency.gli}"
     }
 
     libdirs

@@ -48,7 +48,9 @@ project "Choice"
         "%{Dependency.cgltf}",
         "%{Dependency.imgui}",
         "%{Dependency.ImGuiFileDialog}",
-        "%{Dependency.compressonator}"
+        "%{Dependency.compressonator}",
+        "%{Dependency.stb_image}",
+        "%{Dependency.gli}"
     }
 
     links
