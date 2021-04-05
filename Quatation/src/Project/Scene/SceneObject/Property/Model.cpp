@@ -79,18 +79,38 @@ namespace choice
 		{
 			auto& primitive = node->mesh->primitives[0];
 
+			uint32_t MaterialIndex;
+			bool loadMaterial = true;
+
 			//Load Material
 			auto& material = primitive.material;
-			if (material)
+
+			//Check For Existing Material
+			for (uint32_t i = 0; i < materialdata->size(); i++)
+			{
+				if (materialdata->at(i).MaterialName == material->name)
+				{
+					MaterialIndex = i;
+					loadMaterial = false;
+					break;
+				}
+			}
+
+			if (material && loadMaterial)
 			{
 				DumpableMaterialData data;
+				data.MaterialName = material->name;
 				const auto* diffusemap = material->pbr_metallic_roughness.base_color_texture.texture;
-				data.DiffuseMap.Source = CompressTexture((void*)diffusemap, dstDirectory,
-					BlockCompressionFormat::BC1, true);
-				data.DiffuseMap.magFilter = (uint32_t)diffusemap->sampler->mag_filter;
-				data.DiffuseMap.minFilter = (uint32_t)diffusemap->sampler->min_filter;
-				data.DiffuseMap.wrapS = (uint32_t)diffusemap->sampler->wrap_s;
-				data.DiffuseMap.wrapT = (uint32_t)diffusemap->sampler->wrap_t;
+				if (diffusemap)
+				{
+					data.DiffuseMap.Source = CompressTexture((void*)diffusemap, dstDirectory,
+						BlockCompressionFormat::BC1, true);
+					data.DiffuseMap.magFilter = (uint32_t)diffusemap->sampler->mag_filter;
+					data.DiffuseMap.minFilter = (uint32_t)diffusemap->sampler->min_filter;
+					data.DiffuseMap.wrapS = (uint32_t)diffusemap->sampler->wrap_s;
+					data.DiffuseMap.wrapT = (uint32_t)diffusemap->sampler->wrap_t;
+				}
+				else { data.DiffuseMap = {}; }
 				const auto* normalmap = material->normal_texture.texture;
 				if (normalmap)
 				{
@@ -103,6 +123,7 @@ namespace choice
 				}
 				else { data.NormalMap = {}; }
 				materialdata->push_back(data);
+				MaterialIndex = (uint32_t)materialdata->size() - 1;
 			}
 
 			//Load Mesh
@@ -218,6 +239,8 @@ namespace choice
 				data.Vertices.push_back(fullMeshData[3][i].z);
 			}
 
+			data.MaterialIndex = MaterialIndex;
+
 			meshdata->push_back(data);
 		}
 
@@ -295,6 +318,14 @@ namespace choice
 			std::vector<uint32_t> indices;
 			indices.resize(indicessize);
 			cmodel.read((char*)indices.data(), indicessize * sizeof(uint32_t));
+
+			uint32_t materialindex;
+			cmodel.read((char*)&materialindex, sizeof(materialindex));
+
+			mesh.first = new VertexArray();
+			mesh.first->VertexBuffer(vertices.data(), vertices.size() * sizeof(float), "3323");
+			mesh.first->IndexBuffer(indices.data(), (uint32_t)indices.size());
+			mesh.second = materialindex;
 		}
 
 		cmodel.close();
@@ -383,6 +414,8 @@ namespace choice
 			uint32_t indicessize = (uint32_t)mesh.Indices.size();
 			cmodel.write((char*)&indicessize, sizeof(indicessize));
 			cmodel.write((char*)mesh.Indices.data(), indicessize * sizeof(uint32_t));
+		
+			cmodel.write((char*)&mesh.MaterialIndex, sizeof(mesh.MaterialIndex));
 		}
 
 		delete meshdata;

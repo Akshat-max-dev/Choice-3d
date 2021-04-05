@@ -12,6 +12,7 @@ namespace choice
 	{
 		std::vector<float> Vertices;
 		std::vector<uint32_t> Indices;
+		uint32_t MaterialIndex;
 	};
 
 	struct DumpableTextureData
@@ -22,6 +23,7 @@ namespace choice
 
 	struct DumpableMaterialData
 	{
+		std::string MaterialName;
 		DumpableTextureData DiffuseMap;
 		DumpableTextureData NormalMap;
 	};
