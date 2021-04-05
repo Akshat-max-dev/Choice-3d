@@ -26,6 +26,12 @@ namespace choice
 		glUseProgram(mProgram);
 	}
 
+	void Shader::Int(const char* name, const int data)
+	{
+		GLint location = glGetUniformLocation(mProgram, name);
+		glUniform1i(location, data);
+	}
+
 	void Shader::Mat4(const char* name, const glm::mat4& data)
 	{
 		GLint location = glGetUniformLocation(mProgram, name);

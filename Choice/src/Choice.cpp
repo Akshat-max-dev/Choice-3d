@@ -57,21 +57,31 @@ namespace choice
 		mWindow = std::make_unique<Window>();
 		InputCallbacks(mWindow->GetWindow());
 		mGUI = std::make_unique<GUI>();
-		mEditor = std::make_unique<Editor>(mWindow->GetWidth(), mWindow->GetHeight());	
+		mEditor = std::make_unique<Editor>(mWindow->GetWidth(), mWindow->GetHeight());
+		mPipeline = std::make_unique<DeferredPipeline>();
+		mPipeline->Init(mWindow->GetWidth(), mWindow->GetHeight());
 	}
 
 	Choice::~Choice()
 	{
+		mPipeline->Shutdown();
 	}
 
 	void Choice::run()
 	{
+		glfwSwapInterval(1);
 		while (!glfwWindowShouldClose(mWindow->GetWindow()))
-		{
-			glClear(GL_COLOR_BUFFER_BIT);
-			glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-			
+		{	
 			mEditor->Update();
+			if (mEditor->GetActiveProject())
+			{
+				mPipeline->Update(mEditor->GetActiveProject()->ActiveScene(), mEditor->GetCamera());
+			}
+			else
+			{
+				glClear(GL_COLOR_BUFFER_BIT);
+				glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+			}
 
 			mGUI->Begin();
 			mEditor->Execute();

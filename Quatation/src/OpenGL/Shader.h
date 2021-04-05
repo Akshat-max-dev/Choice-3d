@@ -14,6 +14,7 @@ namespace choice
 
 		void Use()const;
 
+		void Int(const char* name, const int data);
 		void Mat4(const char* name, const glm::mat4& data);
 	private:
 		void Load(const std::string& shader);

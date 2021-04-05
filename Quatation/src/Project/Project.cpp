@@ -17,7 +17,7 @@ namespace choice
 
 		_mkdir((mDirectory + "\\" + mName).c_str());
 
-		mActiveScene = std::make_unique<Scene>("Default Scene", mDirectory + "\\" + mName);
+		mActiveScene = new Scene("Default Scene", mDirectory + "\\" + mName);
 	}
 
 	Project::Project(const std::string& cproj)
@@ -39,9 +39,8 @@ namespace choice
 		std::string activescenename;
 		activescenename.resize(activescenenamesize);
 		readcproj.read((char*)activescenename.data(), activescenenamesize);
-		if (mActiveScene) { mActiveScene.reset(); }
-		std::cout << activescenename << std::endl;
-		mActiveScene = std::make_unique<Scene>(mDirectory + "\\" + mName + "\\" + activescenename + "\\" + activescenename + ".cscene");
+		if (mActiveScene) { delete mActiveScene; }
+		mActiveScene = new Scene(mDirectory + "\\" + mName + "\\" + activescenename + "\\" + activescenename + ".cscene");
 		readcproj.close();
 	}
 
@@ -53,6 +52,7 @@ namespace choice
 			Save();
 		}
 		open.close();
+		delete mActiveScene;
 	}
 
 	void Project::Save()

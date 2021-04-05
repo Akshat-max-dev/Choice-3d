@@ -10,15 +10,16 @@ namespace choice
 {
 	Editor::Editor(uint32_t w, uint32_t h)
 	{
-		mCamera = std::make_unique<EditorCamera>((float)w / (float)h);
+		mCamera = new EditorCamera((float)w / (float)h);
 		std::ifstream checkblenderlink("gltf.bat", std::ios::in);
 		if (checkblenderlink.is_open()) { mIsBlenderLinked = true; }
 		checkblenderlink.close();
+		mActiveProject = {};
 	}
 
 	Editor::~Editor()
 	{
-		
+		delete mCamera;
 	}
 
 	void Editor::Execute()

@@ -4,6 +4,7 @@
 #include "Window.h"
 #include "GUI/GUI.h"
 #include "GUI/Editor.h"
+#include "OpenGL/Pipeline/DeferredPipeline.h"
 
 namespace choice
 {
@@ -25,5 +26,6 @@ namespace choice
 		std::unique_ptr<Window> mWindow;
 		std::unique_ptr<GUI> mGUI;
 		std::unique_ptr<Editor> mEditor;
+		std::unique_ptr<Pipeline> mPipeline;
 	};
 }

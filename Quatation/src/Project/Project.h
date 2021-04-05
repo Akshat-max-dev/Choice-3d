@@ -15,12 +15,12 @@ namespace choice
 		const std::string& Name()const { return mName; }
 		const std::string& Directory()const { return mDirectory; }
 
-		std::unique_ptr<Scene>& ActiveScene() { return mActiveScene; }
+		Scene* ActiveScene() { return mActiveScene; }
 
 		void Save();
 	private:
 		std::string mName;
 		std::string mDirectory;
-		std::unique_ptr<Scene> mActiveScene;
+		Scene* mActiveScene;
 	};
 }

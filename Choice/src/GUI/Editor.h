@@ -17,9 +17,10 @@ namespace choice
 		void Execute();
 		void Update();
 
-		std::unique_ptr<Camera>& GetCamera() { return mCamera; }
+		Camera* GetCamera() { return mCamera; }
+		std::unique_ptr<Project>& GetActiveProject() { return mActiveProject; }
 	private:
-		std::unique_ptr<Camera> mCamera;
+		Camera* mCamera;
 
 		std::unique_ptr<Project> mActiveProject;
 		enum class ModalPurpose
