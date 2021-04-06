@@ -15,6 +15,8 @@ namespace choice
 		}
 
 		const glm::mat4 ViewProjection()const { return mProjection * mView; }
+		const glm::mat4& View()const { return mView; }
+		const glm::mat4& Projection()const { return mProjection; }
 
 		void Visible(uint32_t w, uint32_t h)
 		{

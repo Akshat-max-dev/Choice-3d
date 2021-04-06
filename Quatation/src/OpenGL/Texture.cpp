@@ -5,6 +5,10 @@
 #include <stb_image.h>
 #include <gli/gli.hpp>
 #include <glad/glad.h>
+#include <glm/glm.hpp>
+
+#include "Shader.h"
+#include "Primitives/Cube.h"
 
 namespace choice
 {
@@ -101,6 +105,85 @@ namespace choice
 		return Id;
 	}
 
+	const uint32_t LoadTextureCubemap(const std::string& hdrmap)
+	{
+		uint32_t framebuffer;
+		glCreateFramebuffers(1, &framebuffer);
+		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+
+		stbi_set_flip_vertically_on_load(1);
+		int width, height, components;
+		auto* data = stbi_loadf(hdrmap.c_str(), &width, &height, &components, 0);
+
+		uint32_t hdr;
+		if (!data)
+		{
+			std::cout << "Failed To Load HDR Image" << std::endl;
+			return 0;
+		}
+
+		glCreateTextures(GL_TEXTURE_2D, 1, &hdr);
+		glBindTexture(GL_TEXTURE_2D, hdr);
+		glTextureStorage2D(hdr, 1, GL_RGB32F, width, height);
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+		glTextureSubImage2D(hdr, 0, 0, 0, width, height, GL_RGB, GL_FLOAT, data);
+		stbi_image_free(data);
+
+		uint32_t hdrcubemap;
+		glCreateTextures(GL_TEXTURE_CUBE_MAP, 1, &hdrcubemap);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, hdrcubemap);
+		for (uint32_t i = 0; i < 6; i++)
+		{
+			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB32F, width, width, 0, GL_RGB, GL_FLOAT, nullptr);
+		}
+		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+		glm::mat4 captureProjection = glm::perspective(glm::radians(90.0f), (float)width / (float)width, 0.1f, 10.0f);
+		glm::mat4 captureViews[] =
+		{
+			glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+			glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(-1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+			glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 0.0f,  1.0f,  0.0f), glm::vec3(0.0f,  0.0f,  1.0f)),
+			glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 0.0f, -1.0f,  0.0f), glm::vec3(0.0f,  0.0f, -1.0f)),
+			glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 0.0f,  0.0f,  1.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+			glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))
+		};
+
+		std::unique_ptr<Cube> cube = std::make_unique<Cube>();
+		std::unique_ptr<Shader> hdrToCubemap = std::make_unique<Shader>("Choice/assets/shaders/HDRToCubemap.glsl");
+
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, hdr);
+
+		hdrToCubemap->Use();
+		hdrToCubemap->Int("hdrMap", 0);
+		hdrToCubemap->Mat4("uProjection", captureProjection);
+		
+		glViewport(0, 0, width, width);
+		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+		for (uint32_t i = 0; i < 6; i++)
+		{
+			hdrToCubemap->Mat4("uView", captureViews[i]);
+			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, hdrcubemap, 0);
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+			cube->Mesh()->Bind();
+			glDrawArrays(GL_TRIANGLES, 0, 36);
+		}
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+		return hdrcubemap;
+	}
+
 	CMP_ERROR LoadTextureFromMemory(void* data, int width, int height, CMP_MipSet* MipSetIn)
 	{
 		CMP_RegisterHostPlugins();
@@ -139,6 +222,7 @@ namespace choice
 		const auto* buffer = texture->image->buffer_view->buffer;
 		if (buffer)
 		{
+			stbi_set_flip_vertically_on_load(0);
 			int x, y, channels;
 			auto* data = stbi_load_from_memory((stbi_uc*)buffer->data + texture->image->buffer_view->offset,
 				buffer->size, &x, &y, &channels, STBI_rgb_alpha);
@@ -191,4 +275,6 @@ namespace choice
 		}
 		return {};
 	}
+
+
 } 

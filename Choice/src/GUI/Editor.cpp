@@ -86,6 +86,11 @@ namespace choice
 					ImGuiFileDialog::Instance()->SetExtentionInfos(".obj", { 0.1f, 1.0f, 0.1f, 1.0f });
 					ImGuiFileDialog::Instance()->OpenModal("AddModel", "Import Model", ".obj", "");
 				}
+				if (ImGui::MenuItem("Add Skybox"))
+				{
+					ImGuiFileDialog::Instance()->SetExtentionInfos(".hdr", { 0.4f, 0.5f, 0.7f, 1.0f });
+					ImGuiFileDialog::Instance()->OpenModal("AddSkybox", "Add Skybox", ".hdr", "");
+				}
 				ImGui::EndPopup();
 			}
 		}
@@ -257,6 +262,18 @@ namespace choice
 				sceneobject->AddProperty<Model>(LoadModel(srcFile));
 				mActiveProject->ActiveScene()->AddObject(sceneobject);
 				std::remove((modelfilepath.substr(0, modelfilepath.find_last_of('.')) + ".glb").c_str());
+			}
+			ImGuiFileDialog::Instance()->Close();
+		}
+
+		if (ImGuiFileDialog::Instance()->Display("AddSkybox", ImGuiWindowFlags_NoCollapse, { IFDModalWidth, IFDModalHeight }))
+		{
+			if (ImGuiFileDialog::Instance()->IsOk())
+			{
+				std::string hdr = ImGuiFileDialog::Instance()->GetFilePathName();
+				SceneObject* sceneobject = new SceneObject();
+				sceneobject->AddProperty<Skybox>(new Skybox(hdr));
+				mActiveProject->ActiveScene()->AddObject(sceneobject);
 			}
 			ImGuiFileDialog::Instance()->Close();
 		}

@@ -16,6 +16,11 @@ namespace choice
 		if (mVertexArray) { glBindVertexArray(mVertexArray); }
 	}
 
+	void VertexArray::UnBind() const
+	{
+		glBindVertexArray(0);
+	}
+
 	void VertexArray::VertexBuffer(void* data, size_t size, std::string layout)
 	{
 		choiceassert(data);
@@ -49,10 +54,13 @@ namespace choice
 
 	void VertexArray::IndexBuffer(void* data, uint32_t count)
 	{
-		mCount = count;
-		glCreateBuffers(1, &mIndexBuffer);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mIndexBuffer);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, count * sizeof(uint32_t), data, GL_STATIC_DRAW);
+		if (data)
+		{
+			mCount = count;
+			glCreateBuffers(1, &mIndexBuffer);
+			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mIndexBuffer);
+			glBufferData(GL_ELEMENT_ARRAY_BUFFER, count * sizeof(uint32_t), data, GL_STATIC_DRAW);
+		}
 	}
 
 }

@@ -18,6 +18,8 @@ namespace choice
 
 		std::unique_ptr<Window>& GetWindow() { return mWindow; }
 		std::unique_ptr<Editor>& GetEditor() { return mEditor; }
+		std::unique_ptr<GUI>& GetGUI() { return mGUI; }
+		std::unique_ptr<Pipeline>& GetPipeline() { return mPipeline; }
 
 		static Choice* Instance() { return sInstance; }
 	private:

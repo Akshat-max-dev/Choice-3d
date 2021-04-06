@@ -14,7 +14,7 @@ namespace choice
 
 	void windowsizecallback(GLFWwindow* window, int width, int height)
 	{
-		//To do
+		Choice::Instance()->GetPipeline()->Visible((uint32_t)width, (uint32_t)height);
 	}
 
 	void cursorposcallback(GLFWwindow* window, double xpos, double ypos)

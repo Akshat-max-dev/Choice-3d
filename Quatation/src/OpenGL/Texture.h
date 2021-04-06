@@ -42,4 +42,19 @@ namespace choice
 			glBindTexture(GL_TEXTURE_2D, mRendererId);
 		}
 	};
+
+	const uint32_t LoadTextureCubemap(const std::string& hdrmap);
+
+	class TextureCubemap :public Texture
+	{
+	public:
+		TextureCubemap(uint32_t id) { mRendererId = id; }
+		~TextureCubemap() { Texture::Destroy(); }
+
+		void Bind(uint32_t slot)const override
+		{
+			glActiveTexture(GL_TEXTURE0 + slot);
+			glBindTexture(GL_TEXTURE_CUBE_MAP, mRendererId);
+		}
+	};
 }

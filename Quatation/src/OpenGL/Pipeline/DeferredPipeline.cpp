@@ -130,17 +130,25 @@ namespace choice
 					{
 						mGeometryPass.second->Use();
 						if (model->Materials[mesh.second]->DiffuseMap) 
-						{ model->Materials[mesh.second]->DiffuseMap->Bind(0); }
+						{ model->Materials[mesh.second]->DiffuseMap->Bind(6); }
 						if (model->Materials[mesh.second]->NormalMap) 
 						{ model->Materials[mesh.second]->NormalMap->Bind(1); }
-						mGeometryPass.second->Int("gMaterial.Diffuse", 0);
+						mGeometryPass.second->Int("gMaterial.Diffuse", 6);
 						mGeometryPass.second->Int("gMaterial.Normal", 1);
 						mGeometryPass.second->Mat4("uViewProjection", camera->ViewProjection());
-						mGeometryPass.second->Mat4("uTransform", glm::scale(glm::mat4(1.0f), { 0.1f, 0.1f, 0.1f }));
+						mGeometryPass.second->Mat4("uTransform", glm::mat4(1.0f));
 						mesh.first->Bind();
 						uint32_t count = mesh.first->GetCount();
 						glDrawElements(GL_TRIANGLES, count, GL_UNSIGNED_INT, nullptr);
 					}
+				}
+
+				Skybox* skybox = object->GetProperty<Skybox>();
+				if (skybox)
+				{
+					glDepthFunc(GL_LEQUAL);
+					skybox->Draw(camera);
+					glDepthFunc(GL_LESS);
 				}
 			}
 		}
