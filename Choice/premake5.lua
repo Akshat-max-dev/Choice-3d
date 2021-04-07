@@ -50,7 +50,9 @@ project "Choice"
         "%{Dependency.ImGuiFileDialog}",
         "%{Dependency.compressonator}",
         "%{Dependency.stb_image}",
-        "%{Dependency.gli}"
+        "%{Dependency.gli}",
+        "%{Dependency.tinyexr}",
+        "%{Dependency.filesystem}"
     }
 
     links

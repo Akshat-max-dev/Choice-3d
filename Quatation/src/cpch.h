@@ -20,7 +20,10 @@ if(!msg){__debugbreak();}
 #include <sstream>
 #include <direct.h>
 
+#ifndef GHC_USE_STD_FS
+#include <filesystem.hpp>
+#endif
+
 #ifdef EXE
-#include <filesystem>
 #include <Window.h>
 #endif

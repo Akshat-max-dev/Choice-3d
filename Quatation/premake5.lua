@@ -36,7 +36,11 @@ project "Quatation"
 
         --stb_image
         "%{Dependency.stb_image}/stb_image.h",
-        "%{Dependency.stb_image}/stb_image.cpp"
+        "%{Dependency.stb_image}/stb_image.cpp",
+
+        --tinyexr
+        "%{Dependency.tinyexr}/tinyexr.h",
+        "%{Dependency.tinyexr}/tinyexr.cpp"
     }
 
     includedirs
@@ -51,7 +55,9 @@ project "Quatation"
         "%{Dependency.ImGuiFileDialog}",
         "%{Dependency.compressonator}",
         "%{Dependency.stb_image}",
-        "%{Dependency.gli}"
+        "%{Dependency.gli}",
+        "%{Dependency.tinyexr}",
+        "%{Dependency.filesystem}"
     }
 
     libdirs
