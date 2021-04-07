@@ -39,7 +39,6 @@ namespace choice
 		std::string activescenename;
 		activescenename.resize(activescenenamesize);
 		readcproj.read((char*)activescenename.data(), activescenenamesize);
-		if (mActiveScene) { delete mActiveScene; }
 		mActiveScene = new Scene(mDirectory + "\\" + mName + "\\" + activescenename + "\\" + activescenename + ".cscene");
 		readcproj.close();
 	}
