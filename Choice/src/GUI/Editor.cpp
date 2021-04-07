@@ -106,6 +106,7 @@ namespace choice
 			{
 			case ModalPurpose::NEWPROJECT:
 				ImGui::OpenPopup("New Project");
+				ImGui::SetNextWindowPos(viewport->GetCenter(), ImGuiCond_Appearing, { 0.5f, 0.5f });
 				ImGui::SetNextWindowSize({ 349.0f, 128.0f }, ImGuiCond_Appearing);
 				if (ImGui::BeginPopupModal("New Project", NULL, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove))
 				{
