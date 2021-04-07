@@ -43,6 +43,17 @@ namespace choice
 			object = new SceneObject();
 			std::string proptype = ReadPropertyType(containedscene);
 
+			if (proptype == "Skybox")
+			{
+				uint32_t skyboxsrcFileSize;
+				containedscene.read((char*)&skyboxsrcFileSize, sizeof(skyboxsrcFileSize));
+				std::string skyboxsrcFile;
+				skyboxsrcFile.resize(skyboxsrcFileSize);
+				containedscene.read((char*)skyboxsrcFile.data(), skyboxsrcFileSize);
+
+				object->AddProperty<Skybox>(new Skybox(skyboxsrcFile));
+			}
+
 			if (proptype == "Model")
 			{
 				uint32_t srcFilesize;
@@ -91,7 +102,9 @@ namespace choice
 					cscene.write((char*)&proptypesize, sizeof(proptypesize));
 					cscene.write((char*)proptype.data(), proptypesize);
 
-
+					uint32_t skyboxsrcFilesize = (uint32_t)skyboxprop->GetFilepath().size();
+					cscene.write((char*)&skyboxsrcFilesize, sizeof(skyboxsrcFilesize));
+					cscene.write(skyboxprop->GetFilepath().data(), skyboxsrcFilesize);
 				}
 
 				auto modelprop = object->GetProperty<Model>();

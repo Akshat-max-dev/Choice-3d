@@ -15,6 +15,7 @@ namespace choice
 		~Skybox();
 
 		void Draw(Camera* camera);
+		const std::string& GetFilepath()const { return mFilepath; }
 	private:
 		Cube* mCube;
 		TextureCubemap* mCubemap;
