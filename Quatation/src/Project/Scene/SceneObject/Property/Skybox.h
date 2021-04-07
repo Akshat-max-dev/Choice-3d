@@ -19,5 +19,6 @@ namespace choice
 		Cube* mCube;
 		TextureCubemap* mCubemap;
 		Shader* mShader;
+		std::string mFilepath;
 	};
 }

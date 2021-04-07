@@ -16,11 +16,6 @@ namespace choice
 		if (mVertexArray) { glBindVertexArray(mVertexArray); }
 	}
 
-	void VertexArray::UnBind() const
-	{
-		glBindVertexArray(0);
-	}
-
 	void VertexArray::VertexBuffer(void* data, size_t size, std::string layout)
 	{
 		choiceassert(data);

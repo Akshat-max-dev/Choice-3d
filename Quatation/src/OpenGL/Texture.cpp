@@ -6,6 +6,7 @@
 #include <gli/gli.hpp>
 #include <glad/glad.h>
 #include <glm/glm.hpp>
+#include <tinyexr.h>
 
 #include "Shader.h"
 #include "Primitives/Cube.h"
@@ -111,9 +112,32 @@ namespace choice
 		glCreateFramebuffers(1, &framebuffer);
 		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
 
-		stbi_set_flip_vertically_on_load(1);
+		std::string ext = hdrmap.substr(hdrmap.find_last_of('.'), hdrmap.size());
+
 		int width, height, components;
-		auto* data = stbi_loadf(hdrmap.c_str(), &width, &height, &components, 0);
+		float* data = nullptr;
+
+		GLenum internalformat = GL_NONE;
+		GLenum dataformat = GL_NONE;
+
+		if (ext == ".hdr")
+		{
+			internalformat = GL_RGB16F;
+			dataformat = GL_RGB;
+			stbi_set_flip_vertically_on_load(1);
+			data = stbi_loadf(hdrmap.c_str(), &width, &height, &components, 0);
+		}
+		else if (ext == ".exr")
+		{
+			internalformat = GL_RGBA16F;
+			dataformat = GL_RGBA;
+			const char* err = nullptr;
+			int ret = LoadEXR(&data, &width, &height, hdrmap.c_str(), &err);
+			if (ret != TINYEXR_SUCCESS)
+			{
+				if (err) { FreeEXRErrorMessage(err); }
+			}
+		}
 
 		uint32_t hdr;
 		if (!data)
@@ -124,22 +148,23 @@ namespace choice
 
 		glCreateTextures(GL_TEXTURE_2D, 1, &hdr);
 		glBindTexture(GL_TEXTURE_2D, hdr);
-		glTextureStorage2D(hdr, 1, GL_RGB32F, width, height);
+		glTextureStorage2D(hdr, 1, internalformat, width, height);
 
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-		glTextureSubImage2D(hdr, 0, 0, 0, width, height, GL_RGB, GL_FLOAT, data);
-		stbi_image_free(data);
+		glTextureSubImage2D(hdr, 0, 0, 0, width, height, dataformat, GL_FLOAT, data);
+		if (ext == ".hdr") { stbi_image_free(data); }
+		else if (ext == ".exr") { free(data); }
 
 		uint32_t hdrcubemap;
 		glCreateTextures(GL_TEXTURE_CUBE_MAP, 1, &hdrcubemap);
 		glBindTexture(GL_TEXTURE_CUBE_MAP, hdrcubemap);
 		for (uint32_t i = 0; i < 6; i++)
 		{
-			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB32F, width, width, 0, GL_RGB, GL_FLOAT, nullptr);
+			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, internalformat, 1024, 1024, 0, dataformat, GL_FLOAT, nullptr);
 		}
 		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -147,7 +172,7 @@ namespace choice
 		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-		glm::mat4 captureProjection = glm::perspective(glm::radians(90.0f), (float)width / (float)width, 0.1f, 10.0f);
+		glm::mat4 captureProjection = glm::perspective(glm::radians(90.0f), (float)1024 / (float)1024, 0.1f, 10.0f);
 		glm::mat4 captureViews[] =
 		{
 			glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
@@ -168,7 +193,7 @@ namespace choice
 		hdrToCubemap->Int("hdrMap", 0);
 		hdrToCubemap->Mat4("uProjection", captureProjection);
 		
-		glViewport(0, 0, width, width);
+		glViewport(0, 0, 1024, 1024);
 		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
 		for (uint32_t i = 0; i < 6; i++)
 		{

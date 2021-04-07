@@ -89,7 +89,8 @@ namespace choice
 				if (ImGui::MenuItem("Add Skybox"))
 				{
 					ImGuiFileDialog::Instance()->SetExtentionInfos(".hdr", { 0.4f, 0.5f, 0.7f, 1.0f });
-					ImGuiFileDialog::Instance()->OpenModal("AddSkybox", "Add Skybox", ".hdr", "");
+					ImGuiFileDialog::Instance()->SetExtentionInfos(".exr", { 0.5f, 0.2f, 0.5f, 1.0f });
+					ImGuiFileDialog::Instance()->OpenModal("AddSkybox", "Add Skybox", ".hdr,.exr", "");
 				}
 				ImGui::EndPopup();
 			}
@@ -215,7 +216,7 @@ namespace choice
 				}
 
 				//Absolute Path To gltf.py
-				std::string abspath = std::filesystem::absolute("Choice/assets/scripts/gltf.py").string();
+				std::string abspath = ghc::filesystem::absolute("Choice/assets/scripts/gltf.py").string();
 
 				writebat << "call " << c + path + c << " --background --python " << c + abspath + c << std::endl;
 				writebat << "cls";
@@ -270,9 +271,16 @@ namespace choice
 		{
 			if (ImGuiFileDialog::Instance()->IsOk())
 			{
-				std::string hdr = ImGuiFileDialog::Instance()->GetFilePathName();
+				std::string hdri = ImGuiFileDialog::Instance()->GetFilePathName();
+
+				std::string hdriname = hdri.substr(hdri.find_last_of('\\') + 1, hdri.size());
+
+				std::string dsthdri = mActiveProject->ActiveScene()->Directory() + "\\" +
+					mActiveProject->ActiveScene()->Name() + "\\" + "Assets\\" + hdriname;
+
+				ghc::filesystem::copy_file(hdri, dsthdri);
 				SceneObject* sceneobject = new SceneObject();
-				sceneobject->AddProperty<Skybox>(new Skybox(hdr));
+				sceneobject->AddProperty<Skybox>(new Skybox(dsthdri));
 				mActiveProject->ActiveScene()->AddObject(sceneobject);
 			}
 			ImGuiFileDialog::Instance()->Close();

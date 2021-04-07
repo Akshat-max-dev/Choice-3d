@@ -2,7 +2,7 @@
 
 namespace choice
 {
-	Skybox::Skybox(const std::string& skybox)
+	Skybox::Skybox(const std::string& skybox) :mFilepath(skybox)
 	{
 		mCube = new Cube();
 		mShader = new Shader("Choice/assets/shaders/HDRSkybox.glsl");

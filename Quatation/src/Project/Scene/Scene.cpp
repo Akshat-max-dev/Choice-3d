@@ -83,6 +83,17 @@ namespace choice
 				std::string proptype;
 				uint32_t proptypesize = 0;
 
+				auto skyboxprop = object->GetProperty<Skybox>();
+				if (skyboxprop)
+				{
+					proptype = "Skybox";
+					proptypesize = (uint32_t)proptype.size();
+					cscene.write((char*)&proptypesize, sizeof(proptypesize));
+					cscene.write((char*)proptype.data(), proptypesize);
+
+
+				}
+
 				auto modelprop = object->GetProperty<Model>();
 				if (modelprop)
 				{
