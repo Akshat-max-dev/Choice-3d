@@ -13,7 +13,7 @@
 
 namespace choice
 {
-	const std::string CompressTexture(const std::string& srcFile, const std::string& dstDirectory, 
+	const std::string CompressTexture(const std::string& srcFile, const std::string& dstDirectory,
 		BlockCompressionFormat format, bool generateMips)
 	{
 		CMP_MipSet srcMipSet = {};
@@ -47,7 +47,7 @@ namespace choice
 			return {};
 		}
 
-		std::string dstFile = dstDirectory + srcFile.substr(srcFile.find_last_of('\\') , srcFile.size());
+		std::string dstFile = dstDirectory + srcFile.substr(srcFile.find_last_of('\\'), srcFile.size());
 
 		CMP_SaveTexture(dstFile.c_str(), &dstMipSet);
 
@@ -175,12 +175,12 @@ namespace choice
 		glm::mat4 captureProjection = glm::perspective(glm::radians(90.0f), (float)1024 / (float)1024, 0.1f, 10.0f);
 		glm::mat4 captureViews[] =
 		{
-			glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+			glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
 			glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(-1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
-			glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 0.0f,  1.0f,  0.0f), glm::vec3(0.0f,  0.0f,  1.0f)),
-			glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 0.0f, -1.0f,  0.0f), glm::vec3(0.0f,  0.0f, -1.0f)),
-			glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 0.0f,  0.0f,  1.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
-			glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))
+			glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  1.0f,  0.0f), glm::vec3(0.0f,  0.0f,  1.0f)),
+			glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f,  0.0f), glm::vec3(0.0f,  0.0f, -1.0f)),
+			glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f,  1.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+			glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))
 		};
 
 		std::unique_ptr<Cube> cube = std::make_unique<Cube>();
@@ -192,7 +192,7 @@ namespace choice
 		hdrToCubemap->Use();
 		hdrToCubemap->Int("hdrMap", 0);
 		hdrToCubemap->Mat4("uProjection", captureProjection);
-		
+
 		glViewport(0, 0, 1024, 1024);
 		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
 		for (uint32_t i = 0; i < 6; i++)
@@ -302,4 +302,4 @@ namespace choice
 	}
 
 
-} 
+}

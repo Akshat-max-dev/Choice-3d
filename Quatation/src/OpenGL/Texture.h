@@ -36,7 +36,7 @@ namespace choice
 		Texture2D(uint32_t id) { mRendererId = id; }
 		~Texture2D() { Texture::Destroy(); }
 
-		void Bind(uint32_t slot)const override 
+		void Bind(uint32_t slot)const override
 		{
 			glActiveTexture(GL_TEXTURE0 + slot);
 			glBindTexture(GL_TEXTURE_2D, mRendererId);

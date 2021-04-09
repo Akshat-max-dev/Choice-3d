@@ -17,8 +17,8 @@ namespace choice
 	Scene::Scene(const std::string& name, const std::string& directory)
 		:mName(name), mDirectory(directory)
 	{
-		_mkdir((mDirectory + "\\" + mName).c_str());
-		_mkdir((mDirectory + "\\" + mName + "\\" + "Assets").c_str());
+		ghc::filesystem::create_directory(mDirectory + "\\" + mName);
+		ghc::filesystem::create_directory(mDirectory + "\\" + mName + "\\" + "Assets");
 	}
 
 	Scene::Scene(const std::string& cscene)

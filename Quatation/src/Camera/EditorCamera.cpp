@@ -9,9 +9,9 @@ namespace choice
 	{
 		mFocus = { 0.0f, 0.0f, 0.0f };
 		mOffset = { 0.0f, 0.0f, 5.0f };
-		mView = glm::lookAt(mFocus + mOffset, mFocus, mUp);
-		mRight = glm::cross(mUp, glm::normalize(mOffset));
+		mRight = glm::cross({ 0.0f, 1.0f, 0.0f }, glm::normalize(mOffset));
 		mUp = glm::cross(glm::normalize(mOffset), mRight);
+		mView = glm::lookAt(mFocus + mOffset, mFocus, mUp);
 	}
 
 	void EditorCamera::Update()

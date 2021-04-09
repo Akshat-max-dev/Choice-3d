@@ -34,7 +34,7 @@ namespace choice
 		glm::mat4 mView = glm::mat4(1.0f);
 		glm::mat4 mProjection;
 		glm::vec3 mFocus, mOffset, mRight;
-		glm::vec3 mUp = { 0.0f, 1.0f, 0.0f };
+		glm::vec3 mUp;
 		float mFov = 45.0f;
 		float mAspectRatio;
 		float mNearClip = 0.1f;

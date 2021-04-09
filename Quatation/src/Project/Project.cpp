@@ -15,7 +15,7 @@ namespace choice
 		}
 		check.close();
 
-		_mkdir((mDirectory + "\\" + mName).c_str());
+		ghc::filesystem::create_directory(mDirectory + "\\" + mName);
 
 		mActiveScene = new Scene("Default Scene", mDirectory + "\\" + mName);
 	}
