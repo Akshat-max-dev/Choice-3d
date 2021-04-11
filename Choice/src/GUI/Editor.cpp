@@ -84,7 +84,7 @@ namespace choice
 				if (ImGui::MenuItem("Add Model"))
 				{
 					ImGuiFileDialog::Instance()->SetExtentionInfos(".obj", { 0.1f, 1.0f, 0.1f, 1.0f });
-					ImGuiFileDialog::Instance()->OpenModal("AddModel", "Import Model", ".obj", "");
+					ImGuiFileDialog::Instance()->OpenModal("AddModel", "Import Model", ".obj,.glb", "");
 				}
 				if (ImGui::MenuItem("Add Skybox"))
 				{
@@ -243,27 +243,37 @@ namespace choice
 				}
 				checkforbat.close();
 
-				std::ofstream temporary("Temporary", std::ios::out);
-				if (temporary.bad() || temporary.fail())
+				std::string ext = ghc::filesystem::path(modelfilepath).extension().string();
+
+				if (!(ext == ".glb" || ext == ".gltf"))
 				{
-					std::cout << "Cannot Write Temporary File" << std::endl;
-					ImGuiFileDialog::Instance()->Close();
-					return;
+					std::ofstream temporary("Temporary", std::ios::out);
+					if (temporary.bad() || temporary.fail())
+					{
+						std::cout << "Cannot Write Temporary File" << std::endl;
+						ImGuiFileDialog::Instance()->Close();
+						return;
+					}
+					temporary << modelfilepath;
+					temporary.close();
+
+					std::system("gltf.bat");
+					std::remove("Temporary");
 				}
-				temporary << modelfilepath;
-				temporary.close();
-				
-				std::system("gltf.bat");
-				std::remove("Temporary");
 				
 				std::string srcFile = DumpModel(modelfilepath.substr(0, modelfilepath.find_last_of('.')) + ".glb", 
 					mActiveProject->ActiveScene()->Directory() + "\\" + 
 					mActiveProject->ActiveScene()->Name() + "\\" + "Assets");
 
 				SceneObject* sceneobject = new SceneObject();
-				sceneobject->AddProperty<Model>(LoadModel(srcFile));
+				auto data = LoadModel(srcFile);
+				sceneobject->AddProperty<Model>(data.first);
+				sceneobject->AddProperty<Transform>(data.second);
 				mActiveProject->ActiveScene()->AddObject(sceneobject);
-				std::remove((modelfilepath.substr(0, modelfilepath.find_last_of('.')) + ".glb").c_str());
+				if (!(ext == ".glb" || ext == ".gltf"))
+				{
+					std::remove((modelfilepath.substr(0, modelfilepath.find_last_of('.')) + ".glb").c_str());
+				}
 			}
 			ImGuiFileDialog::Instance()->Close();
 		}

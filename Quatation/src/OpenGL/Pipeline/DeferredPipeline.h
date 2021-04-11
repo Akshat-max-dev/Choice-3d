@@ -20,7 +20,27 @@ namespace choice
 		void BindGBuffer(glm::uvec4 slots);
 	private:
 		void Invalidate()override;
-		uint32_t mAlbedoSId, mPositionId, mNormalId, mDepthId;
+		uint32_t mAlbedoSId, mPositionId, mNormalId, mDepthStencilId;
+	};
+
+	struct PixelInfo
+	{
+		float ObjectId = 0.0f;
+		float DrawId = 0.0f;
+		float PrimitiveId = 0.0f;
+	};
+
+	class MousePickingCapture :public Framebuffer
+	{
+	public:
+		MousePickingCapture(uint32_t w, uint32_t h);
+		~MousePickingCapture();
+
+		PixelInfo* ReadPixels(uint32_t xpos, uint32_t ypos);
+	private:
+		void Invalidate()override;
+		uint32_t mPickingId;
+		PixelInfo* mPixelInfo;
 	};
 
 	class DeferredPipeline :public Pipeline
@@ -31,6 +51,8 @@ namespace choice
 		void Update(Scene* scene, Camera* camera)override;
 		void Shutdown()override;
 	private:
+		std::pair<MousePickingCapture*, Shader*> mMousePickingPass;
+		Shader* mOutline;
 		std::pair<DeferredGeometryCapture*, Shader*> mGeometryPass;
 		Shader* mLightingPass;
 	};

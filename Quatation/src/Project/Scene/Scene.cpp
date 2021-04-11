@@ -62,7 +62,10 @@ namespace choice
 				srcFile.resize(srcFilesize);
 				containedscene.read((char*)srcFile.data(), srcFilesize);
 
-				object->AddProperty<Model>(LoadModel(srcFile));
+				auto data = LoadModel(srcFile);
+
+				object->AddProperty<Model>(data.first);
+				object->AddProperty<Transform>(data.second);
 			}
 		}
 		containedscene.close();

@@ -32,6 +32,12 @@ namespace choice
 		glUniform1i(location, data);
 	}
 
+	void Shader::UInt(const char* name, const uint32_t data)
+	{
+		GLint location = glGetUniformLocation(mProgram, name);
+		glUniform1ui(location, data);
+	}
+
 	void Shader::Mat4(const char* name, const glm::mat4& data)
 	{
 		GLint location = glGetUniformLocation(mProgram, name);
@@ -95,8 +101,9 @@ namespace choice
 
 				glDeleteShader(Id);
 
-				std::cout << "Failed To Compile " + shaderfile.substr(0, shaderfile.find_last_of('/') + 1) << std::endl;
-				return;
+				std::cout << "Failed To Compile Shader " + ghc::filesystem::path(shaderfile).stem().string() << std::endl;
+				std::cout << infoLog.data() << std::endl;
+				choiceassert(0);
 			}
 
 			glAttachShader(program, Id);
