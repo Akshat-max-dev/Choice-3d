@@ -3,8 +3,7 @@
 
 #include "OpenGL/VertexArray.h"
 #include "OpenGL/Texture.h"
-
-#include <glm/glm.hpp>
+#include "Transform.h"
 
 namespace choice
 {
@@ -40,10 +39,9 @@ namespace choice
 		std::string Name;
 		std::vector<Material*> Materials;
 		std::vector<std::pair<VertexArray*, uint32_t>> Meshes;
-		glm::mat4 Transform = glm::mat4(1.0f);
 		~Model();
 	};
 
-	Model* LoadModel(const std::string& srcFile);
+	std::pair<Model*, Transform*> LoadModel(const std::string& srcFile);
 	const std::string DumpModel(const std::string& srcFile, const std::string& dstDirectory);
 }

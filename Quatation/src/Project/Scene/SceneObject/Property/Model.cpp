@@ -4,6 +4,8 @@
 #include <cgltf.h>
 
 #include <glm/glm.hpp>
+#define GLM_ENABLE_EXPERIMENTAL
+#include<glm/gtx/quaternion.hpp>
 
 #include "OpenGL/Texture.h"
 
@@ -63,6 +65,20 @@ namespace choice
 		return 0;
 	}
 
+	void cgltfMatrixtoMat4(const cgltf_float data[16], glm::mat4& transform)
+	{
+		transform[0][0] = data[0];  transform[1][0] = data[1];	transform[2][0] = data[2];  transform[3][0] = data[3];
+		transform[0][1] = data[4];  transform[1][1] = data[5];	transform[2][1] = data[6];	transform[3][1] = data[7];
+		transform[0][2] = data[8];	transform[1][2] = data[9];	transform[2][2] = data[10]; transform[3][2] = data[11];
+		transform[0][3] = data[12]; transform[1][3] = data[13];	transform[2][3] = data[14];	transform[3][3] = data[15];
+	}
+
+	glm::mat4 toTranform(const glm::vec3 position, const glm::quat rotation, const glm::vec3 scale)
+	{
+		return glm::translate(glm::mat4(1.0f), position) * 
+			glm::toMat4(rotation) * glm::scale(glm::mat4(1.0f), scale);
+	}
+
 	enum MESH_ATTRIBUTE_TYPE
 	{
 		POSITION = 0, NORMAL = 1, TEXCOORDS = 2, TANGENTS = 3, COUNT = 4
@@ -73,8 +89,10 @@ namespace choice
 	};
 
 	void loadNode(const cgltf_node* node, std::vector<DumpableMeshData>* meshdata,
-		std::vector<DumpableMaterialData>* materialdata, const std::string& dstDirectory)
+		std::vector<DumpableMaterialData>* materialdata, glm::mat4& parenttransform, 
+		const std::string& dstDirectory)
 	{
+
 		if (node->mesh)
 		{
 			auto& primitive = node->mesh->primitives[0];
@@ -190,6 +208,24 @@ namespace choice
 
 			DumpableMeshData data;
 
+			if (node->has_matrix) { cgltfMatrixtoMat4(node->matrix, parenttransform); }
+			else
+			{
+				glm::vec3 _translation = node->has_translation ?
+					glm::vec3(node->translation[0], node->translation[1], node->translation[2]) :
+					glm::vec3(0.0f, 0.0f, 0.0f);
+				
+				glm::quat _rotation = node->has_rotation ?
+					glm::quat(node->rotation[0], node->rotation[1], node->rotation[2], node->rotation[3]) :
+					glm::quat(0.0f, glm::vec3(0.0f, 0.0f, 0.0f));
+
+				glm::vec3 _scale = node->has_scale ?
+					glm::vec3(node->scale[0], node->scale[1], node->scale[2]) :
+					glm::vec3(1.0f, 1.0f, 1.0f);
+
+				parenttransform *= toTranform(_translation, _rotation, _scale);
+			}
+
 			//Index Buffer
 			const cgltf_accessor* accessor = primitive.indices;
 			const auto* view = accessor->buffer_view;
@@ -247,18 +283,18 @@ namespace choice
 		for (auto i = 0; i < node->children_count; i++)
 		{
 			const auto* child = node->children[i];
-			loadNode(child, meshdata, materialdata, dstDirectory);
+			loadNode(child, meshdata, materialdata, parenttransform, dstDirectory);
 		}
 	}
 
-	Model* LoadModel(const std::string& srcFile)
+	std::pair<Model*, Transform*> LoadModel(const std::string& srcFile)
 	{
 		std::ifstream cmodel(srcFile, std::ios::in | std::ios::binary);
 		if (cmodel.fail() || cmodel.bad())
 		{
 			std::cout << "Error Loading Model" << std::endl;
 			cmodel.close();
-			return nullptr;
+			return { nullptr, nullptr };
 		}
 
 		Model* model = new Model();
@@ -328,8 +364,23 @@ namespace choice
 			mesh.second = materialindex;
 		}
 
+		Transform* transform = new Transform();
+
+		cmodel.read((char*)&transform->Position.x, sizeof(transform->Position.x));
+		cmodel.read((char*)&transform->Position.y, sizeof(transform->Position.y));
+		cmodel.read((char*)&transform->Position.z, sizeof(transform->Position.z));
+
+		cmodel.read((char*)&transform->Rotation.x, sizeof(transform->Rotation.x));
+		cmodel.read((char*)&transform->Rotation.y, sizeof(transform->Rotation.y));
+		cmodel.read((char*)&transform->Rotation.z, sizeof(transform->Rotation.z));
+
+		cmodel.read((char*)&transform->Scale.x, sizeof(transform->Scale.x));
+		cmodel.read((char*)&transform->Scale.y, sizeof(transform->Scale.y));
+		cmodel.read((char*)&transform->Scale.z, sizeof(transform->Scale.z));
+
 		cmodel.close();
-		return model;
+
+		return { model, transform };
 	}
 
 	const std::string DumpModel(const std::string& srcFile, const std::string& dstDirectory)
@@ -362,12 +413,23 @@ namespace choice
 		std::vector<DumpableMeshData>* meshdata = new std::vector<DumpableMeshData>();
 		std::vector<DumpableMaterialData>* materialdata = new std::vector<DumpableMaterialData>();
 
+		glm::mat4 parenttransform = glm::mat4(1.0f);
+
 		cgltf_scene* scene = data->scene;
 		auto nodescount = scene->nodes_count;
 		for (auto i = 0; i < nodescount; i++)
 		{
 			const auto* node = scene->nodes[i];
-			loadNode(node, meshdata, materialdata, dstDirectory);
+			loadNode(node, meshdata, materialdata, parenttransform, dstDirectory);
+		}
+
+		glm::vec3 position, rotation, scale;
+		bool res = DecomposeTransform(parenttransform, position, rotation, scale);
+		if (!res)
+		{
+			position = { 0.0f, 0.0f, 0.0f };
+			rotation = { 0.0f, 0.0f, 0.0f };
+			scale = { 1.0f, 1.0f, 1.0f };
 		}
 
 		std::ofstream cmodel(dstFile, std::ios::out | std::ios::binary);
@@ -419,6 +481,18 @@ namespace choice
 		}
 
 		delete meshdata;
+
+		cmodel.write((char*)&position.x, sizeof(position.x));
+		cmodel.write((char*)&position.y, sizeof(position.y));
+		cmodel.write((char*)&position.z, sizeof(position.z));
+
+		cmodel.write((char*)&rotation.x, sizeof(rotation.x));
+		cmodel.write((char*)&rotation.y, sizeof(rotation.y));
+		cmodel.write((char*)&rotation.z, sizeof(rotation.z));
+
+		cmodel.write((char*)&scale.x, sizeof(scale.x));
+		cmodel.write((char*)&scale.y, sizeof(scale.y));
+		cmodel.write((char*)&scale.z, sizeof(scale.z));
 
 		cgltf_free(data);
 
