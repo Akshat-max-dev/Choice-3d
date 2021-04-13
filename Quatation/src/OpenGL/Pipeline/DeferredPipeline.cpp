@@ -127,7 +127,9 @@ namespace choice
 	void DeferredPipeline::Update(Scene* scene, Camera* camera)
 	{
 		glEnable(GL_DEPTH_TEST);
-		glEnable(GL_STENCIL_TEST);
+		glDepthFunc(GL_LESS);
+		glDisable(GL_STENCIL_TEST);
+		glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
 		glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
 
 		mMousePickingPass.first->Bind();
@@ -160,12 +162,13 @@ namespace choice
 		mMousePickingPass.first->UnBind();
 
 		static int selectedObjectId = -1;
-		if (Input::IsButtonPressed(GLFW_MOUSE_BUTTON_1))
+		if (Input::IsButtonPressed(GLFW_MOUSE_BUTTON_1) && mMousePicking)
 		{
 			PixelInfo* pixelinfo = mMousePickingPass.first->ReadPixels((uint32_t)Input::GetMouseX(),
 				Choice::Instance()->GetWindow()->GetHeight() - (uint32_t)Input::GetMouseY() - 1);
 			if (pixelinfo->PrimitiveId) { selectedObjectId = static_cast<int>(pixelinfo->ObjectId); }
 			else { selectedObjectId = -1; }
+			Choice::Instance()->GetEditor()->SetSelectedObjectIndex(selectedObjectId);
 		}
 
 		mGeometryPass.first->Bind();
@@ -181,6 +184,7 @@ namespace choice
 				{
 					if (_objectindex == selectedObjectId)
 					{
+						glEnable(GL_STENCIL_TEST);
 						glClear(GL_STENCIL_BUFFER_BIT);
 						glStencilFunc(GL_ALWAYS, 1, 0xFF);
 						glStencilMask(0xFF);
@@ -240,6 +244,11 @@ namespace choice
 		mGeometryPass.first->BindGBuffer({ 0, 1, 2, 3 });
 		mLightingPass->Int("gBuffer.AlbedoS", 2);
 		glDrawArrays(GL_TRIANGLES, 0, 3);
+	}
+
+	void DeferredPipeline::MousePicking(bool value)
+	{
+		mMousePicking = value;
 	}
 
 	void DeferredPipeline::Shutdown()

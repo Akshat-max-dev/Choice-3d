@@ -3,8 +3,12 @@
 #include <imgui.h>
 #include <ImGuiFileDialog.h>
 
+#include "FontAwesome.h"
+
 #include "Input.h"
 #include "Choice.h"
+
+#include <glm/glm.hpp>
 
 namespace choice
 {
@@ -296,11 +300,145 @@ namespace choice
 			}
 			ImGuiFileDialog::Instance()->Close();
 		}
+
+		if (mSelectedObjectIndex != -1)
+		{
+			SceneObject* object = mActiveProject->ActiveScene()->GetSceneObjects()[mSelectedObjectIndex];
+			if (object) { DrawObjectInspectorPanel(object); }
+		}
+
+
 	}
 
 	void Editor::Update()
 	{
 		mCamera->Update();
+	}
+
+	template<typename T>
+	void SceneObject::DrawProperty() { static_assert(false); }
+
+	template<>
+	void SceneObject::DrawProperty<Model>()
+	{
+		if (mModel.has_value())
+		{
+			if (ImGui::CollapsingHeader("Model", ImGuiTreeNodeFlags_OpenOnArrow))
+			{
+				ImGui::Text("TODO");
+			}
+		}
+	}
+
+	static void TransformUI(const std::string& label, glm::vec3& value, float resetValue)
+	{
+		ImGui::PushID(label.c_str());
+		ImGui::TableSetColumnIndex(0);
+		ImGui::Text(label.c_str());
+
+		ImGui::TableSetColumnIndex(1);
+		ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.8f, 0.1f, 0.1f, 1.0f });
+		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{ 1.0f, 0.1f, 0.1f, 1.0f });
+		ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{ 0.8f, 0.1f, 0.1f, 1.0f });
+		if (ImGui::Button("X"))
+		{
+			value.x = resetValue;
+		}
+		ImGui::PopStyleColor(3);
+
+		ImGui::TableSetColumnIndex(2);
+		ImGui::SetNextItemWidth(47.0f);
+		ImGui::DragFloat("##X", &value.x, 0.2f, 0.0f, 0.0f, "%.2f");
+
+		ImGui::TableSetColumnIndex(3);
+		ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.1f, 0.8f, 0.1f, 1.0f });
+		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{ 0.1f, 1.0f, 0.1f, 1.0f });
+		ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{ 0.1f, 0.8f, 0.1f, 1.0f });
+		if (ImGui::Button("Y"))
+		{
+			value.y = resetValue;
+		}
+		ImGui::PopStyleColor(3);
+
+		ImGui::TableSetColumnIndex(4);
+		ImGui::SetNextItemWidth(47.0f);
+		ImGui::DragFloat("##Y", &value.y, 0.2f, 0.0f, 0.0f, "%.2f");
+
+		ImGui::TableSetColumnIndex(5);
+		ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.1f, 0.1f, 0.8f, 1.0f });
+		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{ 0.1f, 0.1f, 1.0f, 1.0f });
+		ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{ 0.1f, 0.1f, 0.8f, 1.0f });
+		if (ImGui::Button("Z"))
+		{
+			value.z = resetValue;
+		}
+		ImGui::PopStyleColor(3);
+
+		ImGui::TableSetColumnIndex(6);
+		ImGui::SetNextItemWidth(47.0f);
+		ImGui::DragFloat("##Z", &value.z, 0.2f, 0.0f, 0.0f, "%.2f");
+		ImGui::PopID();
+	}
+
+	template<>
+	void SceneObject::DrawProperty<Transform>()
+	{
+		if (mTransform.has_value())
+		{
+			if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnArrow))
+			{
+				if (ImGui::BeginTable("##Transform", 7, ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingFixedFit))
+				{
+					ImGui::TableNextRow();
+					TransformUI("Position    ", mTransform.value()->Position, 0.0f);
+					ImGui::TableNextRow();
+					glm::vec3 rotation = glm::degrees(mTransform.value()->Rotation);
+					TransformUI("Rotation    ", rotation, 0.0f);
+					mTransform.value()->Rotation = glm::radians(rotation);
+					ImGui::TableNextRow();
+					TransformUI("Scale       ", mTransform.value()->Scale, 1.0f);
+					ImGui::EndTable();
+				}
+			}
+		}
+	}
+
+	template<>
+	void SceneObject::DrawProperty<Skybox>()
+	{
+		if (mSkybox.has_value())
+		{
+
+		}
+	}
+
+	void Editor::DrawObjectInspectorPanel(SceneObject* object)
+	{
+		std::string icon = ICON_FK_INFO_CIRCLE;
+		ImGui::SetNextWindowSize({ 343.0f, 289.0f }, ImGuiCond_Appearing);
+		ImGui::SetNextWindowSizeConstraints({ 343.0f, 289.0f }, { 343.0f, 679.0f });
+		ImGui::SetNextWindowBgAlpha(0.68f);
+		ImGui::Begin((icon + " Inspector").c_str(), NULL, ImGuiWindowFlags_NoDocking);
+
+		if (ImGui::IsWindowFocused())
+		{
+			Choice::Instance()->GetPipeline()->MousePicking(false);
+		}
+		else if (Input::IsButtonPressed(GLFW_MOUSE_BUTTON_1))
+		{
+			Choice::Instance()->GetPipeline()->MousePicking(true);
+		}
+
+		ImGui::Text(("Name :" + object->Name()).c_str());
+		ImGui::Button("Rename TODO");
+		ImGui::SameLine();
+		ImGui::Button("Delete TODO");
+
+		object->DrawProperty<Transform>();
+		object->DrawProperty<Model>();
+		object->DrawProperty<Skybox>();
+
+		ImGui::End();
 	}
 
 }

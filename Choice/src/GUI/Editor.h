@@ -17,8 +17,12 @@ namespace choice
 		void Execute();
 		void Update();
 
+		void SetSelectedObjectIndex(int index) { mSelectedObjectIndex = index; }
+
 		Camera* GetCamera() { return mCamera; }
 		std::unique_ptr<Project>& GetActiveProject() { return mActiveProject; }
+	private:
+		void DrawObjectInspectorPanel(SceneObject* object);
 	private:
 		Camera* mCamera;
 
@@ -30,5 +34,7 @@ namespace choice
 		ModalPurpose mModalPurpose = ModalPurpose::NONE;
 		bool mShowModal = false;
 		bool mIsBlenderLinked = false;
+	private:
+		int mSelectedObjectIndex = -1;
 	};
 }
