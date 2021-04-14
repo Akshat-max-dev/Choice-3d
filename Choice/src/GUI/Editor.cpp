@@ -90,11 +90,11 @@ namespace choice
 					ImGuiFileDialog::Instance()->SetExtentionInfos(".obj", { 0.1f, 1.0f, 0.1f, 1.0f });
 					ImGuiFileDialog::Instance()->OpenModal("AddModel", "Import Model", ".obj,.glb", "");
 				}
-				if (ImGui::MenuItem("Add Skybox"))
+				if (ImGui::MenuItem("Change Skybox"))
 				{
 					ImGuiFileDialog::Instance()->SetExtentionInfos(".hdr", { 0.4f, 0.5f, 0.7f, 1.0f });
 					ImGuiFileDialog::Instance()->SetExtentionInfos(".exr", { 0.5f, 0.2f, 0.5f, 1.0f });
-					ImGuiFileDialog::Instance()->OpenModal("AddSkybox", "Add Skybox", ".hdr,.exr", "");
+					ImGuiFileDialog::Instance()->OpenModal("ChangeSkybox", "Change Skybox", ".hdr,.exr", "");
 				}
 				ImGui::EndPopup();
 			}
@@ -304,7 +304,7 @@ namespace choice
 			ImGuiFileDialog::Instance()->Close();
 		}
 
-		if (ImGuiFileDialog::Instance()->Display("AddSkybox", ImGuiWindowFlags_NoCollapse, { IFDModalWidth, IFDModalHeight }))
+		if (ImGuiFileDialog::Instance()->Display("ChangeSkybox", ImGuiWindowFlags_NoCollapse, { IFDModalWidth, IFDModalHeight }))
 		{
 			if (ImGuiFileDialog::Instance()->IsOk())
 			{
@@ -316,9 +316,11 @@ namespace choice
 					mActiveProject->ActiveScene()->Name() + "\\" + "Assets\\" + hdriname;
 
 				ghc::filesystem::copy_file(hdri, dsthdri);
-				SceneObject* sceneobject = new SceneObject();
-				sceneobject->AddProperty<Skybox>(new Skybox(dsthdri));
-				mActiveProject->ActiveScene()->AddObject(sceneobject);
+				ghc::filesystem::remove(mActiveProject->ActiveScene()->GetSceneObjects()[0]->GetProperty<Skybox>()->GetFilepath());
+				mActiveProject->ActiveScene()->DeleteObject(0);
+
+				mActiveProject->ActiveScene()->GetSceneObjects()[0] = new SceneObject();
+				mActiveProject->ActiveScene()->GetSceneObjects()[0]->AddProperty<Skybox>(new Skybox(dsthdri));
 			}
 			ImGuiFileDialog::Instance()->Close();
 		}

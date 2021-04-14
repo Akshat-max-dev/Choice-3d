@@ -4,21 +4,18 @@
 
 namespace choice
 {
-	std::string ReadPropertyType(std::ifstream& containedscene)
-	{
-		uint32_t proptypesize;
-		containedscene.read((char*)&proptypesize, sizeof(proptypesize));
-		std::string proptype;
-		proptype.resize(proptypesize);
-		containedscene.read((char*)proptype.data(), proptypesize);
-		return proptype;
-	}
-
 	Scene::Scene(const std::string& name, const std::string& directory)
 		:mName(name), mDirectory(directory)
 	{
 		ghc::filesystem::create_directory(mDirectory + "\\" + mName);
 		ghc::filesystem::create_directory(mDirectory + "\\" + mName + "\\" + "Assets");
+
+		ghc::filesystem::copy("Choice/assets/hdri_skybox/crosswalk_4k.hdr", mDirectory + "\\" + mName + "\\" + "Assets\\crosswalk_4k.hdr");
+
+		SceneObject* object = new SceneObject();
+		std::string dstHDRI = mDirectory + "\\" + mName + "\\" + "Assets\\crosswalk_4k.hdr";
+		object->AddProperty<Skybox>(new Skybox(dstHDRI));
+		mSceneObjects.push_back(object);
 	}
 
 	Scene::Scene(const std::string& cscene)

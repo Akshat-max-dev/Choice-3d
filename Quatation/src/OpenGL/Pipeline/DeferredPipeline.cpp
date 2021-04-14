@@ -6,7 +6,6 @@
 
 namespace choice
 {
-	
 	DeferredGeometryCapture::DeferredGeometryCapture(uint32_t w, uint32_t h)
 		:Framebuffer(w, h)
 	{
@@ -127,10 +126,6 @@ namespace choice
 	void DeferredPipeline::Update(Scene* scene, Camera* camera)
 	{
 		glEnable(GL_DEPTH_TEST);
-		glDepthFunc(GL_LESS);
-		glDisable(GL_STENCIL_TEST);
-		glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
-		glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
 
 		mMousePickingPass.first->Bind();
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -171,6 +166,9 @@ namespace choice
 			Choice::Instance()->GetEditor()->SetSelectedObjectIndex(selectedObjectId);
 		}
 
+		glEnable(GL_STENCIL_TEST);
+		glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+
 		mGeometryPass.first->Bind();
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		int _objectindex = -1;
@@ -179,15 +177,27 @@ namespace choice
 			_objectindex++;
 			if (object)
 			{
+				Skybox* skybox = object->GetProperty<Skybox>();
+				if (skybox)
+				{
+					glDepthFunc(GL_LEQUAL);
+					skybox->Draw(camera);
+					glDepthFunc(GL_LESS);
+				}
+
 				Model* model = object->GetProperty<Model>();
 				if (model)
 				{
 					if (_objectindex == selectedObjectId)
-					{
-						glEnable(GL_STENCIL_TEST);
+					{				
 						glClear(GL_STENCIL_BUFFER_BIT);
 						glStencilFunc(GL_ALWAYS, 1, 0xFF);
 						glStencilMask(0xFF);
+					}
+					else
+					{
+						glClear(GL_STENCIL_BUFFER_BIT);
+						glStencilMask(0x00);
 					}
 					for (auto& mesh : model->Meshes)
 					{
@@ -204,35 +214,28 @@ namespace choice
 						uint32_t count = mesh.first->GetCount();
 						glDrawElements(GL_TRIANGLES, count, GL_UNSIGNED_INT, nullptr);
 					}
+
+					if (_objectindex == selectedObjectId)
+					{
+						glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+						glStencilMask(0x00);
+						glDisable(GL_DEPTH_TEST);
+						for (auto& mesh : model->Meshes)
+						{
+							mOutline->Use();
+							mOutline->Mat4("uViewProjection", camera->ViewProjection());
+							Transform* transform = scene->GetSceneObjects()[selectedObjectId]->GetProperty<Transform>();
+							mOutline->Mat4("uTransform", glm::scale(transform->GetTransform(), glm::vec3(1.02f, 1.02f, 1.02f)));
+							mesh.first->Bind();
+							uint32_t count = mesh.first->GetCount();
+							glDrawElements(GL_TRIANGLES, count, GL_UNSIGNED_INT, nullptr);
+						}
+						glStencilMask(0xFF);
+						glStencilFunc(GL_ALWAYS, 0, 0xFF);
+						glEnable(GL_DEPTH_TEST);
+					}
 				}
 
-				Skybox* skybox = object->GetProperty<Skybox>();
-				if (skybox)
-				{
-					glDepthFunc(GL_LEQUAL);
-					skybox->Draw(camera);
-					glDepthFunc(GL_LESS);
-				}
-			}
-			if (_objectindex == selectedObjectId)
-			{
-				Model* model = scene->GetSceneObjects()[selectedObjectId]->GetProperty<Model>();
-				glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
-				glStencilMask(0x00);
-				glDisable(GL_DEPTH_TEST);
-				for (auto& mesh : model->Meshes)
-				{
-					mOutline->Use();
-					mOutline->Mat4("uViewProjection", camera->ViewProjection());
-					Transform* transform = scene->GetSceneObjects()[selectedObjectId]->GetProperty<Transform>();
-					mOutline->Mat4("uTransform", glm::scale(transform->GetTransform(), glm::vec3(1.02f, 1.02f, 1.02f)));
-					mesh.first->Bind();
-					uint32_t count = mesh.first->GetCount();
-					glDrawElements(GL_TRIANGLES, count, GL_UNSIGNED_INT, nullptr);
-				}
-				glStencilMask(0xFF);
-				glStencilFunc(GL_ALWAYS, 0, 0xFF);
-				glEnable(GL_DEPTH_TEST);
 			}
 		}
 		mGeometryPass.first->UnBind();
