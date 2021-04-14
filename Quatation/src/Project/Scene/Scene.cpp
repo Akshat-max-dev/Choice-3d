@@ -41,32 +41,45 @@ namespace choice
 		for (auto& object : mSceneObjects)
 		{
 			object = new SceneObject();
-			std::string proptype = ReadPropertyType(containedscene);
 
-			if (proptype == "Skybox")
+			uint32_t skyboxsrcFileSize;
+			containedscene.read((char*)&skyboxsrcFileSize, sizeof(skyboxsrcFileSize));
+			if (skyboxsrcFileSize)
 			{
-				uint32_t skyboxsrcFileSize;
-				containedscene.read((char*)&skyboxsrcFileSize, sizeof(skyboxsrcFileSize));
 				std::string skyboxsrcFile;
 				skyboxsrcFile.resize(skyboxsrcFileSize);
 				containedscene.read((char*)skyboxsrcFile.data(), skyboxsrcFileSize);
 
 				object->AddProperty<Skybox>(new Skybox(skyboxsrcFile));
 			}
-
-			if (proptype == "Model")
+			
+			uint32_t modelsrcFilesize;
+			containedscene.read((char*)&modelsrcFilesize, sizeof(modelsrcFilesize));
+			if (modelsrcFilesize)
 			{
-				uint32_t srcFilesize;
-				containedscene.read((char*)&srcFilesize, sizeof(srcFilesize));
-				std::string srcFile;
-				srcFile.resize(srcFilesize);
-				containedscene.read((char*)srcFile.data(), srcFilesize);
+				std::string modelsrcFile;
+				modelsrcFile.resize(modelsrcFilesize);
+				containedscene.read((char*)modelsrcFile.data(), modelsrcFilesize);
 
-				auto data = LoadModel(srcFile);
+				object->AddProperty<Model>(LoadModel(modelsrcFile));
 
-				object->AddProperty<Model>(data.first);
-				object->AddProperty<Transform>(data.second);
+				Transform* transform = new Transform();
+
+				containedscene.read((char*)&transform->Position.x, sizeof(transform->Position.x));
+				containedscene.read((char*)&transform->Position.y, sizeof(transform->Position.y));
+				containedscene.read((char*)&transform->Position.z, sizeof(transform->Position.z));
+
+				containedscene.read((char*)&transform->Rotation.x, sizeof(transform->Rotation.x));
+				containedscene.read((char*)&transform->Rotation.y, sizeof(transform->Rotation.y));
+				containedscene.read((char*)&transform->Rotation.z, sizeof(transform->Rotation.z));
+
+				containedscene.read((char*)&transform->Scale.x, sizeof(transform->Scale.x));
+				containedscene.read((char*)&transform->Scale.y, sizeof(transform->Scale.y));
+				containedscene.read((char*)&transform->Scale.z, sizeof(transform->Scale.z));
+
+				object->AddProperty<Transform>(transform);
 			}
+			
 		}
 		containedscene.close();
 	}
@@ -94,34 +107,47 @@ namespace choice
 		{
 			if (object)
 			{
-				std::string proptype;
-				uint32_t proptypesize = 0;
-
 				auto skyboxprop = object->GetProperty<Skybox>();
 				if (skyboxprop)
 				{
-					proptype = "Skybox";
-					proptypesize = (uint32_t)proptype.size();
-					cscene.write((char*)&proptypesize, sizeof(proptypesize));
-					cscene.write((char*)proptype.data(), proptypesize);
-
 					uint32_t skyboxsrcFilesize = (uint32_t)skyboxprop->GetFilepath().size();
 					cscene.write((char*)&skyboxsrcFilesize, sizeof(skyboxsrcFilesize));
 					cscene.write(skyboxprop->GetFilepath().data(), skyboxsrcFilesize);
+				}
+				else
+				{
+					uint32_t skyboxsrcFilesize = 0;
+					cscene.write((char*)&skyboxsrcFilesize, sizeof(skyboxsrcFilesize));
 				}
 
 				auto modelprop = object->GetProperty<Model>();
 				if (modelprop)
 				{
-					proptype = "Model";
-					proptypesize = (uint32_t)proptype.size();
-					cscene.write((char*)&proptypesize, sizeof(proptypesize));
-					cscene.write((char*)proptype.data(), proptypesize);
+					std::string modelsrcFile = mDirectory + "\\" + mName + "\\" + "Assets\\" + modelprop->Name + ".cmodel";
+					uint32_t modelsrcFileSize = (uint32_t)modelsrcFile.size();
+					cscene.write((char*)&modelsrcFileSize, sizeof(modelsrcFileSize));
+					cscene.write(modelsrcFile.data(), modelsrcFileSize);
+				}
+				else
+				{
+					uint32_t modelsrcFileSize = 0;
+					cscene.write((char*)&modelsrcFileSize, sizeof(modelsrcFileSize));
+				}
 
-					std::string srcFile = mDirectory + "\\" + mName + "\\" + "Assets\\" + modelprop->Name + ".cmodel";
-					uint32_t srcFileSize = (uint32_t)srcFile.size();
-					cscene.write((char*)&srcFileSize, sizeof(srcFileSize));
-					cscene.write(srcFile.data(), srcFileSize);
+				auto transformprop = object->GetProperty<Transform>();
+				if (transformprop)
+				{
+					cscene.write((char*)&transformprop->Position.x, sizeof(transformprop->Position.x));
+					cscene.write((char*)&transformprop->Position.y, sizeof(transformprop->Position.y));
+					cscene.write((char*)&transformprop->Position.z, sizeof(transformprop->Position.z));
+
+					cscene.write((char*)&transformprop->Rotation.x, sizeof(transformprop->Rotation.x));
+					cscene.write((char*)&transformprop->Rotation.y, sizeof(transformprop->Rotation.y));
+					cscene.write((char*)&transformprop->Rotation.z, sizeof(transformprop->Rotation.z));
+
+					cscene.write((char*)&transformprop->Scale.x, sizeof(transformprop->Scale.x));
+					cscene.write((char*)&transformprop->Scale.y, sizeof(transformprop->Scale.y));
+					cscene.write((char*)&transformprop->Scale.z, sizeof(transformprop->Scale.z));
 				}
 			}
 		}
@@ -129,4 +155,65 @@ namespace choice
 		cscene.close();
 	}
 
+	void Scene::Clean()
+	{
+		std::string cscenefile = mDirectory + "\\" + mName + "\\" + mName + ".cscene";
+		std::ifstream cscene(cscenefile, std::ios::in | std::ios::binary);
+		
+		uint32_t sceneobjectssize;
+		cscene.read((char*)&sceneobjectssize, sizeof(sceneobjectssize));
+
+		for (uint32_t i = sceneobjectssize; i < mSceneObjects.size(); i++)
+		{
+			Skybox* skybox = mSceneObjects[i]->GetProperty<Skybox>();
+			if (skybox)
+			{
+				ghc::filesystem::remove(skybox->GetFilepath());
+			}
+
+			Model* model = mSceneObjects[i]->GetProperty<Model>();
+			if (model)
+			{
+				std::string cmodelfile = mDirectory + "\\" + mName + "\\" + "Assets\\" + model->Name + ".cmodel";
+				std::ifstream cmodel(cmodelfile, std::ios::in | std::ios::binary);
+
+				uint32_t materialsize;
+				cmodel.read((char*)&materialsize, sizeof(materialsize));
+
+				std::string tex;
+				uint32_t temp;
+
+				for (uint32_t i = 0; i < materialsize; i++)
+				{
+					uint32_t diffusemapnamesize;
+					cmodel.read((char*)&diffusemapnamesize, sizeof(diffusemapnamesize));
+					tex.resize(diffusemapnamesize);
+					cmodel.read((char*)tex.data(), diffusemapnamesize);
+					if (!tex.empty()) { ghc::filesystem::remove(tex); }
+
+					cmodel.read((char*)&temp, sizeof(temp));
+					cmodel.read((char*)&temp, sizeof(temp));
+					cmodel.read((char*)&temp, sizeof(temp));
+					cmodel.read((char*)&temp, sizeof(temp));
+
+					uint32_t normalmapnamesize;
+					cmodel.read((char*)&normalmapnamesize, sizeof(normalmapnamesize));
+					tex.resize(normalmapnamesize);
+					cmodel.read((char*)tex.data(), normalmapnamesize);
+					if (!tex.empty()) { ghc::filesystem::remove(tex); }
+
+					cmodel.read((char*)&temp, sizeof(temp));
+					cmodel.read((char*)&temp, sizeof(temp));
+					cmodel.read((char*)&temp, sizeof(temp));
+					cmodel.read((char*)&temp, sizeof(temp));
+				}
+
+				cmodel.close();
+				ghc::filesystem::remove(cmodelfile);
+			}
+
+		}
+
+		cscene.close();
+	}
 }

@@ -50,6 +50,10 @@ namespace choice
 		{
 			Save();
 		}
+		else
+		{
+			mActiveScene->Clean();
+		}
 		open.close();
 		delete mActiveScene;
 	}

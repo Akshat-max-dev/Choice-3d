@@ -262,21 +262,43 @@ namespace choice
 					temporary.close();
 
 					std::system("gltf.bat");
-					std::remove("Temporary");
+					ghc::filesystem::remove("Temporary");
 				}
 				
+				std::string directory = mActiveProject->ActiveScene()->Directory() + "\\" +
+					mActiveProject->ActiveScene()->Name() + "\\" + "Assets";
 				std::string srcFile = DumpModel(modelfilepath.substr(0, modelfilepath.find_last_of('.')) + ".glb", 
-					mActiveProject->ActiveScene()->Directory() + "\\" + 
-					mActiveProject->ActiveScene()->Name() + "\\" + "Assets");
+					directory);
 
-				SceneObject* sceneobject = new SceneObject();
-				auto data = LoadModel(srcFile);
-				sceneobject->AddProperty<Model>(data.first);
-				sceneobject->AddProperty<Transform>(data.second);
-				mActiveProject->ActiveScene()->AddObject(sceneobject);
 				if (!(ext == ".glb" || ext == ".gltf"))
 				{
-					std::remove((modelfilepath.substr(0, modelfilepath.find_last_of('.')) + ".glb").c_str());
+					ghc::filesystem::remove(modelfilepath.substr(0, modelfilepath.find_last_of('.')) + ".glb");
+				}
+
+				SceneObject* sceneobject = new SceneObject();
+				Model* model = LoadModel(srcFile);
+				if (model)
+				{
+					sceneobject->AddProperty<Model>(model);
+					if (ghc::filesystem::exists(directory + "\\Temp"))
+					{
+						sceneobject->AddProperty<Transform>(LoadModelTransform(directory + "\\Temp"));
+						ghc::filesystem::remove(directory + "\\Temp");
+					}
+					else
+					{
+						Transform* transform = new Transform();
+						transform->Position = { 0.0f, 0.0f, 0.0f };
+						transform->Rotation = { 0.0f, 0.0f, 0.0f };
+						transform->Scale = { 1.0f, 1.0f, 1.0f };
+						sceneobject->AddProperty<Transform>(transform);
+					}
+
+					mActiveProject->ActiveScene()->AddObject(sceneobject);
+				}
+				else
+				{
+					delete sceneobject;
 				}
 			}
 			ImGuiFileDialog::Instance()->Close();

@@ -18,6 +18,7 @@ namespace choice
 		std::vector<SceneObject*>& GetSceneObjects() { return mSceneObjects; }
 
 		void Save();
+		void Clean();
 
 		std::string& Name() { return mName; }
 		const std::string& Directory()const { return mDirectory; }
