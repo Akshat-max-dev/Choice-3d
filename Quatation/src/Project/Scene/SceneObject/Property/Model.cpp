@@ -287,14 +287,14 @@ namespace choice
 		}
 	}
 
-	std::pair<Model*, Transform*> LoadModel(const std::string& srcFile)
+	Model* LoadModel(const std::string& srcFile)
 	{
 		std::ifstream cmodel(srcFile, std::ios::in | std::ios::binary);
 		if (cmodel.fail() || cmodel.bad())
 		{
 			std::cout << "Error Loading Model" << std::endl;
 			cmodel.close();
-			return { nullptr, nullptr };
+			return nullptr;
 		}
 
 		Model* model = new Model();
@@ -364,23 +364,38 @@ namespace choice
 			mesh.second = materialindex;
 		}
 
-		Transform* transform = new Transform();
-
-		cmodel.read((char*)&transform->Position.x, sizeof(transform->Position.x));
-		cmodel.read((char*)&transform->Position.y, sizeof(transform->Position.y));
-		cmodel.read((char*)&transform->Position.z, sizeof(transform->Position.z));
-
-		cmodel.read((char*)&transform->Rotation.x, sizeof(transform->Rotation.x));
-		cmodel.read((char*)&transform->Rotation.y, sizeof(transform->Rotation.y));
-		cmodel.read((char*)&transform->Rotation.z, sizeof(transform->Rotation.z));
-
-		cmodel.read((char*)&transform->Scale.x, sizeof(transform->Scale.x));
-		cmodel.read((char*)&transform->Scale.y, sizeof(transform->Scale.y));
-		cmodel.read((char*)&transform->Scale.z, sizeof(transform->Scale.z));
-
 		cmodel.close();
 
-		return { model, transform };
+		return model;
+	}
+
+	Transform* LoadModelTransform(const std::string& srcFile)
+	{
+		std::ifstream t(srcFile, std::ios::in | std::ios::binary);
+		if (!t.is_open())
+		{
+			std::cout << "Cannot open model transform file" << std::endl;
+			t.close();
+			return nullptr;
+		}
+
+		Transform* transform = new Transform();
+
+		t.read((char*)&transform->Position.x, sizeof(transform->Position.x));
+		t.read((char*)&transform->Position.y, sizeof(transform->Position.y));
+		t.read((char*)&transform->Position.z, sizeof(transform->Position.z));
+
+		t.read((char*)&transform->Rotation.x, sizeof(transform->Rotation.x));
+		t.read((char*)&transform->Rotation.y, sizeof(transform->Rotation.y));
+		t.read((char*)&transform->Rotation.z, sizeof(transform->Rotation.z));
+
+		t.read((char*)&transform->Scale.x, sizeof(transform->Scale.x));
+		t.read((char*)&transform->Scale.y, sizeof(transform->Scale.y));
+		t.read((char*)&transform->Scale.z, sizeof(transform->Scale.z));
+
+		t.close();
+
+		return transform;
 	}
 
 	const std::string DumpModel(const std::string& srcFile, const std::string& dstDirectory)
@@ -482,17 +497,28 @@ namespace choice
 
 		delete meshdata;
 
-		cmodel.write((char*)&position.x, sizeof(position.x));
-		cmodel.write((char*)&position.y, sizeof(position.y));
-		cmodel.write((char*)&position.z, sizeof(position.z));
+		cmodel.close();
 
-		cmodel.write((char*)&rotation.x, sizeof(rotation.x));
-		cmodel.write((char*)&rotation.y, sizeof(rotation.y));
-		cmodel.write((char*)&rotation.z, sizeof(rotation.z));
+		std::ofstream t(dstDirectory + "\\" + "temp", std::ios::out | std::ios::binary);
+		if (t.fail())
+		{
+			std::cout << "Failed to write model transform file" << std::endl;
+			t.close();
+		}
 
-		cmodel.write((char*)&scale.x, sizeof(scale.x));
-		cmodel.write((char*)&scale.y, sizeof(scale.y));
-		cmodel.write((char*)&scale.z, sizeof(scale.z));
+		t.write((char*)&position.x, sizeof(position.x));
+		t.write((char*)&position.y, sizeof(position.y));
+		t.write((char*)&position.z, sizeof(position.z));
+
+		t.write((char*)&rotation.x, sizeof(rotation.x));
+		t.write((char*)&rotation.y, sizeof(rotation.y));
+		t.write((char*)&rotation.z, sizeof(rotation.z));
+
+		t.write((char*)&scale.x, sizeof(scale.x));
+		t.write((char*)&scale.y, sizeof(scale.y));
+		t.write((char*)&scale.z, sizeof(scale.z));
+
+		t.close();
 
 		cgltf_free(data);
 

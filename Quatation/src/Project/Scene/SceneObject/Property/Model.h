@@ -42,6 +42,7 @@ namespace choice
 		~Model();
 	};
 
-	std::pair<Model*, Transform*> LoadModel(const std::string& srcFile);
+	Model* LoadModel(const std::string& srcFile);
+	Transform* LoadModelTransform(const std::string& srcFile);
 	const std::string DumpModel(const std::string& srcFile, const std::string& dstDirectory);
 }
