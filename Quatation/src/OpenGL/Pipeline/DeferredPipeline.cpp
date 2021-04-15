@@ -156,9 +156,9 @@ namespace choice
 		}
 		mMousePickingPass.first->UnBind();
 
-		if (Input::IsKeyPressed(Key::LEFTSHIFT) || Input::IsKeyPressed(Key::LEFTALT)) { mMousePicking = false; }
-
-		if (Input::IsButtonPressed(Mouse::BUTTON1) && mMousePicking)
+		if (Input::IsButtonPressed(Mouse::BUTTON1) && 
+			!(Input::IsKeyPressed(Key::LEFTSHIFT) || Input::IsKeyPressed(Key::LEFTALT)) 
+			&& mMousePicking)
 		{
 			PixelInfo* pixelinfo = mMousePickingPass.first->ReadPixels((uint32_t)Input::GetMouseX(),
 				Choice::Instance()->GetWindow()->GetHeight() - (uint32_t)Input::GetMouseY() - 1);

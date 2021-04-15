@@ -339,12 +339,12 @@ namespace choice
 		if (mShowHiearchy)
 		{
 			ImGui::SetNextWindowBgAlpha(0.7f);
-			ImGui::Begin(ICON_FK_LIST_ALT" Hiearchy", &mShowHiearchy, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoDocking);
+			ImGui::Begin(ICON_FK_LIST_ALT" Hiearchy", NULL, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoDocking);
 
 			if (ImGui::IsWindowFocused())
 			{
-				if (Input::IsKeyPressed(Key::ESCAPE)) { mShowHiearchy = false; }
-				Choice::Instance()->GetPipeline()->MousePicking(false);
+				if (Input::IsKeyPressed(Key::ESCAPE)) { mShowHiearchy = false; Choice::Instance()->GetPipeline()->MousePicking(true); }
+				else { Choice::Instance()->GetPipeline()->MousePicking(false); }
 			}
 			else if (Input::IsKeyPressed(Mouse::BUTTON1)) { Choice::Instance()->GetPipeline()->MousePicking(true); }
 
