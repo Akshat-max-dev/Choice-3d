@@ -64,17 +64,17 @@ namespace choice
 			ImGui::EndMainMenuBar();
 		}
 
-		if (Input::IsKeyPressed(GLFW_KEY_LEFT_CONTROL))
+		if (Input::IsKeyPressed(Key::LEFTCONTROL))
 		{
-			if (Input::IsKeyPressed(GLFW_KEY_N))
+			if (Input::IsKeyPressed(Key::N))
 			{
 				mModalPurpose = ModalPurpose::NEWPROJECT; mShowModal = true;
 			}
-			if (Input::IsKeyPressed(GLFW_KEY_S))
+			if (Input::IsKeyPressed(Key::S))
 			{
 				if (mActiveProject) { mActiveProject->Save(); }
 			}
-			if (Input::IsKeyPressed(GLFW_KEY_O))
+			if (Input::IsKeyPressed(Key::O))
 			{
 				ImGuiFileDialog::Instance()->SetExtentionInfos(".cproj", { 1.0f, 0.0f, 1.0f, 1.0f });
 				ImGuiFileDialog::Instance()->OpenModal("OpenProject", "Open Project", ".cproj", "");
@@ -155,7 +155,7 @@ namespace choice
 
 					ImGui::Separator();
 
-					if (ImGui::Button("Create") || Input::IsKeyPressed(GLFW_KEY_ENTER))
+					if (ImGui::Button("Create") || Input::IsKeyPressed(Key::ENTER))
 					{
 						if (strlen(namebuf) == 0) { std::cout << "Project Name Cant Be Empty" << std::endl; return; }
 						if (strlen(dirbuf) == 0) { std::cout << "No Directory Selected" << std::endl; return; }
@@ -171,7 +171,7 @@ namespace choice
 						mModalPurpose = ModalPurpose::NONE;
 					}
 					ImGui::SameLine();
-					if (ImGui::Button("Cancel") || Input::IsKeyPressed(GLFW_KEY_ESCAPE))
+					if (ImGui::Button("Cancel") || Input::IsKeyPressed(Key::ESCAPE))
 					{
 						memset(namebuf, 0, sizeof(namebuf));
 						memset(dirbuf, 0, sizeof(dirbuf));
@@ -331,7 +331,46 @@ namespace choice
 			if (object) { DrawObjectInspectorPanel(object); }
 		}
 
+		if (Input::IsKeyPressed(Key::LEFTALT) && Input::IsKeyPressed(Key::I) && mActiveProject)
+		{
+			mShowHiearchy = true;
+		}
 
+		if (mShowHiearchy)
+		{
+			ImGui::SetNextWindowBgAlpha(0.7f);
+			ImGui::Begin(ICON_FK_LIST_ALT" Hiearchy", &mShowHiearchy, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoDocking);
+
+			if (ImGui::IsWindowFocused())
+			{
+				if (Input::IsKeyPressed(Key::ESCAPE)) { mShowHiearchy = false; }
+				Choice::Instance()->GetPipeline()->MousePicking(false);
+			}
+			else if (Input::IsKeyPressed(Mouse::BUTTON1)) { Choice::Instance()->GetPipeline()->MousePicking(true); }
+
+			if (ImGui::CollapsingHeader(mActiveProject->ActiveScene()->Name().c_str(), ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_DefaultOpen))
+			{
+				for (uint32_t i = 0; i < mActiveProject->ActiveScene()->GetSceneObjects().size(); i++)
+				{
+					SceneObject* object = mActiveProject->ActiveScene()->GetSceneObjects()[i];
+					if (object)
+					{
+						ImGuiTreeNodeFlags _flags_ = (i == mSelectedObjectIndex) ? ImGuiTreeNodeFlags_Selected : 0;
+						_flags_ |= ImGuiTreeNodeFlags_Leaf;
+						if (ImGui::TreeNodeEx(object->Name().c_str(), _flags_))
+						{
+							if (ImGui::IsItemClicked())
+							{
+								mSelectedObjectIndex = i;
+								Choice::Instance()->GetPipeline()->PickedObject(static_cast<int>(i));
+							}
+							ImGui::TreePop();
+						}
+					}
+				}
+			}
+			ImGui::End();
+		}
 	}
 
 	void Editor::Update()
@@ -448,7 +487,7 @@ namespace choice
 		{
 			Choice::Instance()->GetPipeline()->MousePicking(false);
 		}
-		else if (Input::IsButtonPressed(GLFW_MOUSE_BUTTON_1))
+		else if (Input::IsButtonPressed(Mouse::BUTTON1))
 		{
 			Choice::Instance()->GetPipeline()->MousePicking(true);
 		}

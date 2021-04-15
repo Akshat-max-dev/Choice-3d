@@ -34,6 +34,7 @@ namespace choice
 		ModalPurpose mModalPurpose = ModalPurpose::NONE;
 		bool mShowModal = false;
 		bool mIsBlenderLinked = false;
+		bool mShowHiearchy = false;
 	private:
 		int mSelectedObjectIndex = -1;
 	};

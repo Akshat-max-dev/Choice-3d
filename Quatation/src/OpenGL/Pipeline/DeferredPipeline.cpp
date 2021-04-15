@@ -156,14 +156,15 @@ namespace choice
 		}
 		mMousePickingPass.first->UnBind();
 
-		static int selectedObjectId = -1;
-		if (Input::IsButtonPressed(GLFW_MOUSE_BUTTON_1) && mMousePicking)
+		if (Input::IsKeyPressed(Key::LEFTSHIFT) || Input::IsKeyPressed(Key::LEFTALT)) { mMousePicking = false; }
+
+		if (Input::IsButtonPressed(Mouse::BUTTON1) && mMousePicking)
 		{
 			PixelInfo* pixelinfo = mMousePickingPass.first->ReadPixels((uint32_t)Input::GetMouseX(),
 				Choice::Instance()->GetWindow()->GetHeight() - (uint32_t)Input::GetMouseY() - 1);
-			if (pixelinfo->PrimitiveId) { selectedObjectId = static_cast<int>(pixelinfo->ObjectId); }
-			else { selectedObjectId = -1; }
-			Choice::Instance()->GetEditor()->SetSelectedObjectIndex(selectedObjectId);
+			if (pixelinfo->PrimitiveId) { mPickedObjectId = static_cast<int>(pixelinfo->ObjectId); }
+			else { mPickedObjectId = -1; }
+			Choice::Instance()->GetEditor()->SetSelectedObjectIndex(mPickedObjectId);
 		}
 
 		glEnable(GL_STENCIL_TEST);
@@ -188,7 +189,7 @@ namespace choice
 				Model* model = object->GetProperty<Model>();
 				if (model)
 				{
-					if (_objectindex == selectedObjectId)
+					if (_objectindex == mPickedObjectId)
 					{				
 						glClear(GL_STENCIL_BUFFER_BIT);
 						glStencilFunc(GL_ALWAYS, 1, 0xFF);
@@ -215,7 +216,7 @@ namespace choice
 						glDrawElements(GL_TRIANGLES, count, GL_UNSIGNED_INT, nullptr);
 					}
 
-					if (_objectindex == selectedObjectId)
+					if (_objectindex == mPickedObjectId)
 					{
 						glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
 						glStencilMask(0x00);
@@ -224,7 +225,7 @@ namespace choice
 						{
 							mOutline->Use();
 							mOutline->Mat4("uViewProjection", camera->ViewProjection());
-							Transform* transform = scene->GetSceneObjects()[selectedObjectId]->GetProperty<Transform>();
+							Transform* transform = scene->GetSceneObjects()[mPickedObjectId]->GetProperty<Transform>();
 							mOutline->Mat4("uTransform", glm::scale(transform->GetTransform(), glm::vec3(1.02f, 1.02f, 1.02f)));
 							mesh.first->Bind();
 							uint32_t count = mesh.first->GetCount();
@@ -247,6 +248,11 @@ namespace choice
 		mGeometryPass.first->BindGBuffer({ 0, 1, 2, 3 });
 		mLightingPass->Int("gBuffer.AlbedoS", 2);
 		glDrawArrays(GL_TRIANGLES, 0, 3);
+	}
+
+	void DeferredPipeline::PickedObject(int pickedobject)
+	{
+		mPickedObjectId = pickedobject;
 	}
 
 	void DeferredPipeline::MousePicking(bool value)
