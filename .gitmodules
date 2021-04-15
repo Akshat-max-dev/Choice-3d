@@ -22,3 +22,6 @@
 [submodule "vendor/gli"]
 	path = vendor/gli
 	url = https://github.com/Akshat-max-dev/gli.git
+[submodule "vendor/ImGuizmo"]
+	path = vendor/ImGuizmo
+	url = https://github.com/Akshat-max-dev/ImGuizmo.git

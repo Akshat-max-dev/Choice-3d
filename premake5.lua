@@ -23,6 +23,7 @@ Dependency["stb_image"] = "%{wks.location}/vendor/stb_image"
 Dependency["gli"] = "%{wks.location}/vendor/gli"
 Dependency["tinyexr"] = "%{wks.location}/vendor/tinyexr"
 Dependency["filesystem"] = "%{wks.location}/vendor/filesystem"
+Dependency["ImGuizmo"] = "%{wks.location}/vendor/ImGuizmo"
 
 include "Choice"
 include "Quatation"

@@ -35,7 +35,11 @@ project "Choice"
         "%{Dependency.ImGuiFileDialog}/ImGuiFileDialog.h",
         "%{Dependency.ImGuiFileDialog}/ImGuiFileDialog.cpp",
         "%{Dependency.ImGuiFileDialog}/ImGuiFileDialogConfig.h",
-        "%{Dependency.ImGuiFileDialog}/dirent/dirent.h"
+        "%{Dependency.ImGuiFileDialog}/dirent/dirent.h",
+
+        --ImGuizmo
+        "%{Dependency.ImGuizmo}/ImGuizmo.h",
+        "%{Dependency.ImGuizmo}/ImGuizmo.cpp"
     }
 
     includedirs
@@ -52,7 +56,8 @@ project "Choice"
         "%{Dependency.stb_image}",
         "%{Dependency.gli}",
         "%{Dependency.tinyexr}",
-        "%{Dependency.filesystem}"
+        "%{Dependency.filesystem}",
+        "%{Dependency.ImGuizmo}"
     }
 
     links

@@ -57,7 +57,8 @@ project "Quatation"
         "%{Dependency.stb_image}",
         "%{Dependency.gli}",
         "%{Dependency.tinyexr}",
-        "%{Dependency.filesystem}"
+        "%{Dependency.filesystem}",
+        "%{Dependency.ImGuizmo}"
     }
 
     libdirs
