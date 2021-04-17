@@ -3,6 +3,7 @@
 #include "Property/Model.h"
 #include "Property/Transform.h"
 #include "Property/Skybox.h"
+#include "Property/Light.h"
 
 namespace choice
 {
@@ -43,6 +44,13 @@ namespace choice
 			std::cout << "Property Already Exists" << std::endl;
 		}
 
+		template<>
+		void AddProperty<Light>(Light* light)
+		{
+			if (!mLight.has_value()) { mLight.emplace(light); return; }
+			std::cout << "Property Already Exists" << std::endl;
+		}
+
 		template<typename T>
 		void DrawProperty();
 
@@ -55,6 +63,9 @@ namespace choice
 		template<>
 		void DrawProperty<Skybox>();
 
+		template<>
+		void DrawProperty<Light>();
+
 		template<typename T>
 		T* GetProperty() { static_assert(false); }
 
@@ -66,10 +77,14 @@ namespace choice
 	
 		template<>
 		Skybox* GetProperty<Skybox>() { if (mSkybox.has_value()) { return mSkybox.value(); } return nullptr; }
+	
+		template<>
+		Light* GetProperty<Light>() { if (mLight.has_value()) { return mLight.value(); } return nullptr; }
 	private:
 		std::optional<Model*> mModel;
 		std::optional<Transform*> mTransform;
 		std::optional<Skybox*> mSkybox;
+		std::optional<Light*> mLight;
 		std::string mName;
 	};
 }

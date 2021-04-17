@@ -57,18 +57,18 @@ namespace choice
 
 	void EditorCamera::OnButtonDown(int button)
 	{
-		if (button == GLFW_MOUSE_BUTTON_1)
+		if (button == Mouse::BUTTON1)
 		{
 			mLastX = Input::GetMouseX();
 			mLastY = Input::GetMouseY();
-			mMovementType = Input::IsKeyPressed(GLFW_KEY_LEFT_ALT) ? Camera::MovementType::ROTATION :
-				Input::IsKeyPressed(GLFW_KEY_LEFT_SHIFT) ? Camera::MovementType::TRANSLATION : 
+			mMovementType = Input::IsKeyPressed(Key::LEFTALT) ? Camera::MovementType::ROTATION :
+				Input::IsKeyPressed(Key::LEFTSHIFT) ? Camera::MovementType::TRANSLATION : 
 				Camera::MovementType::NONE;
 		}
 	}
 
 	void EditorCamera::OnButtonUp(int button)
 	{
-		if (button == GLFW_MOUSE_BUTTON_1) { mMovementType = Camera::MovementType::NONE; }
+		if (button == Mouse::BUTTON1) { mMovementType = Camera::MovementType::NONE; }
 	}
 }

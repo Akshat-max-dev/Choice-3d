@@ -1,7 +1,9 @@
 #include "Editor.h"
 
 #include <imgui.h>
+#include <imgui_internal.h>
 #include <ImGuiFileDialog.h>
+#include <ImGuizmo.h>
 
 #include "FontAwesome.h"
 
@@ -15,21 +17,72 @@ namespace choice
 	Editor::Editor(uint32_t w, uint32_t h)
 	{
 		mCamera = new EditorCamera((float)w / (float)h);
-		std::ifstream checkblenderlink("gltf.bat", std::ios::in);
-		if (checkblenderlink.is_open()) { mIsBlenderLinked = true; }
-		checkblenderlink.close();
-		mActiveProject = {};
+
+		if (ghc::filesystem::exists("gltf.bat")) { mIsBlenderLinked = true;; }
+
+		std::ifstream opencproj(".choiceconfig", std::ios::in | std::ios::binary);
+		if (!opencproj.is_open()) { mActiveProject = {}; }
+		else
+		{
+			uint32_t cprojsize;
+			opencproj.read((char*)&cprojsize, sizeof(cprojsize));
+			std::string cproj;
+			cproj.resize(cprojsize);
+			opencproj.read((char*)cproj.data(), cprojsize);
+			mActiveProject = std::make_unique<Project>(cproj);
+		}
+		
+		opencproj.close();
 	}
 
 	Editor::~Editor()
 	{
+		//Write down the active project
+		std::ofstream o(".choiceconfig", std::ios::out | std::ios::binary);
+		if (mActiveProject)
+		{
+			std::string cproj = mActiveProject->Directory() + "\\" + mActiveProject->Name() + "\\" + mActiveProject->Name() + ".cproj";
+			uint32_t activeprojectsize = (uint32_t)cproj.size();
+			o.write((char*)&activeprojectsize, sizeof(activeprojectsize));
+			o.write((char*)cproj.data(), activeprojectsize);
+		}
+		o.close();
+
 		delete mCamera;
 	}
 
 	void Editor::Execute()
 	{
-		ImGui::DockSpaceOverViewport(ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
-		
+		SetEditorLayout();
+
+		auto* viewport = ImGui::GetMainViewport();
+		static float IFDModalWidth = viewport->Size.x / 2;
+		static float IFDModalHeight = viewport->Size.y / 2 + 100.0f;
+
+		//Dockspace
+		ImGui::SetNextWindowPos(viewport->WorkPos);
+		ImGui::SetNextWindowSize(viewport->WorkSize);
+		ImGui::SetNextWindowViewport(viewport->ID);
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+
+		static ImGuiWindowFlags host_window_flags = 0;
+		host_window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDocking;
+		host_window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoBackground;
+
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+		ImGui::Begin("Choice DockSpace", (bool*)0, host_window_flags);
+		ImGui::PopStyleVar();
+
+		ImGui::PopStyleVar(2);
+
+		ImGuiIO& io = ImGui::GetIO();
+		if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable)
+		{
+			ImGui::DockSpace(ImGui::GetID("Root_Dockspace"), ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
+		}
+
+		//Main Menu Bar
 		if (ImGui::BeginMainMenuBar())
 		{
 			if (ImGui::BeginMenu("File"))
@@ -62,7 +115,7 @@ namespace choice
 				ImGui::EndMenu();
 			}
 			ImGui::EndMainMenuBar();
-		}
+		}//Main Menu Bar
 
 		if (Input::IsKeyPressed(Key::LEFTCONTROL))
 		{
@@ -100,10 +153,7 @@ namespace choice
 			}
 		}
 
-		auto* viewport = ImGui::GetMainViewport();
-		static float IFDModalWidth = viewport->Size.x / 2;
-		static float IFDModalHeight = viewport->Size.y / 2 + 100.0f;
-
+		//New Project
 		if (mShowModal)
 		{
 			switch (mModalPurpose)
@@ -183,8 +233,10 @@ namespace choice
 				}
 				break;
 			}
-		}
+		}//New Project
 
+
+		//Open Project
 		if (ImGuiFileDialog::Instance()->Display("OpenProject", ImGuiWindowFlags_NoCollapse, { IFDModalWidth, IFDModalHeight }))
 		{
 			if (ImGuiFileDialog::Instance()->IsOk())
@@ -195,8 +247,10 @@ namespace choice
 				Choice::Instance()->GetWindow()->UpdateTitle(("Choice | " + mActiveProject->Name() + " |").c_str());
 			}
 			ImGuiFileDialog::Instance()->Close();
-		}
+		}//Open Project
 
+
+		//Link Blender
 		if (ImGuiFileDialog::Instance()->Display("LinkBlender", ImGuiWindowFlags_NoCollapse, { IFDModalWidth, IFDModalHeight }))
 		{
 			if (ImGuiFileDialog::Instance()->IsOk())
@@ -230,8 +284,10 @@ namespace choice
 #endif
 			}
 			ImGuiFileDialog::Instance()->Close();
-		}
+		}//Link Blender
 
+
+		//Load Model
 		if (ImGuiFileDialog::Instance()->Display("AddModel", ImGuiWindowFlags_NoCollapse, { IFDModalWidth, IFDModalHeight }))
 		{
 			if (ImGuiFileDialog::Instance()->IsOk())
@@ -302,8 +358,9 @@ namespace choice
 				}
 			}
 			ImGuiFileDialog::Instance()->Close();
-		}
+		}//Load Model
 
+		//Change Skybox
 		if (ImGuiFileDialog::Instance()->Display("ChangeSkybox", ImGuiWindowFlags_NoCollapse, { IFDModalWidth, IFDModalHeight }))
 		{
 			if (ImGuiFileDialog::Instance()->IsOk())
@@ -323,27 +380,32 @@ namespace choice
 				mActiveProject->ActiveScene()->GetSceneObjects()[0]->AddProperty<Skybox>(new Skybox(dsthdri));
 			}
 			ImGuiFileDialog::Instance()->Close();
-		}
+		}//Change Skybox
 
+		//Object Inspector
 		if (mSelectedObjectIndex != -1)
 		{
 			SceneObject* object = mActiveProject->ActiveScene()->GetSceneObjects()[mSelectedObjectIndex];
 			if (object) { DrawObjectInspectorPanel(object); }
-		}
+		}//Object Inspector
 
+
+		//Scene Hierarchy
 		if (Input::IsKeyPressed(Key::LEFTALT) && Input::IsKeyPressed(Key::I) && mActiveProject)
 		{
-			mShowHiearchy = true;
+			mShowHierarchy = true;
 		}
 
-		if (mShowHiearchy)
+		if (mShowHierarchy)
 		{
-			ImGui::SetNextWindowBgAlpha(0.7f);
-			ImGui::Begin(ICON_FK_LIST_ALT" Hiearchy", NULL, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoDocking);
+			ImGui::SetNextWindowSize({ 283.0f, 319.0f }, ImGuiCond_Appearing);
+			ImGui::SetNextWindowSizeConstraints({ 283.0f, 319.0f }, { 283.0f, 419.0f });
+			ImGui::SetNextWindowBgAlpha(0.68f);
+			ImGui::Begin(ICON_FK_LIST_UL" Hierarchy", NULL, ImGuiWindowFlags_NoDocking);
 
 			if (ImGui::IsWindowFocused())
 			{
-				if (Input::IsKeyPressed(Key::ESCAPE)) { mShowHiearchy = false; Choice::Instance()->GetPipeline()->MousePicking(true); }
+				if (Input::IsKeyPressed(Key::ESCAPE)) { mShowHierarchy = false; Choice::Instance()->GetPipeline()->MousePicking(true); }
 				else { Choice::Instance()->GetPipeline()->MousePicking(false); }
 			}
 			else if (Input::IsKeyPressed(Mouse::BUTTON1)) { Choice::Instance()->GetPipeline()->MousePicking(true); }
@@ -370,7 +432,47 @@ namespace choice
 				}
 			}
 			ImGui::End();
-		}
+		} // Scene Hierarchy
+
+		
+		//Gizmo
+		if (Input::IsKeyPressed(Key::Q)) { mGizmoType = -1; }
+		if (Input::IsKeyPressed(Key::NUM1)) { mGizmoType = ImGuizmo::OPERATION::TRANSLATE; }
+		if (Input::IsKeyPressed(Key::NUM2)) { mGizmoType = ImGuizmo::OPERATION::ROTATE; }
+		if (Input::IsKeyPressed(Key::NUM3)) { mGizmoType = ImGuizmo::OPERATION::SCALE; }
+
+		if (mSelectedObjectIndex != -1 && mGizmoType != -1)
+		{
+			ImGuizmo::SetOrthographic(false);
+			ImGuizmo::SetDrawlist();
+
+			ImGuizmo::SetRect(ImGui::GetWindowPos().x, ImGui::GetWindowPos().y, ImGui::GetWindowWidth(), ImGui::GetWindowHeight());
+
+			bool snap = Input::IsKeyPressed(Key::LEFTCONTROL);
+			float snapValue = 0.5f;
+			if (mGizmoType == ImGuizmo::OPERATION::ROTATE) { snapValue = 45.0f; }
+
+			float snapValues[3] = { snapValue, snapValue, snapValue };
+
+			Transform* transform = mActiveProject->ActiveScene()->GetSceneObjects()[mSelectedObjectIndex]->GetProperty<Transform>();
+			glm::mat4 _transform = transform->GetTransform();
+
+			ImGuizmo::Manipulate(glm::value_ptr(mCamera->View()), glm::value_ptr(mCamera->Projection()),
+				(ImGuizmo::OPERATION)mGizmoType, ImGuizmo::LOCAL, glm::value_ptr(_transform), nullptr,
+				snap ? snapValues : nullptr);
+
+			if (ImGuizmo::IsUsing())
+			{
+				Choice::Instance()->GetPipeline()->MousePicking(false);
+				glm::vec3 rotation;
+				DecomposeTransform(_transform, transform->Position, rotation, transform->Scale);
+				glm::vec3 deltaRotation = rotation - transform->Rotation;
+				transform->Rotation += deltaRotation;
+			}
+			else if (!ImGuizmo::IsUsing()) { Choice::Instance()->GetPipeline()->MousePicking(true); }
+		}//Gizmo
+
+		ImGui::End();//Dockspace
 	}
 
 	void Editor::Update()
@@ -475,13 +577,18 @@ namespace choice
 		}
 	}
 
+	template<>
+	void SceneObject::DrawProperty<Light>()
+	{
+
+	}
+
 	void Editor::DrawObjectInspectorPanel(SceneObject* object)
 	{
-		std::string icon = ICON_FK_INFO_CIRCLE;
 		ImGui::SetNextWindowSize({ 343.0f, 289.0f }, ImGuiCond_Appearing);
 		ImGui::SetNextWindowSizeConstraints({ 343.0f, 289.0f }, { 343.0f, 679.0f });
 		ImGui::SetNextWindowBgAlpha(0.68f);
-		ImGui::Begin((icon + " Inspector").c_str(), NULL, ImGuiWindowFlags_NoDocking);
+		ImGui::Begin(ICON_FK_INFO_CIRCLE" Inspector", NULL, ImGuiWindowFlags_NoDocking);
 
 		if (ImGui::IsWindowFocused())
 		{
@@ -502,6 +609,26 @@ namespace choice
 		object->DrawProperty<Skybox>();
 
 		ImGui::End();
+	}
+
+	void Editor::SetEditorLayout()
+	{
+		if (ImGui::DockBuilderGetNode(mDockIds.root) == NULL) {
+			mDockIds.root = ImGui::GetID("Root_Dockspace");
+
+			ImGui::DockBuilderRemoveNode(mDockIds.root);  // Clear out existing layout
+			ImGui::DockBuilderAddNode(mDockIds.root,
+				ImGuiDockNodeFlags_DockSpace);  // Add empty node
+			ImGui::DockBuilderSetNodeSize(mDockIds.root,
+				{ (float)Choice::Instance()->GetWindow()->GetWidth(), 
+				(float)Choice::Instance()->GetWindow()->GetHeight() });
+
+			mDockIds.right = ImGui::DockBuilderSplitNode(mDockIds.root, ImGuiDir_Right,
+				0.2f, NULL, &mDockIds.root);
+
+			ImGui::DockBuilderDockWindow("Viewport", mDockIds.root);
+			ImGui::DockBuilderFinish(mDockIds.root);
+		}
 	}
 
 }

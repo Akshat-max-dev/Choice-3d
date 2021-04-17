@@ -12,8 +12,12 @@ namespace choice
 		virtual void Init(uint32_t w, uint32_t h) {}
 		virtual void Visible(uint32_t w, uint32_t h) {}
 		virtual void Update(Scene* scene, Camera* camera) {}
-		virtual void PickedObject(int pickedobject) {}
-		virtual void MousePicking(bool value) {}
 		virtual void Shutdown() {}
+
+		void PickedObject(int pickedobject) { mPickedObjectId = pickedobject; }
+		void MousePicking(bool value) { mMousePicking = value; }
+	protected:
+		int mPickedObjectId = -1;
+		bool mMousePicking = true;
 	};
 }

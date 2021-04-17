@@ -24,6 +24,8 @@ namespace choice
 			mProjection = glm::perspective(glm::radians(mFov), mAspectRatio, mNearClip, mFarClip);
 		}
 
+		void AcceptInput(bool acceptinput) { mAcceptInput = acceptinput; }
+
 		virtual void Update() {}
 
 		virtual void OnButtonDown(int button) {}
@@ -47,5 +49,7 @@ namespace choice
 		};
 
 		MovementType mMovementType = MovementType::NONE;
+
+		bool mAcceptInput = true;
 	};
 }

@@ -23,6 +23,7 @@ namespace choice
 		std::unique_ptr<Project>& GetActiveProject() { return mActiveProject; }
 	private:
 		void DrawObjectInspectorPanel(SceneObject* object);
+		void SetEditorLayout();
 	private:
 		Camera* mCamera;
 
@@ -34,8 +35,16 @@ namespace choice
 		ModalPurpose mModalPurpose = ModalPurpose::NONE;
 		bool mShowModal = false;
 		bool mIsBlenderLinked = false;
-		bool mShowHiearchy = false;
+		bool mShowHierarchy = false;
 	private:
 		int mSelectedObjectIndex = -1;
+		int mGizmoType = -1;
+
+		struct DockIds
+		{
+			uint32_t root = 0;
+			uint32_t right = 0;
+			uint32_t left = 0;
+		}mDockIds;
 	};
 }

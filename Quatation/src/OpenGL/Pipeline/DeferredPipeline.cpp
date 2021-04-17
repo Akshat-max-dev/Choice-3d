@@ -242,22 +242,11 @@ namespace choice
 		mGeometryPass.first->UnBind();
 
 		glDisable(GL_DEPTH_TEST);
-		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
 		mLightingPass->Use();
 		mGeometryPass.first->BindGBuffer({ 0, 1, 2, 3 });
 		mLightingPass->Int("gBuffer.AlbedoS", 2);
 		glDrawArrays(GL_TRIANGLES, 0, 3);
-	}
-
-	void DeferredPipeline::PickedObject(int pickedobject)
-	{
-		mPickedObjectId = pickedobject;
-	}
-
-	void DeferredPipeline::MousePicking(bool value)
-	{
-		mMousePicking = value;
 	}
 
 	void DeferredPipeline::Shutdown()
@@ -325,5 +314,4 @@ namespace choice
 		}
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
-
 }

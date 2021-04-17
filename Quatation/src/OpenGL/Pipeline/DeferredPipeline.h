@@ -49,15 +49,11 @@ namespace choice
 		void Init(uint32_t w, uint32_t h)override;
 		void Visible(uint32_t w, uint32_t h)override;
 		void Update(Scene* scene, Camera* camera)override;
-		void PickedObject(int pickedobject)override;
-		void MousePicking(bool value)override;
 		void Shutdown()override;
 	private:
 		std::pair<MousePickingCapture*, Shader*> mMousePickingPass;
 		std::pair<DeferredGeometryCapture*, Shader*> mGeometryPass;
 		Shader* mOutline;
 		Shader* mLightingPass;
-		bool mMousePicking = true;
-		int mPickedObjectId = -1;
 	};
 }
