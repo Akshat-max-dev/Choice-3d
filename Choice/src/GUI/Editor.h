@@ -24,6 +24,7 @@ namespace choice
 	private:
 		void DrawObjectInspectorPanel(SceneObject* object);
 		void SetEditorLayout();
+		void DrawProjectExplorer();
 	private:
 		Camera* mCamera;
 
@@ -36,6 +37,7 @@ namespace choice
 		bool mShowModal = false;
 		bool mIsBlenderLinked = false;
 		bool mShowHierarchy = false;
+		bool mShowProjectExplorer = false;
 	private:
 		int mSelectedObjectIndex = -1;
 		int mGizmoType = -1;
@@ -46,5 +48,7 @@ namespace choice
 			uint32_t right = 0;
 			uint32_t left = 0;
 		}mDockIds;
+
+		glm::vec2 mVisibleRegion = { 0.0f, 0.0f };
 	};
 }

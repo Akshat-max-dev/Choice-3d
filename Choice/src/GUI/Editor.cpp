@@ -76,10 +76,18 @@ namespace choice
 
 		ImGui::PopStyleVar(2);
 
+		if (mVisibleRegion.x != viewport->WorkSize.x || mVisibleRegion.y != viewport->WorkSize.y)
+		{
+			mVisibleRegion = { viewport->WorkSize.x, viewport->WorkSize.y };
+			Choice::Instance()->GetPipeline()->Visible((uint32_t)mVisibleRegion.x, (uint32_t)mVisibleRegion.y);
+			mCamera->Visible((uint32_t)mVisibleRegion.x, (uint32_t)mVisibleRegion.y);
+		}
+
+		auto dockspace_id = ImGui::GetID("Root_Dockspace");
 		ImGuiIO& io = ImGui::GetIO();
 		if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable)
 		{
-			ImGui::DockSpace(ImGui::GetID("Root_Dockspace"), ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
+			ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
 		}
 
 		//Main Menu Bar
@@ -114,6 +122,16 @@ namespace choice
 				}
 				ImGui::EndMenu();
 			}
+
+			if (ImGui::BeginMenu("View"))
+			{
+				if (ImGui::MenuItem("Project Explorer", "Alt + P"))
+				{
+					mShowProjectExplorer = true;
+				}
+				ImGui::EndMenu();
+			}
+
 			ImGui::EndMainMenuBar();
 		}//Main Menu Bar
 
@@ -133,6 +151,8 @@ namespace choice
 				ImGuiFileDialog::Instance()->OpenModal("OpenProject", "Open Project", ".cproj", "");
 			}
 		}
+
+		if (Input::IsKeyPressed(Key::LEFTALT) && Input::IsKeyPressed(Key::P)) { mShowProjectExplorer = true; }
 
 		if (mActiveProject)
 		{
@@ -446,7 +466,7 @@ namespace choice
 			ImGuizmo::SetOrthographic(false);
 			ImGuizmo::SetDrawlist();
 
-			ImGuizmo::SetRect(ImGui::GetWindowPos().x, ImGui::GetWindowPos().y, ImGui::GetWindowWidth(), ImGui::GetWindowHeight());
+			ImGuizmo::SetRect(ImGui::GetWindowPos().x, ImGui::GetWindowPos().y, mVisibleRegion.x, mVisibleRegion.y);
 
 			bool snap = Input::IsKeyPressed(Key::LEFTCONTROL);
 			float snapValue = 0.5f;
@@ -471,6 +491,12 @@ namespace choice
 			}
 			else if (!ImGuizmo::IsUsing()) { Choice::Instance()->GetPipeline()->MousePicking(true); }
 		}//Gizmo
+
+		//Project Explorer
+		if (mShowProjectExplorer)
+		{
+			DrawProjectExplorer();
+		}//Project Explorer
 
 		ImGui::End();//Dockspace
 	}
@@ -626,9 +652,68 @@ namespace choice
 			mDockIds.right = ImGui::DockBuilderSplitNode(mDockIds.root, ImGuiDir_Right,
 				0.2f, NULL, &mDockIds.root);
 
-			ImGui::DockBuilderDockWindow("Viewport", mDockIds.root);
 			ImGui::DockBuilderFinish(mDockIds.root);
 		}
 	}
+
+	//Iterate Project Directory
+	void IterateDirectory(const std::string& directory)
+	{
+		for (auto& it : ghc::filesystem::directory_iterator(directory))
+		{
+			auto& f = it.path();
+			if (ghc::filesystem::is_directory(f))
+			{
+				std::string foldericon = ICON_FK_FOLDER_O;
+				if (ImGui::TreeNodeEx((foldericon + " " + f.filename().string()).c_str(), ImGuiTreeNodeFlags_OpenOnArrow))
+				{
+					IterateDirectory(f.string());
+					ImGui::TreePop();
+				}
+			}
+			else
+			{
+				std::string ext = f.filename().extension().string();
+				if (!(ext == ".cproj" || ext == ".cscene"))
+				{
+					std::string fileicon = ICON_FK_FILE_O;
+					if (ImGui::TreeNodeEx((fileicon + " " + f.filename().string()).c_str(), ImGuiTreeNodeFlags_Leaf))
+					{
+						ImGui::TreePop();
+					}
+				}
+			}
+		}
+	}//Iterate Project Directory
+
+	//Project Explorer
+	void Editor::DrawProjectExplorer()
+	{
+		auto* viewport = ImGui::GetMainViewport();
+		ImGui::SetNextWindowPos({ 1212.0f, 47.0f }, ImGuiCond_Appearing);
+		ImGui::SetNextWindowSizeConstraints({ viewport->WorkSize.x - 1212.0f, viewport->WorkSize.y },
+			{ viewport->WorkSize.x - 1012.0f, viewport->WorkSize.y });
+		ImGui::Begin(ICON_FK_FOLDER_OPEN_O" Explorer", &mShowProjectExplorer, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
+
+		ImGui::SetWindowSize({ viewport->WorkSize.x - ImGui::GetWindowPos().x, viewport->WorkSize.y }, ImGuiCond_Appearing);
+
+		ImVec2 _size;
+		_size.x = viewport->WorkSize.x - ImGui::GetWindowSize().x;
+		if (mVisibleRegion.x != _size.x)
+		{
+			mVisibleRegion.x = _size.x;
+			Choice::Instance()->GetPipeline()->Visible((uint32_t)mVisibleRegion.x, (uint32_t)mVisibleRegion.y);
+			mCamera->Visible((uint32_t)mVisibleRegion.x, (uint32_t)mVisibleRegion.y);
+		}
+
+		std::string icon = ICON_FK_FOLDER_OPEN;
+		if (ImGui::TreeNodeEx((icon + " " + mActiveProject->Name()).c_str(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Leaf))
+		{
+			IterateDirectory(mActiveProject->Directory() + "\\" + mActiveProject->Name()); //Iterate Project Directory
+			ImGui::TreePop();
+		}
+
+		ImGui::End();
+	}//Project Explorer
 
 }
