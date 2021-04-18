@@ -382,6 +382,11 @@ namespace choice
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0.0f, 0.0f });
 		ImGui::Begin(ICON_FK_GAMEPAD" Viewport");
 
+		if (ImGui::IsWindowFocused() && ImGui::IsWindowHovered())
+		{
+			Choice::Instance()->GetPipeline()->MousePicking(true);
+		}
+
 		ImGui::PopStyleVar();
 
 		ImVec2 viewportSize = ImGui::GetContentRegionAvail();
@@ -435,20 +440,16 @@ namespace choice
 
 		ImGui::End();//Viewport
 
+
+		//Scene Hierarchy
+		ImGui::Begin(ICON_FK_LIST_UL" Hierarchy");
+
+		if (ImGui::IsWindowFocused() && ImGui::IsWindowHovered()) { Choice::Instance()->GetPipeline()->MousePicking(false); }
+
 		if (mActiveProject)
 		{
-			ImGui::Begin(ICON_FK_LIST_UL" Hierarchy");
-
-			if (ImGui::IsWindowFocused())
-			{
-				Choice::Instance()->GetPipeline()->MousePicking(false);
-			}
-			else
-			{
-				Choice::Instance()->GetPipeline()->MousePicking(true);
-			}
-
-			if (ImGui::CollapsingHeader(mActiveProject->ActiveScene()->Name().c_str(), ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_DefaultOpen))
+			std::string icon = ICON_FK_PICTURE_O;
+			if (ImGui::CollapsingHeader((icon + " " + mActiveProject->ActiveScene()->Name()).c_str(), ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_DefaultOpen))
 			{
 				for (uint32_t i = 0; i < mActiveProject->ActiveScene()->GetSceneObjects().size(); i++)
 				{
@@ -457,7 +458,10 @@ namespace choice
 					{
 						ImGuiTreeNodeFlags _flags_ = (i == mSelectedObjectIndex) ? ImGuiTreeNodeFlags_Selected : 0;
 						_flags_ |= ImGuiTreeNodeFlags_Leaf;
-						if (ImGui::TreeNodeEx(object->Name().c_str(), _flags_))
+						if (object->GetProperty<Skybox>()) { icon = ICON_FK_SKYATLAS; }
+						else if (object->GetProperty<Model>()) { icon = ICON_FK_CUBE; }
+						else if (object->GetProperty<Light>()) { icon = ICON_FK_LIGHTBULB_O; }
+						if (ImGui::TreeNodeEx((icon + " " + object->Name()).c_str(), _flags_))
 						{
 							if (ImGui::IsItemClicked())
 							{
@@ -471,9 +475,9 @@ namespace choice
 			}
 
 			ShowAddingScneObjectMenu();
+		}
 
-			ImGui::End();
-		} // Scene Hierarchy
+		ImGui::End();//Scene Hierarchy
 
 
 		//Object Inspector
@@ -506,7 +510,7 @@ namespace choice
 	{
 		if (mModel.has_value())
 		{
-			if (ImGui::CollapsingHeader("Model", ImGuiTreeNodeFlags_OpenOnArrow))
+			if (ImGui::CollapsingHeader(ICON_FK_CUBE" Model", ImGuiTreeNodeFlags_OpenOnArrow))
 			{
 				ImGui::Text("TODO");
 			}
@@ -687,6 +691,11 @@ namespace choice
 	{
 		ImGui::SetNextWindowDockID(mDockIds.left, ImGuiCond_Appearing);
 		ImGui::Begin(ICON_FK_FOLDER_OPEN_O" Explorer", &mShowProjectExplorer);
+
+		if (ImGui::IsWindowFocused() && ImGui::IsWindowHovered()) 
+		{ 
+			Choice::Instance()->GetPipeline()->MousePicking(false); 
+		}
 
 		std::string icon = ICON_FK_FOLDER_OPEN;
 		if (ImGui::TreeNodeEx((icon + " " + mActiveProject->Name()).c_str(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Leaf))

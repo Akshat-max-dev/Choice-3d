@@ -16,6 +16,15 @@ namespace choice
 		std::string dstHDRI = mDirectory + "\\" + mName + "\\" + "Assets\\crosswalk_4k.hdr";
 		object->AddProperty<Skybox>(new Skybox(dstHDRI));
 		mSceneObjects.push_back(object);
+
+		SceneObject* _object = new SceneObject();
+		_object->AddProperty<Light>(new DirectionalLight());
+		Transform* transform = new Transform();
+		transform->Position = { 0.0f, 0.0f, 0.0f };
+		transform->Rotation = { 0.0f, 0.0f, 0.0f };
+		transform->Scale = { 1.0f, 1.0f, 1.0f };
+		_object->AddProperty<Transform>(transform);
+		mSceneObjects.push_back(_object);
 	}
 
 	Scene::Scene(const std::string& cscene)
@@ -59,7 +68,31 @@ namespace choice
 				containedscene.read((char*)modelsrcFile.data(), modelsrcFilesize);
 
 				object->AddProperty<Model>(LoadModel(modelsrcFile));
+			}
+			
+			int lightype;
+			containedscene.read((char*)&lightype, sizeof(lightype));
+			if (lightype != -1)
+			{
+				uint32_t lightnamesize;
+				containedscene.read((char*)&lightnamesize, sizeof(lightnamesize));
+				std::string lightname;
+				lightname.resize(lightnamesize);
+				containedscene.read((char*)lightname.data(), lightnamesize);
 
+				switch (lightype)
+				{
+				case 0:
+					object->AddProperty<Light>(new DirectionalLight(lightname));
+					break;
+				case 1:
+					object->AddProperty<Light>(new PointLight(lightname));
+					break;
+				}
+			}
+
+			if (modelsrcFilesize || lightype != -1)
+			{
 				Transform* transform = new Transform();
 
 				containedscene.read((char*)&transform->Position.x, sizeof(transform->Position.x));
@@ -76,7 +109,6 @@ namespace choice
 
 				object->AddProperty<Transform>(transform);
 			}
-			
 		}
 		containedscene.close();
 	}
@@ -129,6 +161,22 @@ namespace choice
 				{
 					uint32_t modelsrcFileSize = 0;
 					cscene.write((char*)&modelsrcFileSize, sizeof(modelsrcFileSize));
+				}
+
+				auto lightprop = object->GetProperty<Light>();
+				if (lightprop)
+				{
+					int lighttype = static_cast<int>(lightprop->GetLightType());
+					cscene.write((char*)&lighttype, sizeof(lighttype));
+
+					uint32_t lightnamesize = (uint32_t)lightprop->GetName().size();
+					cscene.write((char*)&lightnamesize, sizeof(lightnamesize));
+					cscene.write((char*)lightprop->GetName().data(), lightnamesize);
+				}
+				else
+				{
+					int lighttype = -1;
+					cscene.write((char*)&lighttype, sizeof(lighttype));
 				}
 
 				auto transformprop = object->GetProperty<Transform>();
