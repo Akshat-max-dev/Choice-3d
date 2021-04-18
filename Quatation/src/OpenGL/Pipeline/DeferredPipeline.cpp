@@ -114,13 +114,15 @@ namespace choice
 		mGeometryPass.first = new DeferredGeometryCapture(w, h);
 		mGeometryPass.second = new Shader("Choice/assets/shaders/DeferredGeometryPass.glsl");
 
-		mLightingPass = new Shader("Choice/assets/shaders/DeferredLightingPass.glsl");
+		mLightingPass.first = new DeferredLightingCapture(w, h);
+		mLightingPass.second = new Shader("Choice/assets/shaders/DeferredLightingPass.glsl");
 	}
 
 	void DeferredPipeline::Visible(uint32_t w, uint32_t h)
 	{
 		mMousePickingPass.first->Visible(w, h);
 		mGeometryPass.first->Visible(w, h);
+		mLightingPass.first->Visible(w, h);
 	}
 
 	void DeferredPipeline::Update(Scene* scene, Camera* camera)
@@ -241,12 +243,55 @@ namespace choice
 		}
 		mGeometryPass.first->UnBind();
 
+		mLightingPass.first->Bind();
 		glDisable(GL_DEPTH_TEST);
 		glClear(GL_COLOR_BUFFER_BIT);
-		mLightingPass->Use();
-		mGeometryPass.first->BindGBuffer({ 0, 1, 2, 3 });
-		mLightingPass->Int("gBuffer.AlbedoS", 2);
+		int directinalLightCount = -1;
+		int pointLightCount = -1;
+		for (auto& object : scene->GetSceneObjects())
+		{
+			if (object)
+			{
+				Light* light = object->GetProperty<Light>();
+				if (light)
+				{
+					Transform* transform = object->GetProperty<Transform>();
+					mLightingPass.second->Use();
+					mGeometryPass.first->BindGBuffer({ 0, 1, 2, 3 });
+					mLightingPass.second->Int("lGBuffer.Position", 0);
+					mLightingPass.second->Int("lGBuffer.Normal", 1);
+					mLightingPass.second->Int("lGBuffer.AlbedoS", 2);
+					switch (light->GetLightType())
+					{
+					case LightType::DIRECTIONAL:
+						directinalLightCount++;
+						mLightingPass.second->Float3(("ldLights[" + std::to_string(directinalLightCount) + "].Direction").c_str(), transform->GetTransform()[2]);
+						mLightingPass.second->Float3(("ldLights[" + std::to_string(directinalLightCount) + "].Diffuse").c_str(), { 0.5f, 0.5f, 0.5f });
+						mLightingPass.second->Float3(("ldLights[" + std::to_string(directinalLightCount) + "].Specular").c_str(), { 0.7f, 0.7f, 0.7f });
+						break;
+					case LightType::POINT:
+						pointLightCount++;
+						mLightingPass.second->Float3(("lpLights[" + std::to_string(pointLightCount) + "].Position").c_str(), transform->Position);
+						mLightingPass.second->Float3(("lpLights[" + std::to_string(pointLightCount) + "].Diffuse").c_str(), { 0.7f, 0.1f, 0.7f });
+						mLightingPass.second->Float3(("lpLights[" + std::to_string(pointLightCount) + "].Specular").c_str(), { 0.7f, 0.7f, 0.7f });
+						mLightingPass.second->Float(("lpLights[" + std::to_string(pointLightCount) + "].Constant").c_str(), 1.0f);
+						mLightingPass.second->Float(("lpLights[" + std::to_string(pointLightCount) + "].Linear").c_str(), 0.0035f);
+						mLightingPass.second->Float(("lpLights[" + std::to_string(pointLightCount) + "].Quadratic").c_str(), 0.0044f);
+						break;
+					}
+					mLightingPass.second->Float3("lViewpos", camera->Position());
+					mLightingPass.second->Int("ldLightsActive", directinalLightCount + 1);
+					mLightingPass.second->Int("lpLightsActive", pointLightCount + 1);
+				}
+			}
+		}
 		glDrawArrays(GL_TRIANGLES, 0, 3);
+		mLightingPass.first->UnBind();
+	}
+
+	const uint32_t& DeferredPipeline::Capture() const
+	{
+		return mLightingPass.first->GetCapture();
 	}
 
 	void DeferredPipeline::Shutdown()
@@ -256,7 +301,8 @@ namespace choice
 		delete mOutline;
 		delete mGeometryPass.first;
 		delete mGeometryPass.second;
-		delete mLightingPass;
+		delete mLightingPass.first;
+		delete mLightingPass.second;
 	}
 
 	MousePickingCapture::MousePickingCapture(uint32_t w, uint32_t h)
@@ -314,4 +360,52 @@ namespace choice
 		}
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
+
+	DeferredLightingCapture::DeferredLightingCapture(uint32_t w, uint32_t h)
+		:Framebuffer(w, h)
+	{
+		Invalidate();
+	}
+
+	DeferredLightingCapture::~DeferredLightingCapture()
+	{
+		Framebuffer::Destroy();
+		glDeleteTextures(1, &mCapture);
+	}
+
+	const uint32_t& DeferredLightingCapture::GetCapture() const
+	{
+		return mCapture;
+	}
+
+	void DeferredLightingCapture::Invalidate()
+	{
+		if (mRendererId)
+		{
+			Framebuffer::Destroy();
+			glDeleteTextures(1, &mCapture);
+		}
+
+		glCreateFramebuffers(1, &mRendererId);
+		glBindFramebuffer(GL_FRAMEBUFFER, mRendererId);
+
+		glCreateTextures(GL_TEXTURE_2D, 1, &mCapture);
+		glBindTexture(GL_TEXTURE_2D, mCapture);
+
+		glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, mWidth, mHeight);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, mCapture, 0);
+
+		if (!(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE))
+		{
+#ifdef DEBUG
+			std::cout << "Framebuffer Not Complete" << std::endl;
+			choiceassert(0);
+#endif
+		}
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	}
+
 }

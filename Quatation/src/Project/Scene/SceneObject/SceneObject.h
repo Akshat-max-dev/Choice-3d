@@ -47,7 +47,7 @@ namespace choice
 		template<>
 		void AddProperty<Light>(Light* light)
 		{
-			if (!mLight.has_value()) { mLight.emplace(light); return; }
+			if (!mLight.has_value()) { mLight.emplace(light); mName = light->GetName(); return; }
 			std::cout << "Property Already Exists" << std::endl;
 		}
 

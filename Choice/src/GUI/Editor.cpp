@@ -55,6 +55,8 @@ namespace choice
 	{
 		SetEditorLayout();
 
+		auto dockspace_id = ImGui::GetID("Root_Dockspace");
+
 		auto* viewport = ImGui::GetMainViewport();
 		static float IFDModalWidth = viewport->Size.x / 2;
 		static float IFDModalHeight = viewport->Size.y / 2 + 100.0f;
@@ -68,7 +70,7 @@ namespace choice
 
 		static ImGuiWindowFlags host_window_flags = 0;
 		host_window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDocking;
-		host_window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoBackground;
+		host_window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
 
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
 		ImGui::Begin("Choice DockSpace", (bool*)0, host_window_flags);
@@ -76,18 +78,10 @@ namespace choice
 
 		ImGui::PopStyleVar(2);
 
-		if (mVisibleRegion.x != viewport->WorkSize.x || mVisibleRegion.y != viewport->WorkSize.y)
-		{
-			mVisibleRegion = { viewport->WorkSize.x, viewport->WorkSize.y };
-			Choice::Instance()->GetPipeline()->Visible((uint32_t)mVisibleRegion.x, (uint32_t)mVisibleRegion.y);
-			mCamera->Visible((uint32_t)mVisibleRegion.x, (uint32_t)mVisibleRegion.y);
-		}
-
-		auto dockspace_id = ImGui::GetID("Root_Dockspace");
 		ImGuiIO& io = ImGui::GetIO();
 		if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable)
 		{
-			ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
+			ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), 0);
 		}
 
 		//Main Menu Bar
@@ -153,25 +147,6 @@ namespace choice
 		}
 
 		if (Input::IsKeyPressed(Key::LEFTALT) && Input::IsKeyPressed(Key::P)) { mShowProjectExplorer = true; }
-
-		if (mActiveProject)
-		{
-			if (ImGui::BeginPopupContextVoid())
-			{
-				if (ImGui::MenuItem("Add Model"))
-				{
-					ImGuiFileDialog::Instance()->SetExtentionInfos(".obj", { 0.1f, 1.0f, 0.1f, 1.0f });
-					ImGuiFileDialog::Instance()->OpenModal("AddModel", "Import Model", ".obj,.glb", "");
-				}
-				if (ImGui::MenuItem("Change Skybox"))
-				{
-					ImGuiFileDialog::Instance()->SetExtentionInfos(".hdr", { 0.4f, 0.5f, 0.7f, 1.0f });
-					ImGuiFileDialog::Instance()->SetExtentionInfos(".exr", { 0.5f, 0.2f, 0.5f, 1.0f });
-					ImGuiFileDialog::Instance()->OpenModal("ChangeSkybox", "Change Skybox", ".hdr,.exr", "");
-				}
-				ImGui::EndPopup();
-			}
-		}
 
 		//New Project
 		if (mShowModal)
@@ -402,59 +377,25 @@ namespace choice
 			ImGuiFileDialog::Instance()->Close();
 		}//Change Skybox
 
-		//Object Inspector
-		if (mSelectedObjectIndex != -1)
-		{
-			SceneObject* object = mActiveProject->ActiveScene()->GetSceneObjects()[mSelectedObjectIndex];
-			if (object) { DrawObjectInspectorPanel(object); }
-		}//Object Inspector
 
+		//Viewport
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0.0f, 0.0f });
+		ImGui::Begin(ICON_FK_GAMEPAD" Viewport");
 
-		//Scene Hierarchy
-		if (Input::IsKeyPressed(Key::LEFTALT) && Input::IsKeyPressed(Key::I) && mActiveProject)
+		ImGui::PopStyleVar();
+
+		ImVec2 viewportSize = ImGui::GetContentRegionAvail();
+		if (mVisibleRegion != *(glm::vec2*)&viewportSize)
 		{
-			mShowHierarchy = true;
+			mVisibleRegion.x = viewportSize.x; mVisibleRegion.y = viewportSize.y;
+			Choice::Instance()->GetPipeline()->Visible((uint32_t)mVisibleRegion.x, (uint32_t)mVisibleRegion.y);
+			mCamera->Visible((uint32_t)mVisibleRegion.x, (uint32_t)mVisibleRegion.y);
 		}
 
-		if (mShowHierarchy)
-		{
-			ImGui::SetNextWindowSize({ 283.0f, 319.0f }, ImGuiCond_Appearing);
-			ImGui::SetNextWindowSizeConstraints({ 283.0f, 319.0f }, { 283.0f, 419.0f });
-			ImGui::SetNextWindowBgAlpha(0.68f);
-			ImGui::Begin(ICON_FK_LIST_UL" Hierarchy", NULL, ImGuiWindowFlags_NoDocking);
+		ImGui::Image((void*)(uintptr_t)Choice::Instance()->GetPipeline()->Capture(), { mVisibleRegion.x, mVisibleRegion.y }, ImVec2{ 0,1 }, ImVec2{ 1,0 });
 
-			if (ImGui::IsWindowFocused())
-			{
-				if (Input::IsKeyPressed(Key::ESCAPE)) { mShowHierarchy = false; Choice::Instance()->GetPipeline()->MousePicking(true); }
-				else { Choice::Instance()->GetPipeline()->MousePicking(false); }
-			}
-			else if (Input::IsKeyPressed(Mouse::BUTTON1)) { Choice::Instance()->GetPipeline()->MousePicking(true); }
+		ShowAddingScneObjectMenu();
 
-			if (ImGui::CollapsingHeader(mActiveProject->ActiveScene()->Name().c_str(), ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_DefaultOpen))
-			{
-				for (uint32_t i = 0; i < mActiveProject->ActiveScene()->GetSceneObjects().size(); i++)
-				{
-					SceneObject* object = mActiveProject->ActiveScene()->GetSceneObjects()[i];
-					if (object)
-					{
-						ImGuiTreeNodeFlags _flags_ = (i == mSelectedObjectIndex) ? ImGuiTreeNodeFlags_Selected : 0;
-						_flags_ |= ImGuiTreeNodeFlags_Leaf;
-						if (ImGui::TreeNodeEx(object->Name().c_str(), _flags_))
-						{
-							if (ImGui::IsItemClicked())
-							{
-								mSelectedObjectIndex = i;
-								Choice::Instance()->GetPipeline()->PickedObject(static_cast<int>(i));
-							}
-							ImGui::TreePop();
-						}
-					}
-				}
-			}
-			ImGui::End();
-		} // Scene Hierarchy
-
-		
 		//Gizmo
 		if (Input::IsKeyPressed(Key::Q)) { mGizmoType = -1; }
 		if (Input::IsKeyPressed(Key::NUM1)) { mGizmoType = ImGuizmo::OPERATION::TRANSLATE; }
@@ -491,6 +432,57 @@ namespace choice
 			}
 			else if (!ImGuizmo::IsUsing()) { Choice::Instance()->GetPipeline()->MousePicking(true); }
 		}//Gizmo
+
+		ImGui::End();//Viewport
+
+		if (mActiveProject)
+		{
+			ImGui::Begin(ICON_FK_LIST_UL" Hierarchy");
+
+			if (ImGui::IsWindowFocused())
+			{
+				Choice::Instance()->GetPipeline()->MousePicking(false);
+			}
+			else
+			{
+				Choice::Instance()->GetPipeline()->MousePicking(true);
+			}
+
+			if (ImGui::CollapsingHeader(mActiveProject->ActiveScene()->Name().c_str(), ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_DefaultOpen))
+			{
+				for (uint32_t i = 0; i < mActiveProject->ActiveScene()->GetSceneObjects().size(); i++)
+				{
+					SceneObject* object = mActiveProject->ActiveScene()->GetSceneObjects()[i];
+					if (object)
+					{
+						ImGuiTreeNodeFlags _flags_ = (i == mSelectedObjectIndex) ? ImGuiTreeNodeFlags_Selected : 0;
+						_flags_ |= ImGuiTreeNodeFlags_Leaf;
+						if (ImGui::TreeNodeEx(object->Name().c_str(), _flags_))
+						{
+							if (ImGui::IsItemClicked())
+							{
+								mSelectedObjectIndex = i;
+								Choice::Instance()->GetPipeline()->PickedObject(static_cast<int>(i));
+							}
+							ImGui::TreePop();
+						}
+					}
+				}
+			}
+
+			ShowAddingScneObjectMenu();
+
+			ImGui::End();
+		} // Scene Hierarchy
+
+
+		//Object Inspector
+		if (mSelectedObjectIndex != -1)
+		{
+			SceneObject* object = mActiveProject->ActiveScene()->GetSceneObjects()[mSelectedObjectIndex];
+			if (object) { DrawObjectInspectorPanel(object); }
+		}//Object Inspector
+
 
 		//Project Explorer
 		if (mShowProjectExplorer)
@@ -651,7 +643,11 @@ namespace choice
 
 			mDockIds.right = ImGui::DockBuilderSplitNode(mDockIds.root, ImGuiDir_Right,
 				0.2f, NULL, &mDockIds.root);
+			mDockIds.left = ImGui::DockBuilderSplitNode(mDockIds.root, ImGuiDir_Left,
+				0.2f, NULL, &mDockIds.root);
 
+			ImGui::DockBuilderDockWindow(ICON_FK_GAMEPAD" Viewport", mDockIds.root);
+			ImGui::DockBuilderDockWindow(ICON_FK_LIST_UL" Hierarchy", mDockIds.right);
 			ImGui::DockBuilderFinish(mDockIds.root);
 		}
 	}
@@ -689,22 +685,8 @@ namespace choice
 	//Project Explorer
 	void Editor::DrawProjectExplorer()
 	{
-		auto* viewport = ImGui::GetMainViewport();
-		ImGui::SetNextWindowPos({ 1212.0f, 47.0f }, ImGuiCond_Appearing);
-		ImGui::SetNextWindowSizeConstraints({ viewport->WorkSize.x - 1212.0f, viewport->WorkSize.y },
-			{ viewport->WorkSize.x - 1012.0f, viewport->WorkSize.y });
-		ImGui::Begin(ICON_FK_FOLDER_OPEN_O" Explorer", &mShowProjectExplorer, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
-
-		ImGui::SetWindowSize({ viewport->WorkSize.x - ImGui::GetWindowPos().x, viewport->WorkSize.y }, ImGuiCond_Appearing);
-
-		ImVec2 _size;
-		_size.x = viewport->WorkSize.x - ImGui::GetWindowSize().x;
-		if (mVisibleRegion.x != _size.x)
-		{
-			mVisibleRegion.x = _size.x;
-			Choice::Instance()->GetPipeline()->Visible((uint32_t)mVisibleRegion.x, (uint32_t)mVisibleRegion.y);
-			mCamera->Visible((uint32_t)mVisibleRegion.x, (uint32_t)mVisibleRegion.y);
-		}
+		ImGui::SetNextWindowDockID(mDockIds.left, ImGuiCond_Appearing);
+		ImGui::Begin(ICON_FK_FOLDER_OPEN_O" Explorer", &mShowProjectExplorer);
 
 		std::string icon = ICON_FK_FOLDER_OPEN;
 		if (ImGui::TreeNodeEx((icon + " " + mActiveProject->Name()).c_str(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Leaf))
@@ -715,5 +697,50 @@ namespace choice
 
 		ImGui::End();
 	}//Project Explorer
+
+	void Editor::ShowAddingScneObjectMenu()
+	{
+		if (ImGui::BeginPopupContextWindow(0, 1, false))
+		{
+			if (ImGui::MenuItem("Add Model"))
+			{
+				ImGuiFileDialog::Instance()->SetExtentionInfos(".obj", { 0.1f, 1.0f, 0.1f, 1.0f });
+				ImGuiFileDialog::Instance()->OpenModal("AddModel", "Import Model", ".obj,.glb", "");
+			}
+			if (ImGui::MenuItem("Change Skybox"))
+			{
+				ImGuiFileDialog::Instance()->SetExtentionInfos(".hdr", { 0.4f, 0.5f, 0.7f, 1.0f });
+				ImGuiFileDialog::Instance()->SetExtentionInfos(".exr", { 0.5f, 0.2f, 0.5f, 1.0f });
+				ImGuiFileDialog::Instance()->OpenModal("ChangeSkybox", "Change Skybox", ".hdr,.exr", "");
+			}
+			if (ImGui::BeginMenu("Add Light"))
+			{
+				if (ImGui::MenuItem("Directional Light"))
+				{
+					SceneObject* sceneobject = new SceneObject();
+					sceneobject->AddProperty<Light>(new DirectionalLight());
+					Transform* transform = new Transform();
+					transform->Position = { 0.0f, 0.0f, 0.0f };
+					transform->Rotation = { 0.0f, 0.0f, 0.0f };
+					transform->Scale = { 1.0f, 1.0f, 1.0f };
+					sceneobject->AddProperty<Transform>(transform);
+					mActiveProject->ActiveScene()->AddObject(sceneobject);
+				}
+				if (ImGui::MenuItem("Point Light"))
+				{
+					SceneObject* sceneobject = new SceneObject();
+					sceneobject->AddProperty<Light>(new PointLight());
+					Transform* transform = new Transform();
+					transform->Position = { 0.0f, 0.0f, 0.0f };
+					transform->Rotation = { 0.0f, 0.0f, 0.0f };
+					transform->Scale = { 1.0f, 1.0f, 1.0f };
+					sceneobject->AddProperty<Transform>(transform);
+					mActiveProject->ActiveScene()->AddObject(sceneobject);
+				}
+				ImGui::EndMenu();
+			}
+			ImGui::EndPopup();
+		}
+	}
 
 }

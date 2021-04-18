@@ -17,18 +17,82 @@ void main()
 #source fragment
 #version 450 core
 
-out vec4 fResult;
+out vec4 lResult;
 
 in vec2 vTexCoords;
 
 struct GBuffer
 {
+	sampler2D Position;
+	sampler2D Normal;
 	sampler2D AlbedoS;
 };
 
-uniform GBuffer gBuffer;
+uniform GBuffer lGBuffer;
+
+struct DirectionalLight
+{
+	vec3 Direction;
+	vec3 Diffuse;
+	vec3 Specular;
+};
+
+struct PointLight
+{
+	vec3 Position;
+	vec3 Diffuse;
+	vec3 Specular;
+
+	float Constant;
+	float Linear;
+	float Quadratic;
+};
+
+uniform DirectionalLight ldLights[8];
+uniform PointLight       lpLights[32];
+uniform vec3 lViewpos;
+uniform int ldLightsActive;
+uniform int lpLightsActive;
 
 void main()
 {
-	fResult = texture(gBuffer.AlbedoS, vTexCoords);
+	vec3 FragPos = texture(lGBuffer.Position, vTexCoords).rgb;
+	vec3 Normal = texture(lGBuffer.Normal, vTexCoords).rgb;
+	vec3 Diffuse = texture(lGBuffer.AlbedoS, vTexCoords).rgb;
+	float Specular = texture(lGBuffer.AlbedoS, vTexCoords).a;
+
+	vec3 Lighting = Diffuse;
+	vec3 ViewDir = normalize(lViewpos - FragPos);
+
+	for(int i = 0; i < ldLightsActive; i++)
+	{
+		vec3 lightDir = normalize(-ldLights[i].Direction);
+		vec3 diffuse = max(dot(Normal, lightDir), 0.0) * Diffuse * ldLights[i].Diffuse;
+		
+		vec3 halfwayDir = normalize(lightDir + ViewDir);  
+		float spec = pow(max(dot(Normal, halfwayDir), 0.0), 32.0);
+		vec3 specular = ldLights[i].Specular * spec * Specular;
+
+		Lighting += diffuse + specular;
+	}
+
+	for(int i = 0; i < lpLightsActive; i++)
+	{
+		vec3 lightDir = normalize(lpLights[i].Position - FragPos);
+		vec3 diffuse = max(dot(Normal, lightDir), 0.0) * Diffuse * lpLights[i].Diffuse;
+
+		vec3 halfwayDir = normalize(lightDir + ViewDir);
+		float spec = pow(max(dot(Normal, halfwayDir), 0.0), 32.0);
+		vec3 specular = lpLights[i].Specular * spec * Specular;
+
+		float distance = length(lpLights[i].Position - FragPos);
+		float attenuation = 1.0/(lpLights[i].Constant + lpLights[i].Linear * distance + lpLights[i].Quadratic * (distance + distance));
+
+		diffuse *= attenuation;
+		specular *= attenuation;
+
+		Lighting += diffuse + specular;
+	}
+	
+	lResult = vec4(Lighting, 1.0);
 }

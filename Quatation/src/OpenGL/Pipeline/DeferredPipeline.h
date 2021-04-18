@@ -23,6 +23,18 @@ namespace choice
 		uint32_t mAlbedoSId, mPositionId, mNormalId, mDepthStencilId;
 	};
 
+	class DeferredLightingCapture :public Framebuffer
+	{
+	public:
+		DeferredLightingCapture(uint32_t w, uint32_t h);
+		~DeferredLightingCapture();
+
+		const uint32_t& GetCapture()const;
+	private:
+		void Invalidate()override;
+		uint32_t mCapture;
+	};
+
 	struct PixelInfo
 	{
 		float ObjectId = 0.0f;
@@ -49,11 +61,12 @@ namespace choice
 		void Init(uint32_t w, uint32_t h)override;
 		void Visible(uint32_t w, uint32_t h)override;
 		void Update(Scene* scene, Camera* camera)override;
+		const uint32_t& Capture()const override;
 		void Shutdown()override;
 	private:
 		std::pair<MousePickingCapture*, Shader*> mMousePickingPass;
 		std::pair<DeferredGeometryCapture*, Shader*> mGeometryPass;
 		Shader* mOutline;
-		Shader* mLightingPass;
+		std::pair<DeferredLightingCapture*, Shader*> mLightingPass;
 	};
 }

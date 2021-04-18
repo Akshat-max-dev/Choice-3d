@@ -38,6 +38,30 @@ namespace choice
 		glUniform1ui(location, data);
 	}
 
+	void Shader::Float(const char* name, const float data)
+	{
+		GLint location = glGetUniformLocation(mProgram, name);
+		glUniform1f(location, data);
+	}
+
+	void Shader::Float2(const char* name, const glm::vec2& data)
+	{
+		GLint location = glGetUniformLocation(mProgram, name);
+		glUniform2f(location, data.x, data.y);
+	}
+
+	void Shader::Float3(const char* name, const glm::vec3& data)
+	{
+		GLint location = glGetUniformLocation(mProgram, name);
+		glUniform3f(location, data.x, data.y, data.z);
+	}
+
+	void Shader::Float4(const char* name, const glm::vec4& data)
+	{
+		GLint location = glGetUniformLocation(mProgram, name);
+		glUniform4f(location, data.x, data.y, data.z, data.w);
+	}
+
 	void Shader::Mat4(const char* name, const glm::mat4& data)
 	{
 		GLint location = glGetUniformLocation(mProgram, name);

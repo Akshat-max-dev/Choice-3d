@@ -12,6 +12,7 @@ namespace choice
 		virtual void Init(uint32_t w, uint32_t h) {}
 		virtual void Visible(uint32_t w, uint32_t h) {}
 		virtual void Update(Scene* scene, Camera* camera) {}
+		virtual const uint32_t& Capture()const { return 0; }
 		virtual void Shutdown() {}
 
 		void PickedObject(int pickedobject) { mPickedObjectId = pickedobject; }

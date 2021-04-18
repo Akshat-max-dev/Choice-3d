@@ -18,6 +18,8 @@ namespace choice
 		const glm::mat4& View()const { return mView; }
 		const glm::mat4& Projection()const { return mProjection; }
 
+		const glm::vec3 Position()const { return mFocus + mOffset; }
+
 		void Visible(uint32_t w, uint32_t h)
 		{
 			mAspectRatio = (float)w / (float)h;
