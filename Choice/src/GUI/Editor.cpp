@@ -412,7 +412,7 @@ namespace choice
 			ImGuizmo::SetOrthographic(false);
 			ImGuizmo::SetDrawlist();
 
-			ImGuizmo::SetRect(ImGui::GetWindowPos().x, ImGui::GetWindowPos().y, mVisibleRegion.x, mVisibleRegion.y);
+			ImGuizmo::SetRect(ImGui::GetWindowPos().x, ImGui::GetWindowPos().y, ImGui::GetWindowSize().x, ImGui::GetWindowSize().y);
 
 			bool snap = Input::IsKeyPressed(Key::LEFTCONTROL);
 			float snapValue = 0.5f;
@@ -426,7 +426,10 @@ namespace choice
 			ImGuizmo::Manipulate(glm::value_ptr(mCamera->View()), glm::value_ptr(mCamera->Projection()),
 				(ImGuizmo::OPERATION)mGizmoType, ImGuizmo::LOCAL, glm::value_ptr(_transform), nullptr,
 				snap ? snapValues : nullptr);
-
+			if (ImGuizmo::IsOver())
+			{
+				Choice::Instance()->GetPipeline()->MousePicking(false);
+			}
 			if (ImGuizmo::IsUsing())
 			{
 				Choice::Instance()->GetPipeline()->MousePicking(false);
@@ -435,7 +438,6 @@ namespace choice
 				glm::vec3 deltaRotation = rotation - transform->Rotation;
 				transform->Rotation += deltaRotation;
 			}
-			else if (!ImGuizmo::IsUsing()) { Choice::Instance()->GetPipeline()->MousePicking(true); }
 		}//Gizmo
 
 		ImGui::End();//Viewport
@@ -602,7 +604,7 @@ namespace choice
 	template<>
 	void SceneObject::DrawProperty<Light>()
 	{
-
+		Choice::Instance()->GetPipeline()->MousePicking(false);
 	}
 
 	void Editor::DrawObjectInspectorPanel(SceneObject* object)
@@ -615,10 +617,6 @@ namespace choice
 		if (ImGui::IsWindowFocused())
 		{
 			Choice::Instance()->GetPipeline()->MousePicking(false);
-		}
-		else if (Input::IsButtonPressed(Mouse::BUTTON1))
-		{
-			Choice::Instance()->GetPipeline()->MousePicking(true);
 		}
 
 		ImGui::Text(("Name :" + object->Name()).c_str());
@@ -691,11 +689,6 @@ namespace choice
 	{
 		ImGui::SetNextWindowDockID(mDockIds.left, ImGuiCond_Appearing);
 		ImGui::Begin(ICON_FK_FOLDER_OPEN_O" Explorer", &mShowProjectExplorer);
-
-		if (ImGui::IsWindowFocused() && ImGui::IsWindowHovered()) 
-		{ 
-			Choice::Instance()->GetPipeline()->MousePicking(false); 
-		}
 
 		std::string icon = ICON_FK_FOLDER_OPEN;
 		if (ImGui::TreeNodeEx((icon + " " + mActiveProject->Name()).c_str(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Leaf))
