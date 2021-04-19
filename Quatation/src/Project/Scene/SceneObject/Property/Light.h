@@ -22,13 +22,13 @@ namespace choice
 	{
 	public:
 		DirectionalLight() { mName = "Directional Light"; mLightType = LightType::DIRECTIONAL; }
-		DirectionalLight(const std::string& name) { mName = name; }
+		DirectionalLight(const std::string& name) { mName = name; mLightType = LightType::DIRECTIONAL; }
 	};
 
 	class PointLight :public Light
 	{
 	public:
 		PointLight() { mName = "Point Light"; mLightType = LightType::POINT; }
-		PointLight(const std::string& name) { mName = name; }
+		PointLight(const std::string& name) { mName = name; LightType::POINT; }
 	};
 }
