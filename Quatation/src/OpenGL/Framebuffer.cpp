@@ -19,9 +19,29 @@ namespace choice
 		glViewport(0, 0, mWidth, mHeight);
 	}
 
+	void Framebuffer::BindRead() const
+	{
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, mRendererId);
+	}
+
+	void Framebuffer::BindDraw() const
+	{
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, mRendererId);
+	}
+
 	void Framebuffer::UnBind()const
 	{
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	}
+
+	const uint32_t& Framebuffer::GetWidth() const
+	{
+		return mWidth;
+	}
+
+	const uint32_t& Framebuffer::GetHeight() const
+	{
+		return mHeight;
 	}
 
 	void Framebuffer::Visible(uint32_t w, uint32_t h)

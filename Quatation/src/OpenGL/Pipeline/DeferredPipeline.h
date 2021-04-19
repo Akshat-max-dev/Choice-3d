@@ -32,7 +32,7 @@ namespace choice
 		const uint32_t& GetCapture()const;
 	private:
 		void Invalidate()override;
-		uint32_t mCapture;
+		uint32_t mCapture, mDepthStencilId;
 	};
 
 	struct PixelInfo
@@ -61,6 +61,7 @@ namespace choice
 		void Init(uint32_t w, uint32_t h)override;
 		void Visible(uint32_t w, uint32_t h)override;
 		void Update(Scene* scene, Camera* camera)override;
+		void BlitData();//Copy Depth-Stencil Data Of Geometry Pass To Lighting Pass
 		const uint32_t& Capture()const override;
 		void Shutdown()override;
 	private:

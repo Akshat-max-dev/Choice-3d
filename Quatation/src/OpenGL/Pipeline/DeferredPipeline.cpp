@@ -180,14 +180,6 @@ namespace choice
 			_objectindex++;
 			if (object)
 			{
-				Skybox* skybox = object->GetProperty<Skybox>();
-				if (skybox)
-				{
-					glDepthFunc(GL_LEQUAL);
-					skybox->Draw(camera);
-					glDepthFunc(GL_LESS);
-				}
-
 				Model* model = object->GetProperty<Model>();
 				if (model)
 				{
@@ -217,31 +209,13 @@ namespace choice
 						uint32_t count = mesh.first->GetCount();
 						glDrawElements(GL_TRIANGLES, count, GL_UNSIGNED_INT, nullptr);
 					}
-
-					if (_objectindex == mPickedObjectId)
-					{
-						glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
-						glStencilMask(0x00);
-						glDisable(GL_DEPTH_TEST);
-						for (auto& mesh : model->Meshes)
-						{
-							mOutline->Use();
-							mOutline->Mat4("uViewProjection", camera->ViewProjection());
-							Transform* transform = scene->GetSceneObjects()[mPickedObjectId]->GetProperty<Transform>();
-							mOutline->Mat4("uTransform", glm::scale(transform->GetTransform(), glm::vec3(1.02f, 1.02f, 1.02f)));
-							mesh.first->Bind();
-							uint32_t count = mesh.first->GetCount();
-							glDrawElements(GL_TRIANGLES, count, GL_UNSIGNED_INT, nullptr);
-						}
-						glStencilMask(0xFF);
-						glStencilFunc(GL_ALWAYS, 0, 0xFF);
-						glEnable(GL_DEPTH_TEST);
-					}
 				}
 
 			}
 		}
 		mGeometryPass.first->UnBind();
+
+		BlitData();
 
 		mLightingPass.first->Bind();
 		glDisable(GL_DEPTH_TEST);
@@ -286,7 +260,59 @@ namespace choice
 			}
 		}
 		glDrawArrays(GL_TRIANGLES, 0, 3);
+
+		for (auto& object : scene->GetSceneObjects())
+		{
+			if (object)
+			{
+				Skybox* skybox = object->GetProperty<Skybox>();
+				if (skybox)
+				{
+					glEnable(GL_DEPTH_TEST);
+					glDepthFunc(GL_LEQUAL);
+					skybox->Draw(camera);
+					glDepthFunc(GL_LESS);
+				}
+			}
+		}
+
+		if (mPickedObjectId != -1)
+		{
+			Model* model = scene->GetSceneObjects()[mPickedObjectId]->GetProperty<Model>();
+			if (model)
+			{
+				glEnable(GL_STENCIL_TEST);
+				glDepthMask(GL_FALSE);
+				glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+				glStencilMask(0x00);
+				glDisable(GL_DEPTH_TEST);
+				for (auto& mesh : model->Meshes)
+				{
+					mOutline->Use();
+					mOutline->Mat4("uViewProjection", camera->ViewProjection());
+					Transform* transform = scene->GetSceneObjects()[mPickedObjectId]->GetProperty<Transform>();
+					mOutline->Mat4("uTransform", glm::scale(transform->GetTransform(), glm::vec3(1.02f, 1.02f, 1.02f)));
+					mesh.first->Bind();
+					uint32_t count = mesh.first->GetCount();
+					glDrawElements(GL_TRIANGLES, count, GL_UNSIGNED_INT, nullptr);
+				}
+				glStencilMask(0xFF);
+				glStencilFunc(GL_ALWAYS, 0, 0xFF);
+				glDepthMask(GL_TRUE);
+			}
+		}
+
 		mLightingPass.first->UnBind();
+	}
+
+	void DeferredPipeline::BlitData()
+	{
+		mGeometryPass.first->BindRead();
+		mLightingPass.first->BindDraw();
+		glBlitFramebuffer(0, 0, mGeometryPass.first->GetWidth(), mGeometryPass.first->GetHeight(), 
+			0, 0, mLightingPass.first->GetWidth(), mLightingPass.first->GetHeight(), 
+			GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT, GL_NEAREST);
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
 
 	const uint32_t& DeferredPipeline::Capture() const
@@ -371,6 +397,7 @@ namespace choice
 	{
 		Framebuffer::Destroy();
 		glDeleteTextures(1, &mCapture);
+		glDeleteTextures(1, &mDepthStencilId);
 	}
 
 	const uint32_t& DeferredLightingCapture::GetCapture() const
@@ -384,6 +411,7 @@ namespace choice
 		{
 			Framebuffer::Destroy();
 			glDeleteTextures(1, &mCapture);
+			glDeleteTextures(1, &mDepthStencilId);
 		}
 
 		glCreateFramebuffers(1, &mRendererId);
@@ -392,11 +420,24 @@ namespace choice
 		glCreateTextures(GL_TEXTURE_2D, 1, &mCapture);
 		glBindTexture(GL_TEXTURE_2D, mCapture);
 
-		glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, mWidth, mHeight);
+		glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA32F, mWidth, mHeight);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, mCapture, 0);
+
+		glCreateTextures(GL_TEXTURE_2D, 1, &mDepthStencilId);
+		glBindTexture(GL_TEXTURE_2D, mDepthStencilId);
+
+		glTexStorage2D(GL_TEXTURE_2D, 1, GL_DEPTH24_STENCIL8, mWidth, mHeight);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, mDepthStencilId, 0);
 
 		if (!(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE))
 		{

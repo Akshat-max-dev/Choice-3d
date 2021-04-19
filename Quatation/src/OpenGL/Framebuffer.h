@@ -10,7 +10,12 @@ namespace choice
 		~Framebuffer();
 
 		void Bind()const;
+		void BindRead()const;
+		void BindDraw()const;
 		void UnBind()const;
+
+		const uint32_t& GetWidth()const;
+		const uint32_t& GetHeight()const;
 
 		void Visible(uint32_t w, uint32_t h);
 	protected:
