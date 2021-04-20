@@ -80,13 +80,24 @@ namespace choice
 				lightname.resize(lightnamesize);
 				containedscene.read((char*)lightname.data(), lightnamesize);
 
+				glm::vec3 color;
+				containedscene.read((char*)&color.x, sizeof(color.x));
+				containedscene.read((char*)&color.y, sizeof(color.y));
+				containedscene.read((char*)&color.z, sizeof(color.z));
+
+				float intensity;
+				containedscene.read((char*)&intensity, sizeof(intensity));
+
+				float radius;
+				containedscene.read((char*)&radius, sizeof(radius));
+
 				switch (lightype)
 				{
 				case 0:
-					object->AddProperty<Light>(new DirectionalLight(lightname));
+					object->AddProperty<Light>(new DirectionalLight(lightname, color, intensity));
 					break;
 				case 1:
-					object->AddProperty<Light>(new PointLight(lightname));
+					object->AddProperty<Light>(new PointLight(lightname, color, intensity, radius));
 					break;
 				}
 			}
@@ -172,6 +183,13 @@ namespace choice
 					uint32_t lightnamesize = (uint32_t)lightprop->GetName().size();
 					cscene.write((char*)&lightnamesize, sizeof(lightnamesize));
 					cscene.write((char*)lightprop->GetName().data(), lightnamesize);
+
+					cscene.write((char*)&lightprop->GetDiffuse().x, sizeof(lightprop->GetDiffuse().x));
+					cscene.write((char*)&lightprop->GetDiffuse().y, sizeof(lightprop->GetDiffuse().y));
+					cscene.write((char*)&lightprop->GetDiffuse().z, sizeof(lightprop->GetDiffuse().z));
+
+					cscene.write((char*)&lightprop->GetIntensity(), sizeof(lightprop->GetIntensity()));
+					cscene.write((char*)&lightprop->GetRadius(), sizeof(lightprop->GetRadius()));
 				}
 				else
 				{

@@ -200,7 +200,10 @@ namespace choice
 						if (model->Materials[mesh.second]->DiffuseMap) 
 						{ model->Materials[mesh.second]->DiffuseMap->Bind(0); }
 						if (model->Materials[mesh.second]->NormalMap) 
-						{ model->Materials[mesh.second]->NormalMap->Bind(1); }
+						{
+							model->Materials[mesh.second]->NormalMap->Bind(1); 
+							mGeometryPass.second->Int("gHasNormalMap", 1);
+						}
 						mGeometryPass.second->Int("gMaterial.Diffuse", 0);
 						mGeometryPass.second->Int("gMaterial.Normal", 1);
 						mGeometryPass.second->Mat4("uViewProjection", camera->ViewProjection());
@@ -240,17 +243,17 @@ namespace choice
 					case LightType::DIRECTIONAL:
 						directinalLightCount++;
 						mLightingPass.second->Float3(("ldLights[" + std::to_string(directinalLightCount) + "].Direction").c_str(), transform->GetTransform()[2]);
-						mLightingPass.second->Float3(("ldLights[" + std::to_string(directinalLightCount) + "].Diffuse").c_str(), { 0.5f, 0.5f, 0.5f });
+						mLightingPass.second->Float3(("ldLights[" + std::to_string(directinalLightCount) + "].Diffuse").c_str(), light->GetDiffuse());
 						mLightingPass.second->Float3(("ldLights[" + std::to_string(directinalLightCount) + "].Specular").c_str(), { 0.7f, 0.7f, 0.7f });
+						mLightingPass.second->Float(("ldLights[" + std::to_string(directinalLightCount) + "].Intensity").c_str(), light->GetIntensity());
 						break;
 					case LightType::POINT:
 						pointLightCount++;
 						mLightingPass.second->Float3(("lpLights[" + std::to_string(pointLightCount) + "].Position").c_str(), transform->Position);
-						mLightingPass.second->Float3(("lpLights[" + std::to_string(pointLightCount) + "].Diffuse").c_str(), { 0.7f, 0.1f, 0.7f });
+						mLightingPass.second->Float3(("lpLights[" + std::to_string(pointLightCount) + "].Diffuse").c_str(), light->GetDiffuse());
 						mLightingPass.second->Float3(("lpLights[" + std::to_string(pointLightCount) + "].Specular").c_str(), { 0.7f, 0.7f, 0.7f });
-						mLightingPass.second->Float(("lpLights[" + std::to_string(pointLightCount) + "].Constant").c_str(), 1.0f);
-						mLightingPass.second->Float(("lpLights[" + std::to_string(pointLightCount) + "].Linear").c_str(), 0.0035f);
-						mLightingPass.second->Float(("lpLights[" + std::to_string(pointLightCount) + "].Quadratic").c_str(), 0.0044f);
+						mLightingPass.second->Float(("lpLights[" + std::to_string(pointLightCount) + "].Radius").c_str(), light->GetRadius());
+						mLightingPass.second->Float(("lpLights[" + std::to_string(pointLightCount) + "].Intensity").c_str(), light->GetIntensity());
 						break;
 					}
 					mLightingPass.second->Float3("lViewpos", camera->Position());

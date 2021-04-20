@@ -597,14 +597,40 @@ namespace choice
 	{
 		if (mSkybox.has_value())
 		{
-
+			
 		}
 	}
 
 	template<>
 	void SceneObject::DrawProperty<Light>()
 	{
-		Choice::Instance()->GetPipeline()->MousePicking(false);
+		if (mLight.has_value())
+		{
+			if (ImGui::CollapsingHeader(ICON_FK_LIGHTBULB_O" Light", ImGuiTreeNodeFlags_OpenOnArrow))
+			{
+				ImGui::Text("Type         ");
+				ImGui::SameLine();
+				ImGui::SetNextItemWidth(ImGui::GetContentRegionAvailWidth());
+				const char* comboitems[] = { "Directional Light", "Point Light" };
+				int type = static_cast<int>(mLight.value()->GetLightType());
+				ImGui::Combo("##Type", &type, comboitems, IM_ARRAYSIZE(comboitems));
+
+				ImGui::Text("Color        ");
+				ImGui::SameLine();
+				ImGui::ColorEdit3("##Color", glm::value_ptr(mLight.value()->GetDiffuse()), ImGuiColorEditFlags_PickerHueWheel);
+			
+				ImGui::Text("Intensity    ");
+				ImGui::SameLine();
+				ImGui::SliderFloat("##Intensity", &mLight.value()->GetIntensity(), 1.0f, 10.0f);
+
+				if (mLight.value()->GetLightType() == LightType::POINT)
+				{
+					ImGui::Text("Radius      ");
+					ImGui::SameLine();
+					ImGui::SliderFloat("##Radius", &mLight.value()->GetRadius(), 0.0f, 50.0f);
+				}
+			}
+		}
 	}
 
 	void Editor::DrawObjectInspectorPanel(SceneObject* object)
@@ -627,6 +653,7 @@ namespace choice
 		object->DrawProperty<Transform>();
 		object->DrawProperty<Model>();
 		object->DrawProperty<Skybox>();
+		object->DrawProperty<Light>();
 
 		ImGui::End();
 	}

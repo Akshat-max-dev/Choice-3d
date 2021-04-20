@@ -35,6 +35,7 @@ struct DirectionalLight
 	vec3 Direction;
 	vec3 Diffuse;
 	vec3 Specular;
+	float Intensity;
 };
 
 struct PointLight
@@ -42,10 +43,9 @@ struct PointLight
 	vec3 Position;
 	vec3 Diffuse;
 	vec3 Specular;
-
-	float Constant;
-	float Linear;
-	float Quadratic;
+	
+	float Radius;
+	float Intensity;
 };
 
 uniform DirectionalLight ldLights[8];
@@ -67,11 +67,11 @@ void main()
 	for(int i = 0; i < ldLightsActive; i++)
 	{
 		vec3 lightDir = normalize(-ldLights[i].Direction);
-		vec3 diffuse = max(dot(Normal, lightDir), 0.0) * Diffuse * ldLights[i].Diffuse;
+		vec3 diffuse = max(dot(Normal, lightDir), 0.0) * Diffuse * (ldLights[i].Diffuse * ldLights[i].Intensity);
 		
 		vec3 halfwayDir = normalize(lightDir + ViewDir);  
 		float spec = pow(max(dot(Normal, halfwayDir), 0.0), 32.0);
-		vec3 specular = ldLights[i].Specular * spec * Specular;
+		vec3 specular = spec * Specular * ldLights[i].Specular ;
 
 		Lighting += diffuse + specular;
 	}
@@ -79,14 +79,14 @@ void main()
 	for(int i = 0; i < lpLightsActive; i++)
 	{
 		vec3 lightDir = normalize(lpLights[i].Position - FragPos);
-		vec3 diffuse = max(dot(Normal, lightDir), 0.0) * Diffuse * lpLights[i].Diffuse;
+		vec3 diffuse = max(dot(Normal, lightDir), 0.0) * Diffuse * (lpLights[i].Diffuse * lpLights[i].Intensity);
 
 		vec3 halfwayDir = normalize(lightDir + ViewDir);
 		float spec = pow(max(dot(Normal, halfwayDir), 0.0), 32.0);
 		vec3 specular = lpLights[i].Specular * spec * Specular;
 
-		float distance = length(lpLights[i].Position - FragPos);
-		float attenuation = 1.0/(lpLights[i].Constant + lpLights[i].Linear * distance + lpLights[i].Quadratic * (distance + distance));
+		vec3 distance = (lpLights[i].Position - FragPos)/lpLights[i].Radius;
+		float attenuation = max(0.0, 1.0 - dot(distance, distance));
 
 		diffuse *= attenuation;
 		specular *= attenuation;
