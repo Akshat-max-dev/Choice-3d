@@ -46,10 +46,21 @@ in VS_OUT
 	vec2 vTexCoords;
 }fs_in;
 
+uniform int gHasNormalMap;
+
 void main()
 {
 	gPosition = fs_in.vFragPos;
-	gNormal = texture(gMaterial.Normal, fs_in.vTexCoords).rgb;
+
+	if(gHasNormalMap == 1)
+	{
+		gNormal = texture(gMaterial.Normal, fs_in.vTexCoords).rgb;
+	}
+	else
+	{
+		gNormal = fs_in.vNormal;
+	}
+
 	gAlbedoS.rgb = texture(gMaterial.Diffuse, fs_in.vTexCoords).rgb;
 	gAlbedoS.a = 1.0;
 	//gAlbedoS.a = texture(gMaterial.Specular, fs_in.vTexCoords).r;

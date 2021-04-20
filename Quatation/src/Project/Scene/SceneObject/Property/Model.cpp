@@ -322,7 +322,14 @@ namespace choice
 			cmodel.read((char*)&data.wrapS, sizeof(data.wrapS));
 			cmodel.read((char*)&data.wrapT, sizeof(data.wrapT));
 
-			material->DiffuseMap = new Texture2D(LoadTexture2D(data));
+			if (!data.Source.empty())
+			{
+				material->DiffuseMap = new Texture2D(LoadTexture2D(data));
+			}
+			else
+			{
+				material->DiffuseMap = {};
+			}
 
 			uint32_t normalmapnamesize;
 			cmodel.read((char*)&normalmapnamesize, sizeof(normalmapnamesize));
@@ -334,7 +341,14 @@ namespace choice
 			cmodel.read((char*)&data.wrapS, sizeof(data.wrapS));
 			cmodel.read((char*)&data.wrapT, sizeof(data.wrapT));
 
-			material->NormalMap = new Texture2D(LoadTexture2D(data));
+			if (!data.Source.empty())
+			{
+				material->NormalMap = new Texture2D(LoadTexture2D(data));
+			}
+			else
+			{
+				material->NormalMap = {};
+			}
 		}
 
 		uint32_t meshsize;
