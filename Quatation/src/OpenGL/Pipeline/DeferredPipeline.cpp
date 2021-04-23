@@ -282,8 +282,10 @@ namespace choice
 		}
 		glDrawArrays(GL_TRIANGLES, 0, 3);
 
+		objectindex = -1;
 		for (auto& object : scene->GetSceneObjects())
 		{
+			objectindex++;
 			if (object)
 			{
 				Skybox* skybox = object->GetProperty<Skybox>();
@@ -295,56 +297,53 @@ namespace choice
 					skybox->Draw(camera);
 					glDepthFunc(GL_LESS);
 				}
-			}
-		}
 
-		if (mPickedObjectId != -1)
-		{
-			SceneObject* object = scene->GetSceneObjects()[mPickedObjectId];
-			if (object)
-			{
-				Model* model = object->GetProperty<Model>();
-				if (model)
+				if (objectindex == mPickedObjectId)
 				{
-					glEnable(GL_STENCIL_TEST);
-					glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
-					glStencilMask(0x00);
-					glDisable(GL_DEPTH_TEST);
-					for (auto& mesh : model->Meshes)
+					Model* model = object->GetProperty<Model>();
+					if (model)
 					{
+						glEnable(GL_STENCIL_TEST);
+						glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+						glStencilMask(0x00);
+						glDisable(GL_DEPTH_TEST);
+						for (auto& mesh : model->Meshes)
+						{
+							mOutline->Use();
+							mOutline->Mat4("uProjection", camera->Projection());
+							mOutline->Mat4("uViewProjection", camera->ViewProjection());
+							Transform* transform = object->GetProperty<Transform>();
+							mOutline->Mat4("uTransform", glm::scale(transform->GetTransform(), glm::vec3(1.02f, 1.02f, 1.02f)));
+							mesh.first->Bind();
+							uint32_t count = mesh.first->GetCount();
+							glDrawElements(GL_TRIANGLES, count, GL_UNSIGNED_INT, nullptr);
+						}
+						glStencilFunc(GL_ALWAYS, 0, 0xFF);
+						glStencilMask(0xFF);
+					}
+
+					Primitive* primitive = object->GetProperty<Primitive>();
+					if (primitive)
+					{
+						glEnable(GL_STENCIL_TEST);
+						glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+						glStencilMask(0x00);
+						glDisable(GL_DEPTH_TEST);
 						mOutline->Use();
 						mOutline->Mat4("uProjection", camera->Projection());
 						mOutline->Mat4("uViewProjection", camera->ViewProjection());
 						Transform* transform = object->GetProperty<Transform>();
 						mOutline->Mat4("uTransform", glm::scale(transform->GetTransform(), glm::vec3(1.02f, 1.02f, 1.02f)));
-						mesh.first->Bind();
-						uint32_t count = mesh.first->GetCount();
-						glDrawElements(GL_TRIANGLES, count, GL_UNSIGNED_INT, nullptr);
+						primitive->Draw();
 					}
+					glStencilFunc(GL_ALWAYS, 0, 0xFF);
+					glStencilMask(0xFF);
 				}
-
-				Primitive* primitive = object->GetProperty<Primitive>();
-				if (primitive)
-				{
-					glEnable(GL_STENCIL_TEST);
-					glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
-					glStencilMask(0x00);
-					glDisable(GL_DEPTH_TEST);
-					mOutline->Use();
-					mOutline->Mat4("uProjection", camera->Projection());
-					mOutline->Mat4("uViewProjection", camera->ViewProjection());
-					Transform* transform = object->GetProperty<Transform>();
-					mOutline->Mat4("uTransform", glm::scale(transform->GetTransform(), glm::vec3(1.02f, 1.02f, 1.02f)));
-					primitive->Draw();
-				}
-
-				glStencilFunc(GL_ALWAYS, 0, 0xFF);
 			}
-			
 		}
+
 		mLightingPass.first->UnBind();
 
-		glStencilMask(0xFF);
 		glDepthMask(0x01);
 	}
 
