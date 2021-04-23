@@ -8,6 +8,14 @@ namespace choice
 	Sphere::Sphere()
 	{
 		mName = "Sphere";
+		mPrimitiveType = PrimitiveType::SPHERE;
+		Setup();
+	}
+
+	Sphere::Sphere(const char* name)
+	{
+		mName = name;
+		mPrimitiveType = PrimitiveType::SPHERE;
 		Setup();
 	}
 

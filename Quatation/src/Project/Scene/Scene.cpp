@@ -102,7 +102,28 @@ namespace choice
 				}
 			}
 
-			if (modelsrcFilesize || lightype != -1)
+			int primitivetype;
+			containedscene.read((char*)&primitivetype, sizeof(primitivetype));
+			if (primitivetype != -1)
+			{
+				uint32_t primitivenamesize;
+				containedscene.read((char*)&primitivenamesize, sizeof(primitivenamesize));
+				std::string primitivename;
+				primitivename.resize(primitivenamesize);
+				containedscene.read((char*)primitivename.data(), primitivenamesize);
+
+				switch (primitivetype)
+				{
+				case 0:
+					object->AddProperty<Primitive>(new Cube(primitivename.c_str()));
+					break;
+				case 1:
+					object->AddProperty<Primitive>(new Sphere(primitivename.c_str()));
+					break;
+				}
+			}
+
+			if (modelsrcFilesize || lightype != -1 || primitivetype != -1)
 			{
 				Transform* transform = new Transform();
 
@@ -195,6 +216,22 @@ namespace choice
 				{
 					int lighttype = -1;
 					cscene.write((char*)&lighttype, sizeof(lighttype));
+				}
+
+				auto primitiveprop = object->GetProperty<Primitive>();
+				if (primitiveprop)
+				{
+					int primitivetype = static_cast<int>(primitiveprop->GetPrimitiveType());
+					cscene.write((char*)&primitivetype, sizeof(primitivetype));
+
+					uint32_t primitivenamesize = (uint32_t)primitiveprop->GetName().size();
+					cscene.write((char*)&primitivenamesize, sizeof(primitivenamesize));
+					cscene.write((char*)primitiveprop->GetName().data(), primitivenamesize);
+				}
+				else
+				{
+					int primitivetype = -1;
+					cscene.write((char*)&primitivetype, sizeof(primitivetype));
 				}
 
 				auto transformprop = object->GetProperty<Transform>();

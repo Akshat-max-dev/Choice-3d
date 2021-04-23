@@ -9,6 +9,7 @@ namespace choice
 	{
 	public:
 		Sphere();
+		Sphere(const char* name);
 		void Draw()override;
 	private:
 		void Setup()override;

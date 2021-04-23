@@ -8,6 +8,14 @@ namespace choice
 	Cube::Cube()
 	{
 		mName = "Cube";
+		mPrimitiveType = PrimitiveType::CUBE;
+		Setup();
+	}
+
+	Cube::Cube(const char* name)
+	{
+		mName = name;
+		mPrimitiveType = PrimitiveType::CUBE;
 		Setup();
 	}
 
