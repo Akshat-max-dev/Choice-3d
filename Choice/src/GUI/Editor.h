@@ -47,6 +47,7 @@ namespace choice
 			uint32_t root = 0;
 			uint32_t right = 0;
 			uint32_t left = 0;
+			uint32_t right_bottom = 0;
 		};
 
 		DockIds mDockIds;

@@ -30,6 +30,7 @@ void main()
 layout(location = 0)out vec3 gPosition;
 layout(location = 1)out vec3 gNormal;
 layout(location = 2)out vec4 gAlbedoS;
+layout(location = 3)out vec3 gPixelInfo;
 
 struct Material
 {
@@ -47,6 +48,8 @@ in VS_OUT
 }fs_in;
 
 uniform int gHasNormalMap;
+uniform int gObjectIndex;
+uniform int gDrawIndex;
 
 void main()
 {
@@ -64,4 +67,6 @@ void main()
 	gAlbedoS.rgb = texture(gMaterial.Diffuse, fs_in.vTexCoords).rgb;
 	gAlbedoS.a = 1.0;
 	//gAlbedoS.a = texture(gMaterial.Specular, fs_in.vTexCoords).r;
+
+	gPixelInfo = vec3(float(gObjectIndex), float(gDrawIndex), float(gl_PrimitiveID + 1));
 }

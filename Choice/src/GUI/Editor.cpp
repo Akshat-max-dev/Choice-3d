@@ -621,13 +621,13 @@ namespace choice
 			
 				ImGui::Text("Intensity    ");
 				ImGui::SameLine();
-				ImGui::SliderFloat("##Intensity", &mLight.value()->GetIntensity(), 1.0f, 10.0f);
+				ImGui::DragFloat("##Intensity", &mLight.value()->GetIntensity(), 0.2f, 1.0f, 10.0f);
 
 				if (mLight.value()->GetLightType() == LightType::POINT)
 				{
 					ImGui::Text("Radius      ");
 					ImGui::SameLine();
-					ImGui::SliderFloat("##Radius", &mLight.value()->GetRadius(), 0.0f, 50.0f);
+					ImGui::DragFloat("##Radius", &mLight.value()->GetRadius(), 0.2f, 0.0f, 100.0f);
 				}
 			}
 		}
@@ -635,10 +635,8 @@ namespace choice
 
 	void Editor::DrawObjectInspectorPanel(SceneObject* object)
 	{
-		ImGui::SetNextWindowSize({ 343.0f, 289.0f }, ImGuiCond_Appearing);
-		ImGui::SetNextWindowSizeConstraints({ 343.0f, 289.0f }, { 343.0f, 679.0f });
-		ImGui::SetNextWindowBgAlpha(0.68f);
-		ImGui::Begin(ICON_FK_INFO_CIRCLE" Inspector", NULL, ImGuiWindowFlags_NoDocking);
+		ImGui::SetNextWindowSizeConstraints({ 343.0f, 389.0f }, { 343.0f, 589.0f });
+		ImGui::Begin(ICON_FK_INFO_CIRCLE" Inspector");
 
 		if (ImGui::IsWindowFocused())
 		{
@@ -672,6 +670,8 @@ namespace choice
 
 			mDockIds.right = ImGui::DockBuilderSplitNode(mDockIds.root, ImGuiDir_Right,
 				0.2f, NULL, &mDockIds.root);
+			mDockIds.right_bottom = ImGui::DockBuilderSplitNode(mDockIds.right, ImGuiDir_Down,
+				0.2f, NULL, &mDockIds.right);
 			mDockIds.left = ImGui::DockBuilderSplitNode(mDockIds.root, ImGuiDir_Left,
 				0.2f, NULL, &mDockIds.root);
 

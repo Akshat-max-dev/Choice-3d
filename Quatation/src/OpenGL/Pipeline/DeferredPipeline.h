@@ -11,6 +11,13 @@
 
 namespace choice
 {
+	struct PixelInfo
+	{
+		float ObjectId = 0.0f;
+		float DrawId = 0.0f;
+		float PrimitiveId = 0.0f;
+	};
+
 	class DeferredGeometryCapture :public Framebuffer
 	{
 	public:
@@ -18,9 +25,11 @@ namespace choice
 		~DeferredGeometryCapture();
 
 		void BindGBuffer(glm::uvec4 slots);
+		PixelInfo* ReadPixels(uint32_t xpos, uint32_t ypos);
 	private:
 		void Invalidate()override;
-		uint32_t mAlbedoSId, mPositionId, mNormalId, mDepthStencilId;
+		uint32_t mAlbedoSId, mPositionId, mNormalId, mPickingId, mDepthStencilId;
+		PixelInfo* mPixelInfo;
 	};
 
 	class DeferredLightingCapture :public Framebuffer
@@ -35,26 +44,6 @@ namespace choice
 		uint32_t mCapture, mDepthStencilId;
 	};
 
-	struct PixelInfo
-	{
-		float ObjectId = 0.0f;
-		float DrawId = 0.0f;
-		float PrimitiveId = 0.0f;
-	};
-
-	class MousePickingCapture :public Framebuffer
-	{
-	public:
-		MousePickingCapture(uint32_t w, uint32_t h);
-		~MousePickingCapture();
-
-		PixelInfo* ReadPixels(uint32_t xpos, uint32_t ypos);
-	private:
-		void Invalidate()override;
-		uint32_t mPickingId;
-		PixelInfo* mPixelInfo;
-	};
-
 	class DeferredPipeline :public Pipeline
 	{
 	public:
@@ -65,7 +54,6 @@ namespace choice
 		const uint32_t& Capture()const override;
 		void Shutdown()override;
 	private:
-		std::pair<MousePickingCapture*, Shader*> mMousePickingPass;
 		std::pair<DeferredGeometryCapture*, Shader*> mGeometryPass;
 		Shader* mOutline;
 		std::pair<DeferredLightingCapture*, Shader*> mLightingPass;

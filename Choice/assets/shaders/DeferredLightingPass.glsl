@@ -35,7 +35,6 @@ struct DirectionalLight
 	vec3 Direction;
 	vec3 Diffuse;
 	vec3 Specular;
-	float Intensity;
 };
 
 struct PointLight
@@ -45,7 +44,6 @@ struct PointLight
 	vec3 Specular;
 	
 	float Radius;
-	float Intensity;
 };
 
 uniform DirectionalLight ldLights[8];
@@ -63,15 +61,16 @@ void main()
 
 	vec3 Lighting = Diffuse;
 	vec3 ViewDir = normalize(lViewpos - FragPos);
+	Normal = normalize(Normal);
 
 	for(int i = 0; i < ldLightsActive; i++)
 	{
 		vec3 lightDir = normalize(-ldLights[i].Direction);
-		vec3 diffuse = max(dot(Normal, lightDir), 0.0) * Diffuse * (ldLights[i].Diffuse * ldLights[i].Intensity);
+		vec3 diffuse = ldLights[i].Diffuse * max(dot(Normal, lightDir), 0.0) * Diffuse;
 		
 		vec3 halfwayDir = normalize(lightDir + ViewDir);  
 		float spec = pow(max(dot(Normal, halfwayDir), 0.0), 32.0);
-		vec3 specular = spec * Specular * ldLights[i].Specular ;
+		vec3 specular = ldLights[i].Specular * spec * Specular;
 
 		Lighting += diffuse + specular;
 	}
@@ -79,14 +78,19 @@ void main()
 	for(int i = 0; i < lpLightsActive; i++)
 	{
 		vec3 lightDir = normalize(lpLights[i].Position - FragPos);
-		vec3 diffuse = max(dot(Normal, lightDir), 0.0) * Diffuse * (lpLights[i].Diffuse * lpLights[i].Intensity);
+		vec3 diffuse = lpLights[i].Diffuse * max(dot(Normal, lightDir), 0.0) * Diffuse;
 
-		vec3 halfwayDir = normalize(lightDir + ViewDir);
-		float spec = pow(max(dot(Normal, halfwayDir), 0.0), 32.0);
+		vec3 reflectDir = reflect(-lightDir, Normal);
+		float spec = pow(max(dot(ViewDir, reflectDir), 0.0), 32.0);
 		vec3 specular = lpLights[i].Specular * spec * Specular;
 
-		vec3 distance = (lpLights[i].Position - FragPos)/lpLights[i].Radius;
-		float attenuation = max(0.0, 1.0 - dot(distance, distance));
+		float distance = length(lpLights[i].Position - FragPos);
+		float attenuation = 0.0;
+		if(lpLights[i].Radius != 0)
+		{
+			attenuation = 2.0/((distance * distance) + (lpLights[i].Radius * lpLights[i].Radius) + 
+								distance * (sqrt((distance * distance) + (lpLights[i].Radius * lpLights[i].Radius))));
+		}
 
 		diffuse *= attenuation;
 		specular *= attenuation;
