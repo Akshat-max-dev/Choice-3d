@@ -201,8 +201,7 @@ namespace choice
 			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, hdrcubemap, 0);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-			cube->Mesh()->Bind();
-			glDrawArrays(GL_TRIANGLES, 0, 36);
+			cube->Draw();
 		}
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 

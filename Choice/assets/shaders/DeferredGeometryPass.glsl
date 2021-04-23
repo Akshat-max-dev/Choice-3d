@@ -48,6 +48,7 @@ in VS_OUT
 }fs_in;
 
 uniform int gHasNormalMap;
+uniform int gHasDiffuseMap;
 uniform int gObjectIndex;
 uniform int gDrawIndex;
 
@@ -64,7 +65,14 @@ void main()
 		gNormal = fs_in.vNormal;
 	}
 
-	gAlbedoS.rgb = texture(gMaterial.Diffuse, fs_in.vTexCoords).rgb;
+	if(gHasDiffuseMap == 1)
+	{
+		gAlbedoS.rgb = texture(gMaterial.Diffuse, fs_in.vTexCoords).rgb;
+	}
+	else
+	{
+		gAlbedoS.rgb = vec3(0.5f, 0.0f, 0.0f);
+	}
 	gAlbedoS.a = 1.0;
 	//gAlbedoS.a = texture(gMaterial.Specular, fs_in.vTexCoords).r;
 

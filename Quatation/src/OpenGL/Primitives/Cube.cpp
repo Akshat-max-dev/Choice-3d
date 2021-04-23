@@ -1,16 +1,20 @@
 #include "Cube.h"
 
+#include <glad/glad.h>
+
 namespace choice
 {
+
 	Cube::Cube()
 	{
-		mMesh = {};
+		mName = "Cube";
 		Setup();
 	}
 
-	Cube::~Cube()
+	void Cube::Draw()
 	{
-		delete mMesh;
+		mMesh->Bind();
+		glDrawArrays(GL_TRIANGLES, 0, 36);
 	}
 
 	void Cube::Setup()

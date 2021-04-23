@@ -23,8 +23,7 @@ namespace choice
 		mShader->Mat4("uProjection", camera->Projection());
 		mShader->Mat4("uView", glm::mat4(glm::mat3(camera->View())));
 		mCubemap->Bind(0);
-		mCube->Mesh()->Bind();
-		glDrawArrays(GL_TRIANGLES, 0, 36);
+		mCube->Draw();
 	}
 
 }

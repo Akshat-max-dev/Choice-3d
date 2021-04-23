@@ -461,7 +461,7 @@ namespace choice
 						ImGuiTreeNodeFlags _flags_ = (i == mSelectedObjectIndex) ? ImGuiTreeNodeFlags_Selected : 0;
 						_flags_ |= ImGuiTreeNodeFlags_Leaf;
 						if (object->GetProperty<Skybox>()) { icon = ICON_FK_SKYATLAS; }
-						else if (object->GetProperty<Model>()) { icon = ICON_FK_CUBE; }
+						else if (object->GetProperty<Model>() || object->GetProperty<Primitive>()) { icon = ICON_FK_CUBE; }
 						else if (object->GetProperty<Light>()) { icon = ICON_FK_LIGHTBULB_O; }
 						if (ImGui::TreeNodeEx((icon + " " + object->Name()).c_str(), _flags_))
 						{
@@ -731,6 +731,32 @@ namespace choice
 	{
 		if (ImGui::BeginPopupContextWindow(0, 1, false))
 		{
+			if (ImGui::BeginMenu("Add Primitive"))
+			{
+				if (ImGui::MenuItem("Cube"))
+				{
+					SceneObject* sceneobject = new SceneObject();
+					sceneobject->AddProperty<Primitive>(new Cube());
+					Transform* transform = new Transform();
+					transform->Position = { 0.0f, 0.0f, 0.0f };
+					transform->Rotation = { 0.0f, 0.0f, 0.0f };
+					transform->Scale = { 1.0f, 1.0f, 1.0f };
+					sceneobject->AddProperty<Transform>(transform);
+					mActiveProject->ActiveScene()->AddObject(sceneobject);
+				}
+				if (ImGui::MenuItem("Sphere"))
+				{
+					SceneObject* sceneobject = new SceneObject();
+					sceneobject->AddProperty<Primitive>(new Sphere());
+					Transform* transform = new Transform();
+					transform->Position = { 0.0f, 0.0f, 0.0f };
+					transform->Rotation = { 0.0f, 0.0f, 0.0f };
+					transform->Scale = { 1.0f, 1.0f, 1.0f };
+					sceneobject->AddProperty<Transform>(transform);
+					mActiveProject->ActiveScene()->AddObject(sceneobject);
+				}
+				ImGui::EndMenu();
+			}
 			if (ImGui::MenuItem("Add Model"))
 			{
 				ImGuiFileDialog::Instance()->SetExtentionInfos(".obj", { 0.1f, 1.0f, 0.1f, 1.0f });

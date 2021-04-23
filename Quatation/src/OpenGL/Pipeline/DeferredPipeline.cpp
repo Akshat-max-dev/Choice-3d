@@ -190,6 +190,7 @@ namespace choice
 						if (model->Materials[mesh.second]->DiffuseMap)
 						{
 							model->Materials[mesh.second]->DiffuseMap->Bind(0);
+							mGeometryPass.second->Int("gHasDiffuseMap", 1);
 						}
 						if (model->Materials[mesh.second]->NormalMap)
 						{
@@ -206,6 +207,29 @@ namespace choice
 						uint32_t count = mesh.first->GetCount();
 						glDrawElements(GL_TRIANGLES, count, GL_UNSIGNED_INT, nullptr);
 					}
+				}
+
+				Primitive* primitive = object->GetProperty<Primitive>();
+				if (primitive)
+				{
+					if (objectindex == mPickedObjectId)
+					{
+						glClear(GL_STENCIL_BUFFER_BIT);
+						glStencilFunc(GL_ALWAYS, 1, 0xFF);
+						glStencilMask(0xFF);
+					}
+					else
+					{
+						glStencilMask(0x00);
+					}
+					mGeometryPass.second->Use();
+					mGeometryPass.second->Int("gHasDiffuseMap", 0);
+					mGeometryPass.second->Int("gHasNormalMap", 0);
+					mGeometryPass.second->Int("gObjectIndex", objectindex);
+					mGeometryPass.second->Int("gDrawIndex", -1);
+					mGeometryPass.second->Mat4("uViewProjection", camera->ViewProjection());
+					mGeometryPass.second->Mat4("uTransform", object->GetProperty<Transform>()->GetTransform());
+					primitive->Draw();
 				}
 			}
 		}
@@ -276,26 +300,47 @@ namespace choice
 
 		if (mPickedObjectId != -1)
 		{
-			Model* model = scene->GetSceneObjects()[mPickedObjectId]->GetProperty<Model>();
-			if (model)
+			SceneObject* object = scene->GetSceneObjects()[mPickedObjectId];
+			if (object)
 			{
-				glEnable(GL_STENCIL_TEST);
-				glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
-				glStencilMask(0x00);
-				glDisable(GL_DEPTH_TEST);
-				for (auto& mesh : model->Meshes)
+				Model* model = object->GetProperty<Model>();
+				if (model)
 				{
+					glEnable(GL_STENCIL_TEST);
+					glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+					glStencilMask(0x00);
+					glDisable(GL_DEPTH_TEST);
+					for (auto& mesh : model->Meshes)
+					{
+						mOutline->Use();
+						mOutline->Mat4("uProjection", camera->Projection());
+						mOutline->Mat4("uViewProjection", camera->ViewProjection());
+						Transform* transform = object->GetProperty<Transform>();
+						mOutline->Mat4("uTransform", glm::scale(transform->GetTransform(), glm::vec3(1.02f, 1.02f, 1.02f)));
+						mesh.first->Bind();
+						uint32_t count = mesh.first->GetCount();
+						glDrawElements(GL_TRIANGLES, count, GL_UNSIGNED_INT, nullptr);
+					}
+				}
+
+				Primitive* primitive = object->GetProperty<Primitive>();
+				if (primitive)
+				{
+					glEnable(GL_STENCIL_TEST);
+					glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+					glStencilMask(0x00);
+					glDisable(GL_DEPTH_TEST);
 					mOutline->Use();
 					mOutline->Mat4("uProjection", camera->Projection());
 					mOutline->Mat4("uViewProjection", camera->ViewProjection());
-					Transform* transform = scene->GetSceneObjects()[mPickedObjectId]->GetProperty<Transform>();
+					Transform* transform = object->GetProperty<Transform>();
 					mOutline->Mat4("uTransform", glm::scale(transform->GetTransform(), glm::vec3(1.02f, 1.02f, 1.02f)));
-					mesh.first->Bind();
-					uint32_t count = mesh.first->GetCount();
-					glDrawElements(GL_TRIANGLES, count, GL_UNSIGNED_INT, nullptr);
+					primitive->Draw();
 				}
+
 				glStencilFunc(GL_ALWAYS, 0, 0xFF);
 			}
+			
 		}
 		mLightingPass.first->UnBind();
 

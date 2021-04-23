@@ -5,10 +5,10 @@
 
 namespace choice
 {
-	class Cube :public Primitive
+	class Sphere :public Primitive
 	{
 	public:
-		Cube();
+		Sphere();
 		void Draw()override;
 	private:
 		void Setup()override;

@@ -4,6 +4,8 @@
 #include "Property/Transform.h"
 #include "Property/Skybox.h"
 #include "Property/Light.h"
+#include "OpenGL/Primitives/Cube.h"
+#include "OpenGL/Primitives/Sphere.h"
 
 namespace choice
 {
@@ -15,6 +17,7 @@ namespace choice
 			if (mModel.has_value()) { delete mModel.value(); }
 			if (mTransform.has_value()) { delete mTransform.value(); }
 			if (mSkybox.has_value()) { delete mSkybox.value(); }
+			if (mPrimitive.has_value()) { delete mPrimitive.value(); }
 		}
 
 		std::string& Name() { return mName; }
@@ -51,6 +54,13 @@ namespace choice
 			std::cout << "Property Already Exists" << std::endl;
 		}
 
+		template<>
+		void AddProperty<Primitive>(Primitive* primitive)
+		{
+			if (!mPrimitive.has_value()) { mPrimitive.emplace(primitive); mName = primitive->GetName(); return; }
+			std::cout << "Property Already Exists" << std::endl;
+		}
+
 		template<typename T>
 		void DrawProperty();
 
@@ -66,6 +76,9 @@ namespace choice
 		template<>
 		void DrawProperty<Light>();
 
+		template<>
+		void DrawProperty<Primitive>();
+
 		template<typename T>
 		T* GetProperty() { static_assert(false); }
 
@@ -80,11 +93,15 @@ namespace choice
 	
 		template<>
 		Light* GetProperty<Light>() { if (mLight.has_value()) { return mLight.value(); } return nullptr; }
+		
+		template<>
+		Primitive* GetProperty<Primitive>() { if (mPrimitive.has_value()) { return mPrimitive.value(); } return nullptr; }
 	private:
 		std::optional<Model*> mModel;
 		std::optional<Transform*> mTransform;
 		std::optional<Skybox*> mSkybox;
 		std::optional<Light*> mLight;
+		std::optional<Primitive*> mPrimitive;
 		std::string mName;
 	};
 }
