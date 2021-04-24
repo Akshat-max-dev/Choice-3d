@@ -58,6 +58,8 @@ void main()
 	vec3 Normal = texture(lGBuffer.Normal, vTexCoords).rgb;
 	vec3 Diffuse = texture(lGBuffer.AlbedoS, vTexCoords).rgb;
 	float Specular = texture(lGBuffer.AlbedoS, vTexCoords).a;
+	float Roughness = texture(lGBuffer.Position, vTexCoords).a;
+	float Metallic = texture(lGBuffer.Normal, vTexCoords).a;
 
 	vec3 Lighting = Diffuse;
 	vec3 ViewDir = normalize(lViewpos - FragPos);

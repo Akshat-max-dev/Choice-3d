@@ -58,16 +58,51 @@ namespace choice
 
 				object->AddProperty<Skybox>(new Skybox(skyboxsrcFile));
 			}
-			
-			uint32_t modelsrcFilesize;
-			containedscene.read((char*)&modelsrcFilesize, sizeof(modelsrcFilesize));
-			if (modelsrcFilesize)
-			{
-				std::string modelsrcFile;
-				modelsrcFile.resize(modelsrcFilesize);
-				containedscene.read((char*)modelsrcFile.data(), modelsrcFilesize);
 
-				object->AddProperty<Model>(LoadModel(modelsrcFile));
+			int drawabletype;
+			containedscene.read((char*)&drawabletype, sizeof(drawabletype));
+			if (drawabletype != -1)
+			{
+				switch (drawabletype)
+				{
+				case 0: //Model
+					{
+						uint32_t modelsrcFileSize;
+						containedscene.read((char*)&modelsrcFileSize, sizeof(modelsrcFileSize));
+						std::string modelsrcFile;
+						modelsrcFile.resize(modelsrcFileSize);
+						containedscene.read((char*)modelsrcFile.data(), modelsrcFileSize);
+						object->AddProperty<Drawable>(LoadDrawable(modelsrcFile, DrawableType::MODEL, false));
+					}
+					break;
+				case 1: //Cube
+					{
+						uint32_t namesize;
+						containedscene.read((char*)&namesize, sizeof(namesize));
+						std::string name;
+						name.resize(namesize);
+						containedscene.read((char*)name.data(), namesize);
+						object->AddProperty<Drawable>(LoadDrawable(name, DrawableType::CUBE, false));
+					}
+					break;
+				case 2: //Sphere
+					{
+						uint32_t namesize;
+						containedscene.read((char*)&namesize, sizeof(namesize));
+						std::string name;
+						name.resize(namesize);
+						containedscene.read((char*)name.data(), namesize);
+						object->AddProperty<Drawable>(LoadDrawable(name, DrawableType::SPHERE, false));
+					}
+					break;
+				}
+
+				//Read Material Info
+				Drawable* drawable = object->GetProperty<Drawable>();
+				if (drawable)
+				{
+					LoadMaterials(containedscene, drawable->GetMaterials());
+				}
 			}
 			
 			int lightype;
@@ -102,28 +137,7 @@ namespace choice
 				}
 			}
 
-			int primitivetype;
-			containedscene.read((char*)&primitivetype, sizeof(primitivetype));
-			if (primitivetype != -1)
-			{
-				uint32_t primitivenamesize;
-				containedscene.read((char*)&primitivenamesize, sizeof(primitivenamesize));
-				std::string primitivename;
-				primitivename.resize(primitivenamesize);
-				containedscene.read((char*)primitivename.data(), primitivenamesize);
-
-				switch (primitivetype)
-				{
-				case 0:
-					object->AddProperty<Primitive>(new Cube(primitivename.c_str()));
-					break;
-				case 1:
-					object->AddProperty<Primitive>(new Sphere(primitivename.c_str()));
-					break;
-				}
-			}
-
-			if (modelsrcFilesize || lightype != -1 || primitivetype != -1)
+			if (drawabletype != -1 || lightype != -1)
 			{
 				Transform* transform = new Transform();
 
@@ -181,18 +195,63 @@ namespace choice
 					cscene.write((char*)&skyboxsrcFilesize, sizeof(skyboxsrcFilesize));
 				}
 
-				auto modelprop = object->GetProperty<Model>();
-				if (modelprop)
+				auto drawableprop = object->GetProperty<Drawable>();
+				if (drawableprop)
 				{
-					std::string modelsrcFile = mDirectory + "\\" + mName + "\\" + "Assets\\" + modelprop->Name + ".cmodel";
-					uint32_t modelsrcFileSize = (uint32_t)modelsrcFile.size();
-					cscene.write((char*)&modelsrcFileSize, sizeof(modelsrcFileSize));
-					cscene.write(modelsrcFile.data(), modelsrcFileSize);
+					int drawabletype = static_cast<int>(drawableprop->GetDrawableType());
+					cscene.write((char*)&drawabletype, sizeof(drawabletype));
+
+					switch (drawabletype)
+					{
+					case 0: //Model
+						//Write Model Filepath
+						{
+							std::string modelsrcFile = mDirectory + "\\" + mName + "\\" + "Assets\\" + drawableprop->GetName() + ".cmodel";
+							uint32_t modelsrcFileSize = (uint32_t)modelsrcFile.size();
+							cscene.write((char*)&modelsrcFileSize, sizeof(modelsrcFileSize));
+							cscene.write((char*)modelsrcFile.data(), modelsrcFileSize);
+						}
+						break;
+					case 1: //Cube
+					case 2: //Sphere
+						//Write Name
+						uint32_t namesize = (uint32_t)drawableprop->GetName().size();
+						cscene.write((char*)&namesize, sizeof(namesize));
+						cscene.write((char*)drawableprop->GetName().data(), namesize);
+						break;
+					}
+
+					//Write Material Info
+					uint32_t materialssize = (uint32_t)drawableprop->GetMaterials().size();
+					cscene.write((char*)&materialssize, sizeof(materialssize));
+					for (auto material : drawableprop->GetMaterials())
+					{
+						cscene.write((char*)&material->Roughness, sizeof(material->Roughness));
+						cscene.write((char*)&material->Metallic, sizeof(material->Metallic));
+
+						uint32_t diffusemapnamesize = (uint32_t)material->DiffuseMap.second->Source.size();
+						cscene.write((char*)&diffusemapnamesize, sizeof(diffusemapnamesize));
+						cscene.write((char*)material->DiffuseMap.second->Source.data(), diffusemapnamesize);
+
+						cscene.write((char*)&material->DiffuseMap.second->magFilter, sizeof(material->DiffuseMap.second->magFilter));
+						cscene.write((char*)&material->DiffuseMap.second->minFilter, sizeof(material->DiffuseMap.second->minFilter));
+						cscene.write((char*)&material->DiffuseMap.second->wrapS, sizeof(material->DiffuseMap.second->wrapS));
+						cscene.write((char*)&material->DiffuseMap.second->wrapT, sizeof(material->DiffuseMap.second->wrapT));
+
+						uint32_t normalmapnamesize = (uint32_t)material->NormalMap.second->Source.size();
+						cscene.write((char*)&normalmapnamesize, sizeof(normalmapnamesize));
+						cscene.write((char*)material->NormalMap.second->Source.data(), normalmapnamesize);
+
+						cscene.write((char*)&material->NormalMap.second->magFilter, sizeof(material->NormalMap.second->magFilter));
+						cscene.write((char*)&material->NormalMap.second->minFilter, sizeof(material->NormalMap.second->minFilter));
+						cscene.write((char*)&material->NormalMap.second->wrapS, sizeof(material->NormalMap.second->wrapS));
+						cscene.write((char*)&material->NormalMap.second->wrapT, sizeof(material->NormalMap.second->wrapT));
+					}
 				}
 				else
 				{
-					uint32_t modelsrcFileSize = 0;
-					cscene.write((char*)&modelsrcFileSize, sizeof(modelsrcFileSize));
+					int drawabletype = -1;
+					cscene.write((char*)&drawabletype, sizeof(drawabletype));
 				}
 
 				auto lightprop = object->GetProperty<Light>();
@@ -218,22 +277,6 @@ namespace choice
 					cscene.write((char*)&lighttype, sizeof(lighttype));
 				}
 
-				auto primitiveprop = object->GetProperty<Primitive>();
-				if (primitiveprop)
-				{
-					int primitivetype = static_cast<int>(primitiveprop->GetPrimitiveType());
-					cscene.write((char*)&primitivetype, sizeof(primitivetype));
-
-					uint32_t primitivenamesize = (uint32_t)primitiveprop->GetName().size();
-					cscene.write((char*)&primitivenamesize, sizeof(primitivenamesize));
-					cscene.write((char*)primitiveprop->GetName().data(), primitivenamesize);
-				}
-				else
-				{
-					int primitivetype = -1;
-					cscene.write((char*)&primitivetype, sizeof(primitivetype));
-				}
-
 				auto transformprop = object->GetProperty<Transform>();
 				if (transformprop)
 				{
@@ -257,7 +300,7 @@ namespace choice
 
 	void Scene::Clean()
 	{
-		std::string cscenefile = mDirectory + "\\" + mName + "\\" + mName + ".cscene";
+		/*std::string cscenefile = mDirectory + "\\" + mName + "\\" + mName + ".cscene";
 		std::ifstream cscene(cscenefile, std::ios::in | std::ios::binary);
 		
 		uint32_t sceneobjectssize;
@@ -314,6 +357,6 @@ namespace choice
 
 		}
 
-		cscene.close();
+		cscene.close();*/
 	}
 }

@@ -169,8 +169,8 @@ namespace choice
 			objectindex++;
 			if (object)
 			{
-				Model* model = object->GetProperty<Model>();
-				if (model)
+				Drawable* drawable = object->GetProperty<Drawable>();
+				if (drawable)
 				{
 					if (objectindex == mPickedObjectId)
 					{
@@ -182,21 +182,34 @@ namespace choice
 					{
 						glStencilMask(0x00);
 					}
+
 					int drawindex = -1;
-					for (auto& mesh : model->Meshes)
+					mGeometryPass.second->Use();
+					for (auto& mesh : drawable->GetMeshes())
 					{
 						drawindex++;
-						mGeometryPass.second->Use();
-						if (model->Materials[mesh.second]->DiffuseMap)
+						//Bind Diffuse Map
+						if (drawable->GetMaterials()[mesh.second]->DiffuseMap.first)
 						{
-							model->Materials[mesh.second]->DiffuseMap->Bind(0);
+							drawable->GetMaterials()[mesh.second]->DiffuseMap.first->Bind(0);
 							mGeometryPass.second->Int("gHasDiffuseMap", 1);
 						}
-						if (model->Materials[mesh.second]->NormalMap)
+						else
 						{
-							model->Materials[mesh.second]->NormalMap->Bind(1);
+							mGeometryPass.second->Int("gHasDiffuseMap", 0);
+						}
+
+						//Bind Normal Map
+						if (drawable->GetMaterials()[mesh.second]->NormalMap.first)
+						{
+							drawable->GetMaterials()[mesh.second]->NormalMap.first->Bind(1);
 							mGeometryPass.second->Int("gHasNormalMap", 1);
 						}
+						else
+						{
+							mGeometryPass.second->Int("gHasNormalMap", 0);
+						}
+
 						mGeometryPass.second->Int("gMaterial.Diffuse", 0);
 						mGeometryPass.second->Int("gMaterial.Normal", 1);
 						mGeometryPass.second->Int("gObjectIndex", objectindex);
@@ -204,32 +217,26 @@ namespace choice
 						mGeometryPass.second->Mat4("uViewProjection", camera->ViewProjection());
 						mGeometryPass.second->Mat4("uTransform", object->GetProperty<Transform>()->GetTransform());
 						mesh.first->Bind();
-						uint32_t count = mesh.first->GetCount();
-						glDrawElements(GL_TRIANGLES, count, GL_UNSIGNED_INT, nullptr);
-					}
-				}
 
-				Primitive* primitive = object->GetProperty<Primitive>();
-				if (primitive)
-				{
-					if (objectindex == mPickedObjectId)
-					{
-						glClear(GL_STENCIL_BUFFER_BIT);
-						glStencilFunc(GL_ALWAYS, 1, 0xFF);
-						glStencilMask(0xFF);
+						switch (drawable->GetDrawableType())
+						{
+						case DrawableType::CUBE:
+							glDrawArrays(GL_TRIANGLES, 0, 36);
+							break;
+						case DrawableType::SPHERE:
+							{
+								uint32_t scount = mesh.first->GetCount();
+								glDrawElements(GL_TRIANGLE_STRIP, scount, GL_UNSIGNED_INT, nullptr);
+							}
+							break;
+						case DrawableType::MODEL:
+							{
+								uint32_t mcount = mesh.first->GetCount();
+								glDrawElements(GL_TRIANGLES, mcount, GL_UNSIGNED_INT, nullptr);
+							}
+							break;
+						}
 					}
-					else
-					{
-						glStencilMask(0x00);
-					}
-					mGeometryPass.second->Use();
-					mGeometryPass.second->Int("gHasDiffuseMap", 0);
-					mGeometryPass.second->Int("gHasNormalMap", 0);
-					mGeometryPass.second->Int("gObjectIndex", objectindex);
-					mGeometryPass.second->Int("gDrawIndex", -1);
-					mGeometryPass.second->Mat4("uViewProjection", camera->ViewProjection());
-					mGeometryPass.second->Mat4("uTransform", object->GetProperty<Transform>()->GetTransform());
-					primitive->Draw();
 				}
 			}
 		}
@@ -263,14 +270,14 @@ namespace choice
 					case LightType::DIRECTIONAL:
 						directinalLightCount++;
 						mLightingPass.second->Float3(("ldLights[" + std::to_string(directinalLightCount) + "].Direction").c_str(), transform->GetTransform()[2]);
-						mLightingPass.second->Float3(("ldLights[" + std::to_string(directinalLightCount) + "].Diffuse").c_str(), light->GetDiffuse()* light->GetIntensity());
-						mLightingPass.second->Float3(("ldLights[" + std::to_string(directinalLightCount) + "].Specular").c_str(), light->GetDiffuse()* light->GetIntensity());
+						mLightingPass.second->Float3(("ldLights[" + std::to_string(directinalLightCount) + "].Diffuse").c_str(), light->GetDiffuse() * light->GetIntensity());
+						mLightingPass.second->Float3(("ldLights[" + std::to_string(directinalLightCount) + "].Specular").c_str(), light->GetDiffuse() * light->GetIntensity());
 						break;
 					case LightType::POINT:
 						pointLightCount++;
 						mLightingPass.second->Float3(("lpLights[" + std::to_string(pointLightCount) + "].Position").c_str(), transform->Position);
-						mLightingPass.second->Float3(("lpLights[" + std::to_string(pointLightCount) + "].Diffuse").c_str(), light->GetDiffuse()* light->GetIntensity());
-						mLightingPass.second->Float3(("lpLights[" + std::to_string(pointLightCount) + "].Specular").c_str(), light->GetDiffuse()* light->GetIntensity());
+						mLightingPass.second->Float3(("lpLights[" + std::to_string(pointLightCount) + "].Diffuse").c_str(), light->GetDiffuse() * light->GetIntensity());
+						mLightingPass.second->Float3(("lpLights[" + std::to_string(pointLightCount) + "].Specular").c_str(), light->GetDiffuse() * light->GetIntensity());
 						mLightingPass.second->Float(("lpLights[" + std::to_string(pointLightCount) + "].Radius").c_str(), light->GetRadius() / 10.0f);
 						break;
 					}
@@ -300,48 +307,47 @@ namespace choice
 
 				if (objectindex == mPickedObjectId)
 				{
-					Model* model = object->GetProperty<Model>();
-					if (model)
-					{
-						glEnable(GL_STENCIL_TEST);
-						glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
-						glStencilMask(0x00);
-						glDisable(GL_DEPTH_TEST);
-						for (auto& mesh : model->Meshes)
-						{
-							mOutline->Use();
-							mOutline->Mat4("uProjection", camera->Projection());
-							mOutline->Mat4("uViewProjection", camera->ViewProjection());
-							Transform* transform = object->GetProperty<Transform>();
-							mOutline->Mat4("uTransform", glm::scale(transform->GetTransform(), glm::vec3(1.02f, 1.02f, 1.02f)));
-							mesh.first->Bind();
-							uint32_t count = mesh.first->GetCount();
-							glDrawElements(GL_TRIANGLES, count, GL_UNSIGNED_INT, nullptr);
-						}
-						glStencilFunc(GL_ALWAYS, 0, 0xFF);
-						glStencilMask(0xFF);
-					}
-
-					Primitive* primitive = object->GetProperty<Primitive>();
-					if (primitive)
+					Drawable* drawable = object->GetProperty<Drawable>();
+					if (drawable)
 					{
 						glEnable(GL_STENCIL_TEST);
 						glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
 						glStencilMask(0x00);
 						glDisable(GL_DEPTH_TEST);
 						mOutline->Use();
-						mOutline->Mat4("uProjection", camera->Projection());
-						mOutline->Mat4("uViewProjection", camera->ViewProjection());
-						Transform* transform = object->GetProperty<Transform>();
-						mOutline->Mat4("uTransform", glm::scale(transform->GetTransform(), glm::vec3(1.02f, 1.02f, 1.02f)));
-						primitive->Draw();
+						for (auto& mesh : drawable->GetMeshes())
+						{
+							mOutline->Mat4("uProjection", camera->Projection());
+							mOutline->Mat4("uViewProjection", camera->ViewProjection());
+							Transform* transform = object->GetProperty<Transform>();
+							mOutline->Mat4("uTransform", glm::scale(transform->GetTransform(), glm::vec3(1.02f, 1.02f, 1.02f)));
+							mesh.first->Bind();
+
+							switch (drawable->GetDrawableType())
+							{
+							case DrawableType::CUBE:
+								glDrawArrays(GL_TRIANGLES, 0, 36);
+								break;
+							case DrawableType::SPHERE:
+								{
+									uint32_t scount = mesh.first->GetCount();
+									glDrawElements(GL_TRIANGLE_STRIP, scount, GL_UNSIGNED_INT, nullptr);
+								}
+								break;
+							case DrawableType::MODEL:
+								{
+									uint32_t mcount = mesh.first->GetCount();
+									glDrawElements(GL_TRIANGLES, mcount, GL_UNSIGNED_INT, nullptr);
+								}
+								break;
+							}
+						}
+						glStencilFunc(GL_ALWAYS, 0, 0xFF);
+						glStencilMask(0xFF);
 					}
-					glStencilFunc(GL_ALWAYS, 0, 0xFF);
-					glStencilMask(0xFF);
 				}
 			}
 		}
-
 		mLightingPass.first->UnBind();
 
 		glDepthMask(0x01);
@@ -351,8 +357,8 @@ namespace choice
 	{
 		mGeometryPass.first->BindRead();
 		mLightingPass.first->BindDraw();
-		glBlitFramebuffer(0, 0, mGeometryPass.first->GetWidth(), mGeometryPass.first->GetHeight(), 
-			0, 0, mLightingPass.first->GetWidth(), mLightingPass.first->GetHeight(), 
+		glBlitFramebuffer(0, 0, mGeometryPass.first->GetWidth(), mGeometryPass.first->GetHeight(),
+			0, 0, mLightingPass.first->GetWidth(), mLightingPass.first->GetHeight(),
 			GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT, GL_NEAREST);
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}

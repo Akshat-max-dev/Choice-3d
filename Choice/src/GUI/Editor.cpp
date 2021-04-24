@@ -318,8 +318,8 @@ namespace choice
 				
 				std::string directory = mActiveProject->ActiveScene()->Directory() + "\\" +
 					mActiveProject->ActiveScene()->Name() + "\\" + "Assets";
-				std::string srcFile = DumpModel(modelfilepath.substr(0, modelfilepath.find_last_of('.')) + ".glb", 
-					directory);
+				std::string srcFile = DumpDrawable(modelfilepath.substr(0, modelfilepath.find_last_of('.')) + ".glb", 
+					directory, DrawableType::MODEL);
 
 				if (!(ext == ".glb" || ext == ".gltf"))
 				{
@@ -327,23 +327,23 @@ namespace choice
 				}
 
 				SceneObject* sceneobject = new SceneObject();
-				Model* model = LoadModel(srcFile);
-				if (model)
+				Drawable* drawable = LoadDrawable(srcFile, DrawableType::MODEL, true);
+				if (drawable)
 				{
-					sceneobject->AddProperty<Model>(model);
-					if (ghc::filesystem::exists(directory + "\\Temp"))
-					{
-						sceneobject->AddProperty<Transform>(LoadModelTransform(directory + "\\Temp"));
-						ghc::filesystem::remove(directory + "\\Temp");
-					}
-					else
-					{
-						Transform* transform = new Transform();
-						transform->Position = { 0.0f, 0.0f, 0.0f };
-						transform->Rotation = { 0.0f, 0.0f, 0.0f };
-						transform->Scale = { 1.0f, 1.0f, 1.0f };
-						sceneobject->AddProperty<Transform>(transform);
-					}
+					sceneobject->AddProperty<Drawable>(drawable);
+					//if (ghc::filesystem::exists(directory + "\\Temp"))
+					//{
+					//	sceneobject->AddProperty<Transform>(LoadModelTransform(directory + "\\Temp"));
+					//	ghc::filesystem::remove(directory + "\\Temp");
+					//}
+					//else
+					//{
+					Transform* transform = new Transform();
+					transform->Position = { 0.0f, 0.0f, 0.0f };
+					transform->Rotation = { 0.0f, 0.0f, 0.0f };
+					transform->Scale = { 1.0f, 1.0f, 1.0f };
+					sceneobject->AddProperty<Transform>(transform);
+					//}
 
 					mActiveProject->ActiveScene()->AddObject(sceneobject);
 				}
@@ -461,7 +461,7 @@ namespace choice
 						ImGuiTreeNodeFlags _flags_ = (i == mSelectedObjectIndex) ? ImGuiTreeNodeFlags_Selected : 0;
 						_flags_ |= ImGuiTreeNodeFlags_Leaf;
 						if (object->GetProperty<Skybox>()) { icon = ICON_FK_SKYATLAS; }
-						else if (object->GetProperty<Model>() || object->GetProperty<Primitive>()) { icon = ICON_FK_CUBE; }
+						else if (object->GetProperty<Drawable>()) { icon = ICON_FK_CUBE; }
 						else if (object->GetProperty<Light>()) { icon = ICON_FK_LIGHTBULB_O; }
 						if (ImGui::TreeNodeEx((icon + " " + object->Name()).c_str(), _flags_))
 						{
@@ -508,15 +508,8 @@ namespace choice
 	void SceneObject::DrawProperty() { static_assert(false); }
 
 	template<>
-	void SceneObject::DrawProperty<Model>()
+	void SceneObject::DrawProperty<Drawable>()
 	{
-		if (mModel.has_value())
-		{
-			if (ImGui::CollapsingHeader(ICON_FK_CUBE" Model", ImGuiTreeNodeFlags_OpenOnArrow))
-			{
-				ImGui::Text("TODO");
-			}
-		}
 	}
 
 	static void TransformUI(const std::string& label, glm::vec3& value, float resetValue)
@@ -621,7 +614,7 @@ namespace choice
 			
 				ImGui::Text("Intensity    ");
 				ImGui::SameLine();
-				ImGui::DragFloat("##Intensity", &mLight.value()->GetIntensity(), 0.2f, 1.0f, 10.0f);
+				ImGui::DragFloat("##Intensity", &mLight.value()->GetIntensity(), 0.2f, 0.0f, 10.0f);
 
 				if (mLight.value()->GetLightType() == LightType::POINT)
 				{
@@ -649,7 +642,7 @@ namespace choice
 		ImGui::Button("Delete TODO");
 
 		object->DrawProperty<Transform>();
-		object->DrawProperty<Model>();
+		object->DrawProperty<Drawable>();
 		object->DrawProperty<Skybox>();
 		object->DrawProperty<Light>();
 
@@ -731,12 +724,13 @@ namespace choice
 	{
 		if (ImGui::BeginPopupContextWindow(0, 1, false))
 		{
-			if (ImGui::BeginMenu("Add Primitive"))
+			if (ImGui::BeginMenu("Add Drawable"))
 			{
+				//Add Cube
 				if (ImGui::MenuItem("Cube"))
 				{
 					SceneObject* sceneobject = new SceneObject();
-					sceneobject->AddProperty<Primitive>(new Cube());
+					sceneobject->AddProperty<Drawable>(LoadDrawable("Cube", DrawableType::CUBE, true));
 					Transform* transform = new Transform();
 					transform->Position = { 0.0f, 0.0f, 0.0f };
 					transform->Rotation = { 0.0f, 0.0f, 0.0f };
@@ -744,10 +738,12 @@ namespace choice
 					sceneobject->AddProperty<Transform>(transform);
 					mActiveProject->ActiveScene()->AddObject(sceneobject);
 				}
+
+				//Add Sphere
 				if (ImGui::MenuItem("Sphere"))
 				{
 					SceneObject* sceneobject = new SceneObject();
-					sceneobject->AddProperty<Primitive>(new Sphere());
+					sceneobject->AddProperty<Drawable>(LoadDrawable("Sphere", DrawableType::SPHERE, true));
 					Transform* transform = new Transform();
 					transform->Position = { 0.0f, 0.0f, 0.0f };
 					transform->Rotation = { 0.0f, 0.0f, 0.0f };
@@ -755,13 +751,17 @@ namespace choice
 					sceneobject->AddProperty<Transform>(transform);
 					mActiveProject->ActiveScene()->AddObject(sceneobject);
 				}
+
+				//Add Model
+				if (ImGui::MenuItem("Model"))
+				{
+					ImGuiFileDialog::Instance()->SetExtentionInfos(".obj", { 0.1f, 1.0f, 0.1f, 1.0f });
+					ImGuiFileDialog::Instance()->OpenModal("AddModel", "Import Model", ".obj", "");
+				}
+				
 				ImGui::EndMenu();
 			}
-			if (ImGui::MenuItem("Add Model"))
-			{
-				ImGuiFileDialog::Instance()->SetExtentionInfos(".obj", { 0.1f, 1.0f, 0.1f, 1.0f });
-				ImGuiFileDialog::Instance()->OpenModal("AddModel", "Import Model", ".obj,.glb", "");
-			}
+
 			if (ImGui::MenuItem("Change Skybox"))
 			{
 				ImGuiFileDialog::Instance()->SetExtentionInfos(".hdr", { 0.4f, 0.5f, 0.7f, 1.0f });

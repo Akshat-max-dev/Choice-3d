@@ -1,7 +1,7 @@
 #pragma once
 #include "cpch.h"
 
-#include "OpenGL/Primitives/Cube.h"
+#include "Drawable.h"
 #include "OpenGL/Texture.h"
 #include "OpenGL/Shader.h"
 #include "Camera/EditorCamera.h"
@@ -17,7 +17,7 @@ namespace choice
 		void Draw(Camera* camera);
 		const std::string& GetFilepath()const { return mFilepath; }
 	private:
-		Cube* mCube;
+		Drawable* mCube;
 		TextureCubemap* mCubemap;
 		Shader* mShader;
 		std::string mFilepath;

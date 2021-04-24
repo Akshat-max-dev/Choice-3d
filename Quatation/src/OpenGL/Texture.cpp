@@ -9,7 +9,7 @@
 #include <tinyexr.h>
 
 #include "Shader.h"
-#include "Primitives/Cube.h"
+#include "Project/Scene/SceneObject/Property/Drawable.h"
 
 namespace choice
 {
@@ -183,7 +183,7 @@ namespace choice
 			glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))
 		};
 
-		std::unique_ptr<Cube> cube = std::make_unique<Cube>();
+		std::unique_ptr<Drawable> cube(LoadDrawable("", DrawableType::CUBE, false));
 		std::unique_ptr<Shader> hdrToCubemap = std::make_unique<Shader>("Choice/assets/shaders/HDRToCubemap.glsl");
 
 		glActiveTexture(GL_TEXTURE0);
@@ -201,7 +201,8 @@ namespace choice
 			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, hdrcubemap, 0);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-			cube->Draw();
+			cube->GetMeshes()[0].first->Bind();
+			glDrawArrays(GL_TRIANGLES, 0, 36);
 		}
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 

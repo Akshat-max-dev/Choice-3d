@@ -27,8 +27,8 @@ void main()
 #source fragment
 #version 450 core
 
-layout(location = 0)out vec3 gPosition;
-layout(location = 1)out vec3 gNormal;
+layout(location = 0)out vec4 gPosition;
+layout(location = 1)out vec4 gNormal;
 layout(location = 2)out vec4 gAlbedoS;
 layout(location = 3)out vec3 gPixelInfo;
 
@@ -36,6 +36,8 @@ struct Material
 {
 	sampler2D Diffuse;
 	sampler2D Normal;
+	float Roughness;
+	float Metallic;
 };
 
 uniform Material gMaterial;
@@ -54,16 +56,19 @@ uniform int gDrawIndex;
 
 void main()
 {
-	gPosition = fs_in.vFragPos;
+	gPosition.rgb = fs_in.vFragPos; //Fragment Position
+	gPosition.a = gMaterial.Roughness; //Roughness
 
 	if(gHasNormalMap == 1)
 	{
-		gNormal = texture(gMaterial.Normal, fs_in.vTexCoords).rgb;
+		gNormal.rgb = texture(gMaterial.Normal, fs_in.vTexCoords).rgb; //Normals From NormalMap
 	}
 	else
 	{
-		gNormal = fs_in.vNormal;
+		gNormal.rgb = fs_in.vNormal; //Normals From Vertex Attributes
 	}
+
+	gNormal.a = gMaterial.Metallic; //Metallic
 
 	if(gHasDiffuseMap == 1)
 	{
