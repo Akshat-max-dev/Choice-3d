@@ -25,6 +25,7 @@ namespace choice
 		Texture2DData NormalMap;
 		float Roughness;
 		float Metallic;
+		glm::vec4 Color;
 	};
 
 	static cgltf_size component_size(cgltf_component_type component_tpe)
@@ -123,6 +124,10 @@ namespace choice
 				data.MaterialName = material->name;
 				data.Roughness = material->pbr_metallic_roughness.roughness_factor;
 				data.Metallic = material->pbr_metallic_roughness.metallic_factor;
+				data.Color.r = material->pbr_metallic_roughness.base_color_factor[0];
+				data.Color.g = material->pbr_metallic_roughness.base_color_factor[1];
+				data.Color.b = material->pbr_metallic_roughness.base_color_factor[2];
+				data.Color.a = material->pbr_metallic_roughness.base_color_factor[3];
 				const auto* diffusemap = material->pbr_metallic_roughness.base_color_texture.texture;
 				if (diffusemap)
 				{
@@ -335,14 +340,7 @@ namespace choice
 				loadNode(node, meshdata, materialdata, parenttransform, dstDirectory);
 			}
 
-			glm::vec3 position, rotation, scale;
-			bool res = DecomposeTransform(parenttransform, position, rotation, scale);
-			if (!res)
-			{
-				position = { 0.0f, 0.0f, 0.0f };
-				rotation = { 0.0f, 0.0f, 0.0f };
-				scale = { 1.0f, 1.0f, 1.0f };
-			}
+			//Transform Not Extracted
 
 			std::ofstream cmaterial(dstMaterialFile, std::ios::out | std::ios::binary);
 
@@ -352,6 +350,11 @@ namespace choice
 			{
 				cmaterial.write((char*)&material.Roughness, sizeof(material.Roughness));
 				cmaterial.write((char*)&material.Metallic, sizeof(material.Metallic));
+
+				cmaterial.write((char*)&material.Color.r, sizeof(material.Color.r));
+				cmaterial.write((char*)&material.Color.g, sizeof(material.Color.g));
+				cmaterial.write((char*)&material.Color.b, sizeof(material.Color.b));
+				cmaterial.write((char*)&material.Color.a, sizeof(material.Color.a));
 
 				uint32_t diffusemapnamesize = (uint32_t)material.DiffuseMap.Source.size();
 				cmaterial.write((char*)&diffusemapnamesize, sizeof(diffusemapnamesize));
@@ -401,27 +404,6 @@ namespace choice
 			delete meshdata;
 
 			cmodel.close();
-
-			std::ofstream t(dstDirectory + "\\" + "temp", std::ios::out | std::ios::binary);
-			if (t.fail())
-			{
-				std::cout << "Failed to write model transform file" << std::endl;
-				t.close();
-			}
-
-			t.write((char*)&position.x, sizeof(position.x));
-			t.write((char*)&position.y, sizeof(position.y));
-			t.write((char*)&position.z, sizeof(position.z));
-
-			t.write((char*)&rotation.x, sizeof(rotation.x));
-			t.write((char*)&rotation.y, sizeof(rotation.y));
-			t.write((char*)&rotation.z, sizeof(rotation.z));
-
-			t.write((char*)&scale.x, sizeof(scale.x));
-			t.write((char*)&scale.y, sizeof(scale.y));
-			t.write((char*)&scale.z, sizeof(scale.z));
-
-			t.close();
 
 			cgltf_free(data);
 
@@ -610,7 +592,6 @@ namespace choice
 				std::ifstream cmaterial(info.substr(0, info.find_last_of('.')) + ".cmaterial", std::ios::in | std::ios::binary);
 				LoadMaterials(cmaterial, drawable->GetMaterials());
 				cmaterial.close();
-				ghc::filesystem::remove(info.substr(0, info.find_last_of('.')) + ".cmaterial");
 			}
 
 			//Read Number Of Mesh In The Model

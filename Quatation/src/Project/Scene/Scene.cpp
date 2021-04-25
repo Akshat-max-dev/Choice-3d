@@ -229,23 +229,44 @@ namespace choice
 						cscene.write((char*)&material->Roughness, sizeof(material->Roughness));
 						cscene.write((char*)&material->Metallic, sizeof(material->Metallic));
 
-						uint32_t diffusemapnamesize = (uint32_t)material->DiffuseMap.second->Source.size();
-						cscene.write((char*)&diffusemapnamesize, sizeof(diffusemapnamesize));
-						cscene.write((char*)material->DiffuseMap.second->Source.data(), diffusemapnamesize);
+						cscene.write((char*)&material->Color.r, sizeof(material->Color.r));
+						cscene.write((char*)&material->Color.g, sizeof(material->Color.g));
+						cscene.write((char*)&material->Color.b, sizeof(material->Color.b));
+						cscene.write((char*)&material->Color.a, sizeof(material->Color.a));
 
-						cscene.write((char*)&material->DiffuseMap.second->magFilter, sizeof(material->DiffuseMap.second->magFilter));
-						cscene.write((char*)&material->DiffuseMap.second->minFilter, sizeof(material->DiffuseMap.second->minFilter));
-						cscene.write((char*)&material->DiffuseMap.second->wrapS, sizeof(material->DiffuseMap.second->wrapS));
-						cscene.write((char*)&material->DiffuseMap.second->wrapT, sizeof(material->DiffuseMap.second->wrapT));
+						if (material->DiffuseMap.first)
+						{
+							uint32_t diffusemapnamesize = (uint32_t)material->DiffuseMap.second->Source.size();
+							cscene.write((char*)&diffusemapnamesize, sizeof(diffusemapnamesize));
+							cscene.write((char*)material->DiffuseMap.second->Source.data(), diffusemapnamesize);
 
-						uint32_t normalmapnamesize = (uint32_t)material->NormalMap.second->Source.size();
-						cscene.write((char*)&normalmapnamesize, sizeof(normalmapnamesize));
-						cscene.write((char*)material->NormalMap.second->Source.data(), normalmapnamesize);
+							cscene.write((char*)&material->DiffuseMap.second->magFilter, sizeof(material->DiffuseMap.second->magFilter));
+							cscene.write((char*)&material->DiffuseMap.second->minFilter, sizeof(material->DiffuseMap.second->minFilter));
+							cscene.write((char*)&material->DiffuseMap.second->wrapS, sizeof(material->DiffuseMap.second->wrapS));
+							cscene.write((char*)&material->DiffuseMap.second->wrapT, sizeof(material->DiffuseMap.second->wrapT));
+						}
+						else
+						{
+							uint32_t diffusemapnamesize = 0;
+							cscene.write((char*)&diffusemapnamesize, sizeof(diffusemapnamesize));
+						}
 
-						cscene.write((char*)&material->NormalMap.second->magFilter, sizeof(material->NormalMap.second->magFilter));
-						cscene.write((char*)&material->NormalMap.second->minFilter, sizeof(material->NormalMap.second->minFilter));
-						cscene.write((char*)&material->NormalMap.second->wrapS, sizeof(material->NormalMap.second->wrapS));
-						cscene.write((char*)&material->NormalMap.second->wrapT, sizeof(material->NormalMap.second->wrapT));
+						if (material->NormalMap.first)
+						{
+							uint32_t normalmapnamesize = (uint32_t)material->NormalMap.second->Source.size();
+							cscene.write((char*)&normalmapnamesize, sizeof(normalmapnamesize));
+							cscene.write((char*)material->NormalMap.second->Source.data(), normalmapnamesize);
+
+							cscene.write((char*)&material->NormalMap.second->magFilter, sizeof(material->NormalMap.second->magFilter));
+							cscene.write((char*)&material->NormalMap.second->minFilter, sizeof(material->NormalMap.second->minFilter));
+							cscene.write((char*)&material->NormalMap.second->wrapS, sizeof(material->NormalMap.second->wrapS));
+							cscene.write((char*)&material->NormalMap.second->wrapT, sizeof(material->NormalMap.second->wrapT));
+						}
+						else
+						{
+							uint32_t normalmapnamesize = 0;
+							cscene.write((char*)&normalmapnamesize, sizeof(normalmapnamesize));
+						}
 					}
 				}
 				else
@@ -300,7 +321,7 @@ namespace choice
 
 	void Scene::Clean()
 	{
-		/*std::string cscenefile = mDirectory + "\\" + mName + "\\" + mName + ".cscene";
+		std::string cscenefile = mDirectory + "\\" + mName + "\\" + mName + ".cscene";
 		std::ifstream cscene(cscenefile, std::ios::in | std::ios::binary);
 		
 		uint32_t sceneobjectssize;
@@ -314,49 +335,24 @@ namespace choice
 				ghc::filesystem::remove(skybox->GetFilepath());
 			}
 
-			Model* model = mSceneObjects[i]->GetProperty<Model>();
-			if (model)
+			Drawable* drawable = mSceneObjects[i]->GetProperty<Drawable>();
+			if (drawable)
 			{
-				std::string cmodelfile = mDirectory + "\\" + mName + "\\" + "Assets\\" + model->Name + ".cmodel";
-				std::ifstream cmodel(cmodelfile, std::ios::in | std::ios::binary);
-
-				uint32_t materialsize;
-				cmodel.read((char*)&materialsize, sizeof(materialsize));
-
-				std::string tex;
-				uint32_t temp;
-
-				for (uint32_t i = 0; i < materialsize; i++)
+				if (drawable->GetDrawableType() == DrawableType::MODEL)
 				{
-					uint32_t diffusemapnamesize;
-					cmodel.read((char*)&diffusemapnamesize, sizeof(diffusemapnamesize));
-					tex.resize(diffusemapnamesize);
-					cmodel.read((char*)tex.data(), diffusemapnamesize);
-					if (!tex.empty()) { ghc::filesystem::remove(tex); }
-
-					cmodel.read((char*)&temp, sizeof(temp));
-					cmodel.read((char*)&temp, sizeof(temp));
-					cmodel.read((char*)&temp, sizeof(temp));
-					cmodel.read((char*)&temp, sizeof(temp));
-
-					uint32_t normalmapnamesize;
-					cmodel.read((char*)&normalmapnamesize, sizeof(normalmapnamesize));
-					tex.resize(normalmapnamesize);
-					cmodel.read((char*)tex.data(), normalmapnamesize);
-					if (!tex.empty()) { ghc::filesystem::remove(tex); }
-
-					cmodel.read((char*)&temp, sizeof(temp));
-					cmodel.read((char*)&temp, sizeof(temp));
-					cmodel.read((char*)&temp, sizeof(temp));
-					cmodel.read((char*)&temp, sizeof(temp));
+					ghc::filesystem::remove(mDirectory + "\\" + mName + "\\" + "Assets\\" + drawable->GetName() + ".cmodel");
+					ghc::filesystem::remove(mDirectory + "\\" + mName + "\\" + "Assets\\" + drawable->GetName() + ".cmaterial");
+					for (auto& material : drawable->GetMaterials())
+					{
+						if (!material->DiffuseMap.second->Source.empty()) 
+						{ ghc::filesystem::remove(material->DiffuseMap.second->Source); }
+						if (!material->NormalMap.second->Source.empty()) 
+						{ ghc::filesystem::remove(material->NormalMap.second->Source); }
+					}
 				}
-
-				cmodel.close();
-				ghc::filesystem::remove(cmodelfile);
 			}
-
 		}
 
-		cscene.close();*/
+		cscene.close();
 	}
 }

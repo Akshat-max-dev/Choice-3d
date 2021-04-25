@@ -38,6 +38,7 @@ struct Material
 	sampler2D Normal;
 	float Roughness;
 	float Metallic;
+	vec4 Color;
 };
 
 uniform Material gMaterial;
@@ -73,12 +74,12 @@ void main()
 	if(gHasDiffuseMap == 1)
 	{
 		gAlbedoS.rgb = texture(gMaterial.Diffuse, fs_in.vTexCoords).rgb;
+		gAlbedoS.a = 1.0;
 	}
 	else
 	{
-		gAlbedoS.rgb = vec3(0.5f, 0.0f, 0.0f);
+		gAlbedoS = gMaterial.Color;
 	}
-	gAlbedoS.a = 1.0;
 	//gAlbedoS.a = texture(gMaterial.Specular, fs_in.vTexCoords).r;
 
 	gPixelInfo = vec3(float(gObjectIndex), float(gDrawIndex), float(gl_PrimitiveID + 1));

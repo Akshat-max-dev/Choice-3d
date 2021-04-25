@@ -331,19 +331,11 @@ namespace choice
 				if (drawable)
 				{
 					sceneobject->AddProperty<Drawable>(drawable);
-					//if (ghc::filesystem::exists(directory + "\\Temp"))
-					//{
-					//	sceneobject->AddProperty<Transform>(LoadModelTransform(directory + "\\Temp"));
-					//	ghc::filesystem::remove(directory + "\\Temp");
-					//}
-					//else
-					//{
 					Transform* transform = new Transform();
 					transform->Position = { 0.0f, 0.0f, 0.0f };
-					transform->Rotation = { 0.0f, 0.0f, 0.0f };
+					transform->Rotation = { glm::radians(90.0f), 0.0f, 0.0f };
 					transform->Scale = { 1.0f, 1.0f, 1.0f };
 					sceneobject->AddProperty<Transform>(transform);
-					//}
 
 					mActiveProject->ActiveScene()->AddObject(sceneobject);
 				}
@@ -489,7 +481,6 @@ namespace choice
 			if (object) { DrawObjectInspectorPanel(object); }
 		}//Object Inspector
 
-
 		//Project Explorer
 		if (mShowProjectExplorer)
 		{
@@ -510,6 +501,43 @@ namespace choice
 	template<>
 	void SceneObject::DrawProperty<Drawable>()
 	{
+		if (mDrawable.has_value())
+		{
+			if (ImGui::CollapsingHeader(ICON_FK_CUBE" Drawable", ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_DefaultOpen))
+			{
+				static bool showMaterialsInterface = true;
+				ImGui::Text("Show Materials Interface");
+				ImGui::SameLine();
+				ImGui::Checkbox("##SMI", &showMaterialsInterface);
+				if (showMaterialsInterface)
+				{
+					/*uint32_t count = 0;
+					for (auto& material : mDrawable.value()->GetMaterials())
+					{
+						count++;
+						if (ImGui::TreeNodeEx(("Material" + std::to_string(count)).c_str(), ImGuiTreeNodeFlags_OpenOnArrow))
+						{
+							if (ImGui::TreeNode("Diffuse Map"))
+							{
+								ImGui::ImageButton(0, { 50.0f, 50.0f });
+								ImGui::SameLine();
+								ImGui::Text("Color :");
+								ImGui::SameLine();
+								ImGui::ColorEdit4("##Color", glm::value_ptr(mDrawable.value()->GetMaterials()[0]->Color),
+									ImGuiColorEditFlags_PickerHueWheel | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel);
+								ImGui::TreePop();
+							}
+							if (ImGui::TreeNode("Normal Map"))
+							{
+								ImGui::ImageButton(0, { 50.0f, 50.0f });
+								ImGui::TreePop();
+							}
+							ImGui::TreePop();
+						}
+					}*/
+				}
+			}
+		}
 	}
 
 	static void TransformUI(const std::string& label, glm::vec3& value, float resetValue)
@@ -599,7 +627,7 @@ namespace choice
 	{
 		if (mLight.has_value())
 		{
-			if (ImGui::CollapsingHeader(ICON_FK_LIGHTBULB_O" Light", ImGuiTreeNodeFlags_OpenOnArrow))
+			if (ImGui::CollapsingHeader(ICON_FK_LIGHTBULB_O" Light", ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_DefaultOpen))
 			{
 				ImGui::Text("Type         ");
 				ImGui::SameLine();

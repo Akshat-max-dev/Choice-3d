@@ -162,7 +162,7 @@ namespace choice
 		}
 
 		mGeometryPass.first->Bind();
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 		int objectindex = -1;
 		for (auto& object : scene->GetSceneObjects())
 		{
@@ -172,17 +172,11 @@ namespace choice
 				Drawable* drawable = object->GetProperty<Drawable>();
 				if (drawable)
 				{
+					glStencilFunc(GL_ALWAYS, 1, 0xFF);
 					if (objectindex == mPickedObjectId)
 					{
-						glClear(GL_STENCIL_BUFFER_BIT);
-						glStencilFunc(GL_ALWAYS, 1, 0xFF);
 						glStencilMask(0xFF);
 					}
-					else
-					{
-						glStencilMask(0x00);
-					}
-
 					int drawindex = -1;
 					mGeometryPass.second->Use();
 					for (auto& mesh : drawable->GetMeshes())
@@ -196,6 +190,7 @@ namespace choice
 						}
 						else
 						{
+							mGeometryPass.second->Float4("gMaterial.Color", drawable->GetMaterials()[mesh.second]->Color);
 							mGeometryPass.second->Int("gHasDiffuseMap", 0);
 						}
 
@@ -329,17 +324,17 @@ namespace choice
 								glDrawArrays(GL_TRIANGLES, 0, 36);
 								break;
 							case DrawableType::SPHERE:
-								{
-									uint32_t scount = mesh.first->GetCount();
-									glDrawElements(GL_TRIANGLE_STRIP, scount, GL_UNSIGNED_INT, nullptr);
-								}
-								break;
+							{
+								uint32_t scount = mesh.first->GetCount();
+								glDrawElements(GL_TRIANGLE_STRIP, scount, GL_UNSIGNED_INT, nullptr);
+							}
+							break;
 							case DrawableType::MODEL:
-								{
-									uint32_t mcount = mesh.first->GetCount();
-									glDrawElements(GL_TRIANGLES, mcount, GL_UNSIGNED_INT, nullptr);
-								}
-								break;
+							{
+								uint32_t mcount = mesh.first->GetCount();
+								glDrawElements(GL_TRIANGLES, mcount, GL_UNSIGNED_INT, nullptr);
+							}
+							break;
 							}
 						}
 						glStencilFunc(GL_ALWAYS, 0, 0xFF);

@@ -14,17 +14,25 @@ namespace choice
 			from.read((char*)&material->Roughness, sizeof(material->Roughness));
 			from.read((char*)&material->Metallic, sizeof(material->Metallic));
 
+			from.read((char*)&material->Color.r, sizeof(material->Color.r));
+			from.read((char*)&material->Color.g, sizeof(material->Color.g));
+			from.read((char*)&material->Color.b, sizeof(material->Color.b));
+			from.read((char*)&material->Color.a, sizeof(material->Color.a));
+
 			Texture2DData* diffusemapdata = new Texture2DData();
 
 			uint32_t diffusemapnamesize;
 			from.read((char*)&diffusemapnamesize, sizeof(diffusemapnamesize));
-			diffusemapdata->Source.resize(diffusemapnamesize);
-			from.read((char*)diffusemapdata->Source.data(), diffusemapnamesize);
+			if (diffusemapnamesize)
+			{
+				diffusemapdata->Source.resize(diffusemapnamesize);
+				from.read((char*)diffusemapdata->Source.data(), diffusemapnamesize);
 
-			from.read((char*)&diffusemapdata->magFilter, sizeof(diffusemapdata->magFilter));
-			from.read((char*)&diffusemapdata->minFilter, sizeof(diffusemapdata->minFilter));
-			from.read((char*)&diffusemapdata->wrapS, sizeof(diffusemapdata->wrapS));
-			from.read((char*)&diffusemapdata->wrapT, sizeof(diffusemapdata->wrapT));
+				from.read((char*)&diffusemapdata->magFilter, sizeof(diffusemapdata->magFilter));
+				from.read((char*)&diffusemapdata->minFilter, sizeof(diffusemapdata->minFilter));
+				from.read((char*)&diffusemapdata->wrapS, sizeof(diffusemapdata->wrapS));
+				from.read((char*)&diffusemapdata->wrapT, sizeof(diffusemapdata->wrapT));
+			}
 
 			if (!diffusemapdata->Source.empty())
 			{
@@ -40,13 +48,16 @@ namespace choice
 
 			uint32_t normalmapnamesize;
 			from.read((char*)&normalmapnamesize, sizeof(normalmapnamesize));
-			normalmapdata->Source.resize(normalmapnamesize);
-			from.read((char*)normalmapdata->Source.data(), normalmapnamesize);
+			if (normalmapnamesize)
+			{
+				normalmapdata->Source.resize(normalmapnamesize);
+				from.read((char*)normalmapdata->Source.data(), normalmapnamesize);
 
-			from.read((char*)&normalmapdata->magFilter, sizeof(normalmapdata->magFilter));
-			from.read((char*)&normalmapdata->minFilter, sizeof(normalmapdata->minFilter));
-			from.read((char*)&normalmapdata->wrapS, sizeof(normalmapdata->wrapS));
-			from.read((char*)&normalmapdata->wrapT, sizeof(normalmapdata->wrapT));
+				from.read((char*)&normalmapdata->magFilter, sizeof(normalmapdata->magFilter));
+				from.read((char*)&normalmapdata->minFilter, sizeof(normalmapdata->minFilter));
+				from.read((char*)&normalmapdata->wrapS, sizeof(normalmapdata->wrapS));
+				from.read((char*)&normalmapdata->wrapT, sizeof(normalmapdata->wrapT));
+			}
 
 			if (!normalmapdata->Source.empty())
 			{
