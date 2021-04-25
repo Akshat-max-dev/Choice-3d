@@ -224,8 +224,12 @@ namespace choice
 					//Write Material Info
 					uint32_t materialssize = (uint32_t)drawableprop->GetMaterials().size();
 					cscene.write((char*)&materialssize, sizeof(materialssize));
-					for (auto material : drawableprop->GetMaterials())
+					for (auto& material : drawableprop->GetMaterials())
 					{
+						uint32_t materialnamesize = (uint32_t)material->Name.size();
+						cscene.write((char*)&materialnamesize, sizeof(materialnamesize));
+						cscene.write((char*)material->Name.data(), materialnamesize);
+
 						cscene.write((char*)&material->Roughness, sizeof(material->Roughness));
 						cscene.write((char*)&material->Metallic, sizeof(material->Metallic));
 
@@ -236,14 +240,14 @@ namespace choice
 
 						if (material->DiffuseMap.first)
 						{
-							uint32_t diffusemapnamesize = (uint32_t)material->DiffuseMap.second->Source.size();
+							uint32_t diffusemapnamesize = (uint32_t)material->DiffuseMap.second.second->Source.size();
 							cscene.write((char*)&diffusemapnamesize, sizeof(diffusemapnamesize));
-							cscene.write((char*)material->DiffuseMap.second->Source.data(), diffusemapnamesize);
+							cscene.write((char*)material->DiffuseMap.second.second->Source.data(), diffusemapnamesize);
 
-							cscene.write((char*)&material->DiffuseMap.second->magFilter, sizeof(material->DiffuseMap.second->magFilter));
-							cscene.write((char*)&material->DiffuseMap.second->minFilter, sizeof(material->DiffuseMap.second->minFilter));
-							cscene.write((char*)&material->DiffuseMap.second->wrapS, sizeof(material->DiffuseMap.second->wrapS));
-							cscene.write((char*)&material->DiffuseMap.second->wrapT, sizeof(material->DiffuseMap.second->wrapT));
+							cscene.write((char*)&material->DiffuseMap.second.second->magFilter, sizeof(material->DiffuseMap.second.second->magFilter));
+							cscene.write((char*)&material->DiffuseMap.second.second->minFilter, sizeof(material->DiffuseMap.second.second->minFilter));
+							cscene.write((char*)&material->DiffuseMap.second.second->wrapS, sizeof(material->DiffuseMap.second.second->wrapS));
+							cscene.write((char*)&material->DiffuseMap.second.second->wrapT, sizeof(material->DiffuseMap.second.second->wrapT));
 						}
 						else
 						{
@@ -253,14 +257,14 @@ namespace choice
 
 						if (material->NormalMap.first)
 						{
-							uint32_t normalmapnamesize = (uint32_t)material->NormalMap.second->Source.size();
+							uint32_t normalmapnamesize = (uint32_t)material->NormalMap.second.second->Source.size();
 							cscene.write((char*)&normalmapnamesize, sizeof(normalmapnamesize));
-							cscene.write((char*)material->NormalMap.second->Source.data(), normalmapnamesize);
+							cscene.write((char*)material->NormalMap.second.second->Source.data(), normalmapnamesize);
 
-							cscene.write((char*)&material->NormalMap.second->magFilter, sizeof(material->NormalMap.second->magFilter));
-							cscene.write((char*)&material->NormalMap.second->minFilter, sizeof(material->NormalMap.second->minFilter));
-							cscene.write((char*)&material->NormalMap.second->wrapS, sizeof(material->NormalMap.second->wrapS));
-							cscene.write((char*)&material->NormalMap.second->wrapT, sizeof(material->NormalMap.second->wrapT));
+							cscene.write((char*)&material->NormalMap.second.second->magFilter, sizeof(material->NormalMap.second.second->magFilter));
+							cscene.write((char*)&material->NormalMap.second.second->minFilter, sizeof(material->NormalMap.second.second->minFilter));
+							cscene.write((char*)&material->NormalMap.second.second->wrapS, sizeof(material->NormalMap.second.second->wrapS));
+							cscene.write((char*)&material->NormalMap.second.second->wrapT, sizeof(material->NormalMap.second.second->wrapT));
 						}
 						else
 						{
@@ -321,6 +325,7 @@ namespace choice
 
 	void Scene::Clean()
 	{
+		//TODO : Fix For CUBE And SPHERE
 		std::string cscenefile = mDirectory + "\\" + mName + "\\" + mName + ".cscene";
 		std::ifstream cscene(cscenefile, std::ios::in | std::ios::binary);
 		
@@ -342,12 +347,22 @@ namespace choice
 				{
 					ghc::filesystem::remove(mDirectory + "\\" + mName + "\\" + "Assets\\" + drawable->GetName() + ".cmodel");
 					ghc::filesystem::remove(mDirectory + "\\" + mName + "\\" + "Assets\\" + drawable->GetName() + ".cmaterial");
-					for (auto& material : drawable->GetMaterials())
+				}
+				for (auto& material : drawable->GetMaterials())
+				{
+					if (material->DiffuseMap.second.second)
 					{
-						if (!material->DiffuseMap.second->Source.empty()) 
-						{ ghc::filesystem::remove(material->DiffuseMap.second->Source); }
-						if (!material->NormalMap.second->Source.empty()) 
-						{ ghc::filesystem::remove(material->NormalMap.second->Source); }
+						if (!material->DiffuseMap.second.second->Source.empty())
+						{
+							ghc::filesystem::remove(material->DiffuseMap.second.second->Source);
+						}
+					}
+					if (material->NormalMap.second.second)
+					{
+						if (!material->NormalMap.second.second->Source.empty())
+						{
+							ghc::filesystem::remove(material->NormalMap.second.second->Source);
+						}
 					}
 				}
 			}

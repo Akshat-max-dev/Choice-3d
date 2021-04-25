@@ -53,7 +53,7 @@ namespace choice
 
 	void Editor::Execute()
 	{
-		SetEditorLayout();
+		//SetEditorLayout();
 
 		auto dockspace_id = ImGui::GetID("Root_Dockspace");
 
@@ -288,7 +288,7 @@ namespace choice
 			if (ImGuiFileDialog::Instance()->IsOk())
 			{
 				std::string modelfilepath = ImGuiFileDialog::Instance()->GetFilePathName();
-				
+
 				std::ifstream checkforbat("gltf.bat", std::ios::in);
 				if (checkforbat.fail())
 				{
@@ -315,10 +315,10 @@ namespace choice
 					std::system("gltf.bat");
 					ghc::filesystem::remove("Temporary");
 				}
-				
+
 				std::string directory = mActiveProject->ActiveScene()->Directory() + "\\" +
 					mActiveProject->ActiveScene()->Name() + "\\" + "Assets";
-				std::string srcFile = DumpDrawable(modelfilepath.substr(0, modelfilepath.find_last_of('.')) + ".glb", 
+				std::string srcFile = DumpDrawable(modelfilepath.substr(0, modelfilepath.find_last_of('.')) + ".glb",
 					directory, DrawableType::MODEL);
 
 				if (!(ext == ".glb" || ext == ".gltf"))
@@ -470,7 +470,6 @@ namespace choice
 
 			ShowAddingScneObjectMenu();
 		}
-
 		ImGui::End();//Scene Hierarchy
 
 
@@ -480,6 +479,7 @@ namespace choice
 			SceneObject* object = mActiveProject->ActiveScene()->GetSceneObjects()[mSelectedObjectIndex];
 			if (object) { DrawObjectInspectorPanel(object); }
 		}//Object Inspector
+
 
 		//Project Explorer
 		if (mShowProjectExplorer)
@@ -511,29 +511,141 @@ namespace choice
 				ImGui::Checkbox("##SMI", &showMaterialsInterface);
 				if (showMaterialsInterface)
 				{
-					/*uint32_t count = 0;
-					for (auto& material : mDrawable.value()->GetMaterials())
+					ImGui::Separator();
+
+					std::vector<const char*> comboitems;
+					if (comboitems.size() != mDrawable.value()->GetMaterials().size())
 					{
-						count++;
-						if (ImGui::TreeNodeEx(("Material" + std::to_string(count)).c_str(), ImGuiTreeNodeFlags_OpenOnArrow))
+						for (auto& material : mDrawable.value()->GetMaterials())
 						{
-							if (ImGui::TreeNode("Diffuse Map"))
-							{
-								ImGui::ImageButton(0, { 50.0f, 50.0f });
-								ImGui::SameLine();
-								ImGui::Text("Color :");
-								ImGui::SameLine();
-								ImGui::ColorEdit4("##Color", glm::value_ptr(mDrawable.value()->GetMaterials()[0]->Color),
-									ImGuiColorEditFlags_PickerHueWheel | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel);
-								ImGui::TreePop();
-							}
-							if (ImGui::TreeNode("Normal Map"))
-							{
-								ImGui::ImageButton(0, { 50.0f, 50.0f });
-								ImGui::TreePop();
-							}
-							ImGui::TreePop();
+							comboitems.push_back(material->Name.c_str());
 						}
+					}
+
+					ImGui::Text("Materials  ");
+					ImGui::SameLine();
+					ImGui::SetNextItemWidth(ImGui::GetContentRegionAvailWidth());
+					static int currentitem = 0;
+					ImGui::Combo("##Materials", &currentitem, comboitems.data(), comboitems.size());
+
+					Material* material = mDrawable.value()->GetMaterials()[currentitem];
+
+					static bool isDiffuseClicked = false;
+					static bool isNormalClicked = false;
+
+					std::string name = "Albedo";
+
+					if (material->DiffuseMap.second.second)
+					{
+						name += " - ";
+						name += ghc::filesystem::path(ghc::filesystem::path(material->DiffuseMap.second.second->Source).stem().string()).stem().string();
+					}
+
+					if (ImGui::TreeNode(name.c_str()))
+					{
+						void* id = {};
+						if (material->DiffuseMap.second.first) { id = (void*)(uintptr_t)material->DiffuseMap.second.first->GetId(); }
+
+						if (ImGui::ImageButton(id, { 50.0f, 50.0f }))
+						{
+							isDiffuseClicked = true; isNormalClicked = false;
+							ImGuiFileDialog::Instance()->SetExtentionInfos(".png", { 0.5f, 1.0f, 0.5f, 1.0f });
+							ImGuiFileDialog::Instance()->SetExtentionInfos(".jpg", { 0.5f, 0.5f, 1.0f, 1.0f });
+							ImGuiFileDialog::Instance()->OpenModal("OpenTexture", "Open Texture", ".png,.jpg", "");
+						}
+						if (material->DiffuseMap.second.first)
+						{
+							ImGui::SameLine();
+							ImGui::Checkbox("##UseAlbedo", &material->DiffuseMap.first);
+
+							if (!material->DiffuseMap.first)
+							{
+								ImGui::SameLine();
+								ImGui::ColorEdit4("##Color", glm::value_ptr(mDrawable.value()->GetMaterials()[currentitem]->Color),
+									ImGuiColorEditFlags_PickerHueWheel | ImGuiColorEditFlags_NoInputs 
+									| ImGuiColorEditFlags_NoLabel | ImGuiColorEditFlags_NoBorder);
+							}
+						}
+
+						ImGui::TreePop();
+					}
+
+					name = "Normal";
+
+					if (material->NormalMap.second.second)
+					{
+						name += " - ";
+						name += ghc::filesystem::path(ghc::filesystem::path(material->NormalMap.second.second->Source).stem().string()).stem().string();
+					}
+
+					if (ImGui::TreeNode(name.c_str()))
+					{
+						void* id = {};
+						if (material->NormalMap.second.first) { id = (void*)(uintptr_t)material->NormalMap.second.first->GetId(); }
+						if (ImGui::ImageButton(id, { 50.0f, 50.0f }))
+						{
+							isNormalClicked = true; isDiffuseClicked = false;
+							ImGuiFileDialog::Instance()->SetExtentionInfos(".png", { 0.5f, 1.0f, 0.5f, 1.0f });
+							ImGuiFileDialog::Instance()->SetExtentionInfos(".jpg", { 0.5f, 0.5f, 1.0f, 1.0f });
+							ImGuiFileDialog::Instance()->OpenModal("OpenTexture", "Open Texture", ".png,.jpg", "");
+						}
+						if (material->NormalMap.second.first)
+						{
+							ImGui::SameLine();
+							ImGui::Checkbox("##UseNormal", &material->NormalMap.first);
+						}
+
+						ImGui::TreePop();
+					}
+
+					//Open Texture
+					if (ImGuiFileDialog::Instance()->Display("OpenTexture", ImGuiWindowFlags_NoCollapse,
+						{ ImGui::GetMainViewport()->WorkSize.x / 2, ImGui::GetMainViewport()->WorkSize.y / 2 + 100.0f }))
+					{
+						if (ImGuiFileDialog::Instance()->IsOk())
+						{
+							std::string texture = ImGuiFileDialog::Instance()->GetFilePathName();
+							Texture2DData* data = new Texture2DData();
+							
+							BlockCompressionFormat format;
+							if (isDiffuseClicked) { format = BlockCompressionFormat::BC1; }
+							else if (isNormalClicked) { format = BlockCompressionFormat::BC5; }
+
+							std::string dstDirectory = Choice::Instance()->GetEditor()->GetActiveProject()->ActiveScene()->Directory() + "\\" +
+								Choice::Instance()->GetEditor()->GetActiveProject()->ActiveScene()->Name() + "\\Assets";
+
+							data->Source = CompressTexture(texture, dstDirectory, format, false);
+							data->magFilter = (uint32_t)GL_LINEAR;
+							data->minFilter = (uint32_t)GL_LINEAR;
+							data->wrapS = (uint32_t)GL_REPEAT;
+							data->wrapT = (uint32_t)GL_REPEAT;
+
+							if (isDiffuseClicked)
+							{
+								if (material->DiffuseMap.second.first) { delete material->DiffuseMap.second.first; }
+								material->DiffuseMap.second.first = new Texture2D(LoadTexture2D(*data));
+
+								if (material->DiffuseMap.second.second) { delete material->DiffuseMap.second.second; }
+								material->DiffuseMap.second.second = data;
+							}
+							else if (isNormalClicked)
+							{
+								if (material->NormalMap.second.first) { delete material->NormalMap.second.first; }
+								material->NormalMap.second.first = new Texture2D(LoadTexture2D(*data));
+
+								if (material->NormalMap.second.second) { delete material->NormalMap.second.second; }
+								material->NormalMap.second.second = data;
+							}
+						}
+						ImGuiFileDialog::Instance()->Close();
+					}//Open Texture
+
+					/*if (ImGui::TreeNode(comboitems[currentitem]))
+					{
+						ImGui::ColorEdit4("##Color", glm::value_ptr(mDrawable.value()->GetMaterials()[currentitem]->Color),
+							ImGuiColorEditFlags_PickerHueWheel | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel);
+
+						ImGui::TreePop();
 					}*/
 				}
 			}
@@ -557,7 +669,7 @@ namespace choice
 		ImGui::PopStyleColor(3);
 
 		ImGui::TableSetColumnIndex(2);
-		ImGui::SetNextItemWidth(47.0f);
+		ImGui::SetNextItemWidth(53.0f);
 		ImGui::DragFloat("##X", &value.x, 0.2f, 0.0f, 0.0f, "%.2f");
 
 		ImGui::TableSetColumnIndex(3);
@@ -571,7 +683,7 @@ namespace choice
 		ImGui::PopStyleColor(3);
 
 		ImGui::TableSetColumnIndex(4);
-		ImGui::SetNextItemWidth(47.0f);
+		ImGui::SetNextItemWidth(53.0f);
 		ImGui::DragFloat("##Y", &value.y, 0.2f, 0.0f, 0.0f, "%.2f");
 
 		ImGui::TableSetColumnIndex(5);
@@ -585,7 +697,7 @@ namespace choice
 		ImGui::PopStyleColor(3);
 
 		ImGui::TableSetColumnIndex(6);
-		ImGui::SetNextItemWidth(47.0f);
+		ImGui::SetNextItemWidth(53.0f);
 		ImGui::DragFloat("##Z", &value.z, 0.2f, 0.0f, 0.0f, "%.2f");
 		ImGui::PopID();
 	}
@@ -600,13 +712,13 @@ namespace choice
 				if (ImGui::BeginTable("##Transform", 7, ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingFixedFit))
 				{
 					ImGui::TableNextRow();
-					TransformUI("Position    ", mTransform.value()->Position, 0.0f);
+					TransformUI("Position ", mTransform.value()->Position, 0.0f);
 					ImGui::TableNextRow();
 					glm::vec3 rotation = glm::degrees(mTransform.value()->Rotation);
-					TransformUI("Rotation    ", rotation, 0.0f);
+					TransformUI("Rotation ", rotation, 0.0f);
 					mTransform.value()->Rotation = glm::radians(rotation);
 					ImGui::TableNextRow();
-					TransformUI("Scale       ", mTransform.value()->Scale, 1.0f);
+					TransformUI("Scale    ", mTransform.value()->Scale, 1.0f);
 					ImGui::EndTable();
 				}
 			}
@@ -633,7 +745,7 @@ namespace choice
 				ImGui::SameLine();
 				ImGui::SetNextItemWidth(ImGui::GetContentRegionAvailWidth());
 				const char* comboitems[] = { "Directional Light", "Point Light" };
-				int type = static_cast<int>(mLight.value()->GetLightType());
+				static int type = static_cast<int>(mLight.value()->GetLightType());
 				ImGui::Combo("##Type", &type, comboitems, IM_ARRAYSIZE(comboitems));
 
 				ImGui::Text("Color        ");
@@ -656,7 +768,6 @@ namespace choice
 
 	void Editor::DrawObjectInspectorPanel(SceneObject* object)
 	{
-		ImGui::SetNextWindowSizeConstraints({ 343.0f, 389.0f }, { 343.0f, 589.0f });
 		ImGui::Begin(ICON_FK_INFO_CIRCLE" Inspector");
 
 		if (ImGui::IsWindowFocused())
@@ -696,8 +807,6 @@ namespace choice
 			mDockIds.left = ImGui::DockBuilderSplitNode(mDockIds.root, ImGuiDir_Left,
 				0.2f, NULL, &mDockIds.root);
 
-			ImGui::DockBuilderDockWindow(ICON_FK_GAMEPAD" Viewport", mDockIds.root);
-			ImGui::DockBuilderDockWindow(ICON_FK_LIST_UL" Hierarchy", mDockIds.right);
 			ImGui::DockBuilderFinish(mDockIds.root);
 		}
 	}

@@ -348,6 +348,10 @@ namespace choice
 			cmaterial.write((char*)&materialsize, sizeof(materialsize));
 			for (auto& material : *materialdata)
 			{
+				uint32_t materialnamesize = (uint32_t)material.MaterialName.size();
+				cmaterial.write((char*)&materialnamesize, sizeof(materialnamesize));
+				cmaterial.write((char*)material.MaterialName.data(), materialnamesize);
+
 				cmaterial.write((char*)&material.Roughness, sizeof(material.Roughness));
 				cmaterial.write((char*)&material.Metallic, sizeof(material.Metallic));
 
@@ -426,6 +430,7 @@ namespace choice
 				for (auto& material : drawable->GetMaterials())
 				{
 					material = new Material();
+					material->Name = "Material 0";
 				}
 			}
 
@@ -492,6 +497,7 @@ namespace choice
 				for (auto& material : drawable->GetMaterials())
 				{
 					material = new Material();
+					material->Name = "Material 0";
 				}
 			}
 

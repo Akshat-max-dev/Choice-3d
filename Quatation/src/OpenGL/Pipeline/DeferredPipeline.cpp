@@ -183,9 +183,10 @@ namespace choice
 					{
 						drawindex++;
 						//Bind Diffuse Map
-						if (drawable->GetMaterials()[mesh.second]->DiffuseMap.first)
+						if (drawable->GetMaterials()[mesh.second]->DiffuseMap.first 
+							&& drawable->GetMaterials()[mesh.second]->DiffuseMap.second.first)
 						{
-							drawable->GetMaterials()[mesh.second]->DiffuseMap.first->Bind(0);
+							drawable->GetMaterials()[mesh.second]->DiffuseMap.second.first->Bind(0);
 							mGeometryPass.second->Int("gHasDiffuseMap", 1);
 						}
 						else
@@ -195,9 +196,10 @@ namespace choice
 						}
 
 						//Bind Normal Map
-						if (drawable->GetMaterials()[mesh.second]->NormalMap.first)
+						if (drawable->GetMaterials()[mesh.second]->NormalMap.first 
+							&& drawable->GetMaterials()[mesh.second]->NormalMap.second.first)
 						{
-							drawable->GetMaterials()[mesh.second]->NormalMap.first->Bind(1);
+							drawable->GetMaterials()[mesh.second]->NormalMap.second.first->Bind(1);
 							mGeometryPass.second->Int("gHasNormalMap", 1);
 						}
 						else

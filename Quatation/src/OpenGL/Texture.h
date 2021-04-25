@@ -16,6 +16,7 @@ namespace choice
 	class Texture
 	{
 	public:
+		const uint32_t& GetId()const { return mRendererId; }
 		virtual void Bind(uint32_t slot)const {}
 	protected:
 		void Destroy() { glDeleteTextures(1, &mRendererId); }

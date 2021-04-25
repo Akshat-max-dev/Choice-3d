@@ -11,6 +11,11 @@ namespace choice
 		{
 			material = new Material();
 
+			uint32_t namesize;
+			from.read((char*)&namesize, sizeof(namesize));
+			material->Name.resize(namesize);
+			from.read((char*)material->Name.data(), namesize);
+
 			from.read((char*)&material->Roughness, sizeof(material->Roughness));
 			from.read((char*)&material->Metallic, sizeof(material->Metallic));
 
@@ -36,8 +41,9 @@ namespace choice
 
 			if (!diffusemapdata->Source.empty())
 			{
-				material->DiffuseMap.first = new Texture2D(LoadTexture2D(*diffusemapdata));
-				material->DiffuseMap.second = diffusemapdata;
+				material->DiffuseMap.first = true;
+				material->DiffuseMap.second.first = new Texture2D(LoadTexture2D(*diffusemapdata));
+				material->DiffuseMap.second.second = diffusemapdata;
 			}
 			else
 			{
@@ -61,8 +67,9 @@ namespace choice
 
 			if (!normalmapdata->Source.empty())
 			{
-				material->NormalMap.first = new Texture2D(LoadTexture2D(*normalmapdata));
-				material->NormalMap.second = normalmapdata;
+				material->NormalMap.first = true;
+				material->NormalMap.second.first = new Texture2D(LoadTexture2D(*normalmapdata));
+				material->NormalMap.second.second = normalmapdata;
 			}
 			else
 			{
@@ -73,10 +80,10 @@ namespace choice
 
 	Material::~Material()
 	{
-		if (DiffuseMap.first)delete DiffuseMap.first;
-		if (NormalMap.first)delete NormalMap.first;
-		if (DiffuseMap.second)delete DiffuseMap.second;
-		if (NormalMap.second)delete NormalMap.second;
+		if (DiffuseMap.second.first)delete DiffuseMap.second.first;
+		if (NormalMap.second.first)delete NormalMap.second.first;
+		if (DiffuseMap.second.second)delete DiffuseMap.second.second;
+		if (NormalMap.second.second)delete NormalMap.second.second;
 	}
 
 }

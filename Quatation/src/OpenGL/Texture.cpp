@@ -47,7 +47,7 @@ namespace choice
 			return {};
 		}
 
-		std::string dstFile = dstDirectory + srcFile.substr(srcFile.find_last_of('\\'), srcFile.size());
+		std::string dstFile = dstDirectory + srcFile.substr(srcFile.find_last_of('\\'), srcFile.size()) + ".dds";
 
 		CMP_SaveTexture(dstFile.c_str(), &dstMipSet);
 
