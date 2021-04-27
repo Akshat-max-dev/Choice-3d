@@ -20,6 +20,11 @@ namespace choice
 
 		const glm::vec3 Position()const { return mFocus + mOffset; }
 
+		const glm::vec3& Offset()const { return mOffset; }
+		const glm::vec3& Focus()const { return mFocus; }
+		const glm::vec3& Up()const { return mUp; }
+		const glm::vec3& Right()const { return mRight; }
+
 		void Visible(uint32_t w, uint32_t h)
 		{
 			mAspectRatio = (float)w / (float)h;

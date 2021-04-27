@@ -14,6 +14,17 @@ namespace choice
 		mView = glm::lookAt(mFocus + mOffset, mFocus, mUp);
 	}
 
+	EditorCamera::EditorCamera(float aspectratio, const glm::vec3& focus,
+		const glm::vec3& offset, const glm::vec3& up, const glm::vec3& right)
+		:Camera(aspectratio)
+	{
+		mFocus = focus;
+		mOffset = offset;
+		mUp = up;
+		mRight = right;
+		mView = glm::lookAt(mFocus + mOffset, mFocus, mUp);
+	}
+
 	void EditorCamera::Update()
 	{
 		switch (mMovementType)

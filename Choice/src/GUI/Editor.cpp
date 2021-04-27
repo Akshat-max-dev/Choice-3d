@@ -16,36 +16,77 @@ namespace choice
 {
 	Editor::Editor(uint32_t w, uint32_t h)
 	{
-		mCamera = new EditorCamera((float)w / (float)h);
-
 		if (ghc::filesystem::exists("gltf.bat")) { mIsBlenderLinked = true;; }
 
-		std::ifstream opencproj(".choiceconfig", std::ios::in | std::ios::binary);
-		if (!opencproj.is_open()) { mActiveProject = {}; }
+		std::ifstream o(".choiceeditorconfig", std::ios::in | std::ios::binary);
+		if (!o.is_open())
+		{ 
+			mCamera = new EditorCamera((float)w / (float)h);
+			mActiveProject = {};
+		}
 		else
 		{
 			uint32_t cprojsize;
-			opencproj.read((char*)&cprojsize, sizeof(cprojsize));
+			o.read((char*)&cprojsize, sizeof(cprojsize));
 			std::string cproj;
 			cproj.resize(cprojsize);
-			opencproj.read((char*)cproj.data(), cprojsize);
+			o.read((char*)cproj.data(), cprojsize);
+
+			glm::vec3 focus;
+			o.read((char*)&focus.x, sizeof(focus.x));
+			o.read((char*)&focus.y, sizeof(focus.y));
+			o.read((char*)&focus.z, sizeof(focus.z));
+
+			glm::vec3 offset;
+			o.read((char*)&offset.x, sizeof(offset.x));
+			o.read((char*)&offset.y, sizeof(offset.y));
+			o.read((char*)&offset.z, sizeof(offset.z));
+
+			glm::vec3 up;
+			o.read((char*)&up.x, sizeof(up.x));
+			o.read((char*)&up.y, sizeof(up.y));
+			o.read((char*)&up.z, sizeof(up.z));
+
+			glm::vec3 right;
+			o.read((char*)&right.x, sizeof(right.x));
+			o.read((char*)&right.y, sizeof(right.y));
+			o.read((char*)&right.z, sizeof(right.z));
+
+			mCamera = new EditorCamera((float)w / (float)h, focus, offset, up, right);
+
 			if (!ghc::filesystem::exists(cproj)) { mActiveProject = {}; }
 			else { mActiveProject = std::make_unique<Project>(cproj); }
 		}
 		
-		opencproj.close();
+		o.close();
 	}
 
 	Editor::~Editor()
 	{
-		//Write down the active project
-		std::ofstream o(".choiceconfig", std::ios::out | std::ios::binary);
+		//Write down the active project And Camera Data
+		std::ofstream o(".choiceeditorconfig", std::ios::out | std::ios::binary);
 		if (mActiveProject)
 		{
 			std::string cproj = mActiveProject->Directory() + "\\" + mActiveProject->Name() + "\\" + mActiveProject->Name() + ".cproj";
 			uint32_t activeprojectsize = (uint32_t)cproj.size();
 			o.write((char*)&activeprojectsize, sizeof(activeprojectsize));
 			o.write((char*)cproj.data(), activeprojectsize);
+
+			o.write((char*)&mCamera->Focus().x, sizeof(mCamera->Focus().x));
+			o.write((char*)&mCamera->Focus().y, sizeof(mCamera->Focus().y));
+			o.write((char*)&mCamera->Focus().z, sizeof(mCamera->Focus().z));
+
+			o.write((char*)&mCamera->Offset().x, sizeof(mCamera->Offset().x));
+			o.write((char*)&mCamera->Offset().y, sizeof(mCamera->Offset().y));
+			o.write((char*)&mCamera->Offset().z, sizeof(mCamera->Offset().z));
+
+			o.write((char*)&mCamera->Up().x, sizeof(mCamera->Up().x));
+			o.write((char*)&mCamera->Up().y, sizeof(mCamera->Up().y));
+			o.write((char*)&mCamera->Up().z, sizeof(mCamera->Up().z));
+
+			o.write((char*)&mCamera->Right().x, sizeof(mCamera->Right().x));
+			o.write((char*)&mCamera->Right().y, sizeof(mCamera->Right().y));
+			o.write((char*)&mCamera->Right().z, sizeof(mCamera->Right().z));
 		}
 		o.close();
 

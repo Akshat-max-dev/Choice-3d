@@ -9,6 +9,8 @@ namespace choice
 	{
 	public:
 		EditorCamera(float aspectratio);
+		EditorCamera(float aspectratio, const glm::vec3& focus, 
+			const glm::vec3& offset, const glm::vec3& up, const glm::vec3& right);
 
 		void Update()override;
 
