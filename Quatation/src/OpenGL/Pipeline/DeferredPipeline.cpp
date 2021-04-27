@@ -146,8 +146,8 @@ namespace choice
 		mOutline = new Shader("Choice/assets/shaders/Outline.glsl");
 
 		mLightingPass.first = new DeferredLightingCapture(w, h);
-		//mLightingPass.second = new Shader("Choice/assets/shaders/DeferredLightingPass.glsl");
-		mLightingPass.second = new Shader("Choice/assets/shaders/PBR.glsl");
+		mLightingPass.second = new Shader("Choice/assets/shaders/DeferredLightingPass.glsl");
+		//mLightingPass.second = new Shader("Choice/assets/shaders/PBR.glsl");
 	}
 
 	void DeferredPipeline::Visible(uint32_t w, uint32_t h)
@@ -288,12 +288,12 @@ namespace choice
 					mLightingPass.second->Int("lIBL.BRDFLookup", 7);
 					switch (light->GetLightType())
 					{
-					//case LightType::DIRECTIONAL:
-					//	directinalLightCount++;
-					//	mLightingPass.second->Float3(("ldLights[" + std::to_string(directinalLightCount) + "].Direction").c_str(), transform->GetTransform()[2]);
-					//	mLightingPass.second->Float3(("ldLights[" + std::to_string(directinalLightCount) + "].Diffuse").c_str(), light->GetDiffuse() * light->GetIntensity());
-					//	mLightingPass.second->Float3(("ldLights[" + std::to_string(directinalLightCount) + "].Specular").c_str(), light->GetDiffuse() * light->GetIntensity());
-					//	break;
+					case LightType::DIRECTIONAL:
+						directinalLightCount++;
+						mLightingPass.second->Float3(("ldLights[" + std::to_string(directinalLightCount) + "].Direction").c_str(), transform->GetTransform()[2]);
+						mLightingPass.second->Float3(("ldLights[" + std::to_string(directinalLightCount) + "].Diffuse").c_str(), light->GetDiffuse() * light->GetIntensity());
+						mLightingPass.second->Float3(("ldLights[" + std::to_string(directinalLightCount) + "].Specular").c_str(), light->GetDiffuse() * light->GetIntensity());
+						break;
 					case LightType::POINT:
 						pointLightCount++;
 						mLightingPass.second->Float3(("lpLights[" + std::to_string(pointLightCount) + "].Position").c_str(), transform->Position);
@@ -303,7 +303,7 @@ namespace choice
 						break;
 					}
 					mLightingPass.second->Float3("lViewpos", camera->Position());
-					//mLightingPass.second->Int("ldLightsActive", directinalLightCount + 1);
+					mLightingPass.second->Int("ldLightsActive", directinalLightCount + 1);
 					mLightingPass.second->Int("lpLightsActive", pointLightCount + 1);
 				}
 			}
