@@ -540,6 +540,49 @@ namespace choice
 	template<typename T>
 	void SceneObject::DrawProperty() { static_assert(false); }
 
+	static void MaterialUI(const std::string& label, std::pair<bool, std::pair<Texture2D*, Texture2DData*>>& map, BlockCompressionFormat format)
+	{
+		if (ImGui::ImageButton(map.second.first ? (void*)(uintptr_t)map.second.first->GetId() : nullptr, { 50.0f, 50.0f }))
+		{
+			ImGuiFileDialog::Instance()->SetExtentionInfos(".png", { 0.5f, 1.0f, 0.5f, 1.0f });
+			ImGuiFileDialog::Instance()->SetExtentionInfos(".jpg", { 0.5f, 0.5f, 1.0f, 1.0f });
+			ImGuiFileDialog::Instance()->SetExtentionInfos(".tga", { 1.9f, 0.5f, 0.5f, 1.0f });
+			ImGuiFileDialog::Instance()->OpenModal(label, "Open Texture", ".png,.jpg,.tga", "");
+		}
+
+		if (map.second.first)
+		{
+			ImGui::SameLine();
+			ImGui::Checkbox("##UseMap", &map.first);
+		}
+
+		//Open Texture
+		if (ImGuiFileDialog::Instance()->Display(label, ImGuiWindowFlags_NoCollapse,
+			{ ImGui::GetMainViewport()->WorkSize.x / 2, ImGui::GetMainViewport()->WorkSize.y / 2 + 100.0f }))
+		{
+			if (ImGuiFileDialog::Instance()->IsOk())
+			{
+				std::string texture = ImGuiFileDialog::Instance()->GetFilePathName();
+				std::string dstDirectory = Choice::Instance()->GetEditor()->GetActiveProject()->ActiveScene()->Directory() + "\\" +
+					Choice::Instance()->GetEditor()->GetActiveProject()->ActiveScene()->Name() + "\\Assets";
+				
+				Texture2DData* data = new Texture2DData();
+				data->Source = CompressTexture(texture, dstDirectory, format, false);
+				data->magFilter = (uint32_t)GL_LINEAR;
+				data->minFilter = (uint32_t)GL_LINEAR;
+				data->wrapS		= (uint32_t)GL_REPEAT;
+				data->wrapT		= (uint32_t)GL_REPEAT;
+
+				if (map.second.first) { delete map.second.first; }
+				map.second.first = new Texture2D(LoadTexture2D(*data));
+				if (map.second.second) { delete map.second.second; }
+				map.second.second = data;
+			}
+			ImGuiFileDialog::Instance()->Close();
+		}//Open Texture
+		
+	}
+
 	template<>
 	void SceneObject::DrawProperty<Drawable>()
 	{
@@ -572,9 +615,6 @@ namespace choice
 
 					Material* material = mDrawable.value()->GetMaterials()[currentitem];
 
-					static bool isDiffuseClicked = false;
-					static bool isNormalClicked = false;
-
 					std::string name = "Albedo";
 
 					if (material->DiffuseMap.second.second)
@@ -585,22 +625,7 @@ namespace choice
 
 					if (ImGui::TreeNode(name.c_str()))
 					{
-						void* id = {};
-						if (material->DiffuseMap.second.first) { id = (void*)(uintptr_t)material->DiffuseMap.second.first->GetId(); }
-
-						if (ImGui::ImageButton(id, { 50.0f, 50.0f }))
-						{
-							isDiffuseClicked = true; isNormalClicked = false;
-							ImGuiFileDialog::Instance()->SetExtentionInfos(".png", { 0.5f, 1.0f, 0.5f, 1.0f });
-							ImGuiFileDialog::Instance()->SetExtentionInfos(".jpg", { 0.5f, 0.5f, 1.0f, 1.0f });
-							ImGuiFileDialog::Instance()->OpenModal("OpenTexture", "Open Texture", ".png,.jpg", "");
-						}
-						if (material->DiffuseMap.second.first)
-						{
-							ImGui::SameLine();
-							ImGui::Checkbox("##UseAlbedo", &material->DiffuseMap.first);
-						}
-
+						MaterialUI(name, material->DiffuseMap, BlockCompressionFormat::BC1);
 						ImGui::SameLine();
 						ImGui::ColorEdit4("##Color", glm::value_ptr(mDrawable.value()->GetMaterials()[currentitem]->Color),
 							ImGuiColorEditFlags_PickerHueWheel | ImGuiColorEditFlags_NoInputs
@@ -616,71 +641,64 @@ namespace choice
 						name += " - ";
 						name += ghc::filesystem::path(ghc::filesystem::path(material->NormalMap.second.second->Source).stem().string()).stem().string();
 					}
-
+					
 					if (ImGui::TreeNode(name.c_str()))
 					{
-						void* id = {};
-						if (material->NormalMap.second.first) { id = (void*)(uintptr_t)material->NormalMap.second.first->GetId(); }
-						if (ImGui::ImageButton(id, { 50.0f, 50.0f }))
-						{
-							isNormalClicked = true; isDiffuseClicked = false;
-							ImGuiFileDialog::Instance()->SetExtentionInfos(".png", { 0.5f, 1.0f, 0.5f, 1.0f });
-							ImGuiFileDialog::Instance()->SetExtentionInfos(".jpg", { 0.5f, 0.5f, 1.0f, 1.0f });
-							ImGuiFileDialog::Instance()->OpenModal("OpenTexture", "Open Texture", ".png,.jpg", "");
-						}
-						if (material->NormalMap.second.first)
-						{
-							ImGui::SameLine();
-							ImGui::Checkbox("##UseNormal", &material->NormalMap.first);
-						}
+						MaterialUI(name, material->NormalMap, BlockCompressionFormat::BC5);
 
 						ImGui::TreePop();
 					}
 
-					ImGui::SliderFloat("Roughness", &material->Roughness, 0.0f, 1.0f);
-					ImGui::SliderFloat("Metallic", &material->Metallic, 0.0f, 1.0f);
-
-					//Open Texture
-					if (ImGuiFileDialog::Instance()->Display("OpenTexture", ImGuiWindowFlags_NoCollapse,
-						{ ImGui::GetMainViewport()->WorkSize.x / 2, ImGui::GetMainViewport()->WorkSize.y / 2 + 100.0f }))
+					name = "Roughness";
+					if (material->RoughnessMap.second.second)
 					{
-						if (ImGuiFileDialog::Instance()->IsOk())
-						{
-							std::string texture = ImGuiFileDialog::Instance()->GetFilePathName();
-							Texture2DData* data = new Texture2DData();
-							
-							BlockCompressionFormat format;
-							if (isDiffuseClicked) { format = BlockCompressionFormat::BC1; }
-							else if (isNormalClicked) { format = BlockCompressionFormat::BC5; }
+						name += " - ";
+						name += ghc::filesystem::path(ghc::filesystem::path(material->RoughnessMap.second.second->Source).stem().string()).stem().string();
+					}
 
-							std::string dstDirectory = Choice::Instance()->GetEditor()->GetActiveProject()->ActiveScene()->Directory() + "\\" +
-								Choice::Instance()->GetEditor()->GetActiveProject()->ActiveScene()->Name() + "\\Assets";
+					if (ImGui::TreeNode(name.c_str()))
+					{
+						MaterialUI(name, material->RoughnessMap, BlockCompressionFormat::BC4);
+						
+						ImGui::SameLine();
+						ImGui::SliderFloat("##Roughness", &material->Roughness, 0.0f, 1.0f);
 
-							data->Source = CompressTexture(texture, dstDirectory, format, false);
-							data->magFilter = (uint32_t)GL_LINEAR;
-							data->minFilter = (uint32_t)GL_LINEAR;
-							data->wrapS = (uint32_t)GL_REPEAT;
-							data->wrapT = (uint32_t)GL_REPEAT;
+						ImGui::TreePop();
+					}
 
-							if (isDiffuseClicked)
-							{
-								if (material->DiffuseMap.second.first) { delete material->DiffuseMap.second.first; }
-								material->DiffuseMap.second.first = new Texture2D(LoadTexture2D(*data));
+					name = "Metallic";
+					if (material->MetallicMap.second.second)
+					{
+						name += " - ";
+						name += ghc::filesystem::path(ghc::filesystem::path(material->MetallicMap.second.second->Source).stem().string()).stem().string();
+					}
 
-								if (material->DiffuseMap.second.second) { delete material->DiffuseMap.second.second; }
-								material->DiffuseMap.second.second = data;
-							}
-							else if (isNormalClicked)
-							{
-								if (material->NormalMap.second.first) { delete material->NormalMap.second.first; }
-								material->NormalMap.second.first = new Texture2D(LoadTexture2D(*data));
+					if (ImGui::TreeNode(name.c_str()))
+					{
+						MaterialUI(name, material->MetallicMap, BlockCompressionFormat::BC4);
 
-								if (material->NormalMap.second.second) { delete material->NormalMap.second.second; }
-								material->NormalMap.second.second = data;
-							}
-						}
-						ImGuiFileDialog::Instance()->Close();
-					}//Open Texture
+						ImGui::SameLine();
+						ImGui::SliderFloat("##Metallic", &material->Metallic, 0.0f, 1.0f);
+
+						ImGui::TreePop();
+					}
+
+					name = "Ambient Occlusion";
+					if (material->AOMap.second.second)
+					{
+						name += " - ";
+						name += ghc::filesystem::path(ghc::filesystem::path(material->AOMap.second.second->Source).stem().string()).stem().string();
+					}
+
+					if (ImGui::TreeNode(name.c_str()))
+					{
+						MaterialUI(name, material->AOMap, BlockCompressionFormat::BC4);
+
+						ImGui::SameLine();
+						ImGui::SliderFloat("##Ao", &material->Ao, 0.0f, 1.0f);
+
+						ImGui::TreePop();
+					}
 				}
 			}
 		}
@@ -927,7 +945,7 @@ namespace choice
 				if (ImGui::MenuItem("Model"))
 				{
 					ImGuiFileDialog::Instance()->SetExtentionInfos(".obj", { 0.1f, 1.0f, 0.1f, 1.0f });
-					ImGuiFileDialog::Instance()->OpenModal("AddModel", "Import Model", ".obj", "");
+					ImGuiFileDialog::Instance()->OpenModal("AddModel", "Import Model", ".obj,.FBX,.fbx", "");
 				}
 				
 				ImGui::EndMenu();

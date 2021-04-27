@@ -596,7 +596,48 @@ namespace choice
 			if (loadMaterials)
 			{
 				std::ifstream cmaterial(info.substr(0, info.find_last_of('.')) + ".cmaterial", std::ios::in | std::ios::binary);
-				LoadMaterials(cmaterial, drawable->GetMaterials());
+				
+				uint32_t materialssize;
+				cmaterial.read((char*)&materialssize, sizeof(materialssize));
+				drawable->GetMaterials().resize(materialssize);
+				for (auto& material : drawable->GetMaterials())
+				{
+					material = new Material();
+
+					uint32_t namesize;
+					cmaterial.read((char*)&namesize, sizeof(namesize));
+					material->Name.resize(namesize);
+					cmaterial.read((char*)material->Name.data(), namesize);
+
+					cmaterial.read((char*)&material->Roughness, sizeof(material->Roughness));
+					cmaterial.read((char*)&material->Metallic, sizeof(material->Metallic));
+
+					cmaterial.read((char*)&material->Color.r, sizeof(material->Color.r));
+					cmaterial.read((char*)&material->Color.g, sizeof(material->Color.g));
+					cmaterial.read((char*)&material->Color.b, sizeof(material->Color.b));
+					cmaterial.read((char*)&material->Color.a, sizeof(material->Color.a));
+
+					//Diffuse Map
+					Texture2DData* diffusemapdata = new Texture2DData();
+					if (LoadMaterialsData(cmaterial, diffusemapdata))
+					{
+						material->DiffuseMap.first = true;
+						material->DiffuseMap.second.first = new Texture2D(LoadTexture2D(*diffusemapdata));
+						material->DiffuseMap.second.second = diffusemapdata;
+					}
+					else { delete diffusemapdata; }
+
+					//Normal Map
+					Texture2DData* normalmapdata = new Texture2DData();
+					if (LoadMaterialsData(cmaterial, normalmapdata))
+					{
+						material->NormalMap.first = true;
+						material->NormalMap.second.first = new Texture2D(LoadTexture2D(*normalmapdata));
+						material->NormalMap.second.second = normalmapdata;
+					}
+					else { delete normalmapdata; }
+				}
+
 				cmaterial.close();
 			}
 

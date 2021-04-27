@@ -147,7 +147,6 @@ namespace choice
 
 		mLightingPass.first = new DeferredLightingCapture(w, h);
 		mLightingPass.second = new Shader("Choice/assets/shaders/DeferredLightingPass.glsl");
-		//mLightingPass.second = new Shader("Choice/assets/shaders/PBR.glsl");
 	}
 
 	void DeferredPipeline::Visible(uint32_t w, uint32_t h)
@@ -222,11 +221,50 @@ namespace choice
 							mGeometryPass.second->Int("gHasNormalMap", 0);
 						}
 
+						//Bind Roughness Map
+						if (drawable->GetMaterials()[mesh.second]->RoughnessMap.first
+							&& drawable->GetMaterials()[mesh.second]->RoughnessMap.second.first)
+						{
+							drawable->GetMaterials()[mesh.second]->RoughnessMap.second.first->Bind(2);
+							mGeometryPass.second->Int("gHasRoughnessMap", 1);
+						}
+						else
+						{
+							mGeometryPass.second->Int("gHasRoughnessMap", 0);
+						}
+
+						//Bind Metallic Map
+						if (drawable->GetMaterials()[mesh.second]->MetallicMap.first
+							&& drawable->GetMaterials()[mesh.second]->MetallicMap.second.first)
+						{
+							drawable->GetMaterials()[mesh.second]->MetallicMap.second.first->Bind(3);
+							mGeometryPass.second->Int("gHasMetallicMap", 1);
+						}
+						else
+						{
+							mGeometryPass.second->Int("gHasMetallicMap", 0);
+						}
+
+						//Bind Ambient Occlusion Map
+						if (drawable->GetMaterials()[mesh.second]->AOMap.first
+							&& drawable->GetMaterials()[mesh.second]->AOMap.second.first)
+						{
+							drawable->GetMaterials()[mesh.second]->AOMap.second.first->Bind(4);
+							mGeometryPass.second->Int("gHasAmbientOcclusionMap", 1);
+						}
+						else
+						{
+							mGeometryPass.second->Int("gHasAmbientOcclusionMap", 0);
+						}
+
 						mGeometryPass.second->Int("gMaterial.Diffuse", 0);
 						mGeometryPass.second->Int("gMaterial.Normal", 1);
-						mGeometryPass.second->Float("gMaterial.Roughness", drawable->GetMaterials()[mesh.second]->Roughness);
-						mGeometryPass.second->Float("gMaterial.Metallic", drawable->GetMaterials()[mesh.second]->Metallic);
-						mGeometryPass.second->Float("gMaterial.AO", 1.0f);
+						mGeometryPass.second->Int("gMaterial.Roughness", 2);
+						mGeometryPass.second->Int("gMaterial.Metallic", 3);
+						mGeometryPass.second->Int("gMaterial.AmbientOcclusion", 4);
+						mGeometryPass.second->Float("gMaterial.RoughnessFactor", drawable->GetMaterials()[mesh.second]->Roughness);
+						mGeometryPass.second->Float("gMaterial.MetallicFactor", drawable->GetMaterials()[mesh.second]->Metallic);
+						mGeometryPass.second->Float("gMaterial.AO", drawable->GetMaterials()[mesh.second]->Ao);
 						mGeometryPass.second->Int("gObjectIndex", objectindex);
 						mGeometryPass.second->Int("gDrawIndex", drawindex);
 						mGeometryPass.second->Mat4("uViewProjection", camera->ViewProjection());

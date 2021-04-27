@@ -11,6 +11,7 @@ def main():
 
     #Extract Extension To Use Similar Import Function
     FilepathData, Extension = os.path.splitext(ModelToExtract)
+    Extension = Extension.lower();
 
     #Import Scenes
     if Extension == ".obj":

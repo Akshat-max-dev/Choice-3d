@@ -233,45 +233,18 @@ namespace choice
 
 						cscene.write((char*)&material->Roughness, sizeof(material->Roughness));
 						cscene.write((char*)&material->Metallic, sizeof(material->Metallic));
+						cscene.write((char*)&material->Ao, sizeof(material->Ao));
 
 						cscene.write((char*)&material->Color.r, sizeof(material->Color.r));
 						cscene.write((char*)&material->Color.g, sizeof(material->Color.g));
 						cscene.write((char*)&material->Color.b, sizeof(material->Color.b));
 						cscene.write((char*)&material->Color.a, sizeof(material->Color.a));
 
-						if (material->DiffuseMap.first)
-						{
-							uint32_t diffusemapnamesize = (uint32_t)material->DiffuseMap.second.second->Source.size();
-							cscene.write((char*)&diffusemapnamesize, sizeof(diffusemapnamesize));
-							cscene.write((char*)material->DiffuseMap.second.second->Source.data(), diffusemapnamesize);
-
-							cscene.write((char*)&material->DiffuseMap.second.second->magFilter, sizeof(material->DiffuseMap.second.second->magFilter));
-							cscene.write((char*)&material->DiffuseMap.second.second->minFilter, sizeof(material->DiffuseMap.second.second->minFilter));
-							cscene.write((char*)&material->DiffuseMap.second.second->wrapS, sizeof(material->DiffuseMap.second.second->wrapS));
-							cscene.write((char*)&material->DiffuseMap.second.second->wrapT, sizeof(material->DiffuseMap.second.second->wrapT));
-						}
-						else
-						{
-							uint32_t diffusemapnamesize = 0;
-							cscene.write((char*)&diffusemapnamesize, sizeof(diffusemapnamesize));
-						}
-
-						if (material->NormalMap.first)
-						{
-							uint32_t normalmapnamesize = (uint32_t)material->NormalMap.second.second->Source.size();
-							cscene.write((char*)&normalmapnamesize, sizeof(normalmapnamesize));
-							cscene.write((char*)material->NormalMap.second.second->Source.data(), normalmapnamesize);
-
-							cscene.write((char*)&material->NormalMap.second.second->magFilter, sizeof(material->NormalMap.second.second->magFilter));
-							cscene.write((char*)&material->NormalMap.second.second->minFilter, sizeof(material->NormalMap.second.second->minFilter));
-							cscene.write((char*)&material->NormalMap.second.second->wrapS, sizeof(material->NormalMap.second.second->wrapS));
-							cscene.write((char*)&material->NormalMap.second.second->wrapT, sizeof(material->NormalMap.second.second->wrapT));
-						}
-						else
-						{
-							uint32_t normalmapnamesize = 0;
-							cscene.write((char*)&normalmapnamesize, sizeof(normalmapnamesize));
-						}
+						SaveMaterialsData(cscene, material->DiffuseMap.second.second);
+						SaveMaterialsData(cscene, material->NormalMap.second.second);
+						SaveMaterialsData(cscene, material->RoughnessMap.second.second);
+						SaveMaterialsData(cscene, material->MetallicMap.second.second);
+						SaveMaterialsData(cscene, material->AOMap.second.second);
 					}
 				}
 				else
