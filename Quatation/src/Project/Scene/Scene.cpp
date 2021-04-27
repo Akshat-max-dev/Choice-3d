@@ -10,10 +10,11 @@ namespace choice
 		ghc::filesystem::create_directory(mDirectory + "\\" + mName);
 		ghc::filesystem::create_directory(mDirectory + "\\" + mName + "\\" + "Assets");
 
-		ghc::filesystem::copy("Choice/assets/hdri_skybox/crosswalk_4k.hdr", mDirectory + "\\" + mName + "\\" + "Assets\\crosswalk_4k.hdr");
+		ghc::filesystem::copy("Choice/assets/hdri_skybox/Road_to_MonumentValley_Ref.hdr", 
+			mDirectory + "\\" + mName + "\\" + "Assets\\Road_to_MonumentValley_Ref.hdr");
 
 		SceneObject* object = new SceneObject();
-		std::string dstHDRI = mDirectory + "\\" + mName + "\\" + "Assets\\crosswalk_4k.hdr";
+		std::string dstHDRI = mDirectory + "\\" + mName + "\\" + "Assets\\Road_to_MonumentValley_Ref.hdr";
 		object->AddProperty<Skybox>(new Skybox(dstHDRI));
 		mSceneObjects.push_back(object);
 

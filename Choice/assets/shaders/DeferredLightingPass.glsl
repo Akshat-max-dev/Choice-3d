@@ -26,6 +26,7 @@ struct GBuffer
 	sampler2D Position;
 	sampler2D Normal;
 	sampler2D AlbedoS;
+	sampler2D RoughMetalAo;
 };
 
 uniform GBuffer lGBuffer;
@@ -58,8 +59,9 @@ void main()
 	vec3 Normal = texture(lGBuffer.Normal, vTexCoords).rgb;
 	vec3 Diffuse = texture(lGBuffer.AlbedoS, vTexCoords).rgb;
 	float Specular = texture(lGBuffer.AlbedoS, vTexCoords).a;
-	float Roughness = texture(lGBuffer.Position, vTexCoords).a;
-	float Metallic = texture(lGBuffer.Normal, vTexCoords).a;
+	float Roughness = texture(lGBuffer.RoughMetalAo, vTexCoords).r;
+	float Metallic = texture(lGBuffer.RoughMetalAo, vTexCoords).g;
+	float Ao = texture(lGBuffer.RoughMetalAo, vTexCoords).b;
 
 	vec3 Lighting = Diffuse;
 	vec3 ViewDir = normalize(lViewpos - FragPos);

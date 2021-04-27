@@ -44,7 +44,7 @@ namespace choice
 		}
 	};
 
-	const uint32_t LoadTextureCubemap(const std::string& hdrmap);
+	const std::vector<uint32_t> LoadTextureCubemap(const std::string& hdrmap);
 
 	class TextureCubemap :public Texture
 	{

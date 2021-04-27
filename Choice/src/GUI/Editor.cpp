@@ -29,7 +29,8 @@ namespace choice
 			std::string cproj;
 			cproj.resize(cprojsize);
 			opencproj.read((char*)cproj.data(), cprojsize);
-			mActiveProject = std::make_unique<Project>(cproj);
+			if (!ghc::filesystem::exists(cproj)) { mActiveProject = {}; }
+			else { mActiveProject = std::make_unique<Project>(cproj); }
 		}
 		
 		opencproj.close();
@@ -557,15 +558,12 @@ namespace choice
 						{
 							ImGui::SameLine();
 							ImGui::Checkbox("##UseAlbedo", &material->DiffuseMap.first);
-
-							if (!material->DiffuseMap.first)
-							{
-								ImGui::SameLine();
-								ImGui::ColorEdit4("##Color", glm::value_ptr(mDrawable.value()->GetMaterials()[currentitem]->Color),
-									ImGuiColorEditFlags_PickerHueWheel | ImGuiColorEditFlags_NoInputs 
-									| ImGuiColorEditFlags_NoLabel | ImGuiColorEditFlags_NoBorder);
-							}
 						}
+
+						ImGui::SameLine();
+						ImGui::ColorEdit4("##Color", glm::value_ptr(mDrawable.value()->GetMaterials()[currentitem]->Color),
+							ImGuiColorEditFlags_PickerHueWheel | ImGuiColorEditFlags_NoInputs
+							| ImGuiColorEditFlags_NoLabel | ImGuiColorEditFlags_NoBorder);
 
 						ImGui::TreePop();
 					}
@@ -597,6 +595,9 @@ namespace choice
 
 						ImGui::TreePop();
 					}
+
+					ImGui::SliderFloat("Roughness", &material->Roughness, 0.0f, 1.0f);
+					ImGui::SliderFloat("Metallic", &material->Metallic, 0.0f, 1.0f);
 
 					//Open Texture
 					if (ImGuiFileDialog::Instance()->Display("OpenTexture", ImGuiWindowFlags_NoCollapse,
@@ -639,14 +640,6 @@ namespace choice
 						}
 						ImGuiFileDialog::Instance()->Close();
 					}//Open Texture
-
-					/*if (ImGui::TreeNode(comboitems[currentitem]))
-					{
-						ImGui::ColorEdit4("##Color", glm::value_ptr(mDrawable.value()->GetMaterials()[currentitem]->Color),
-							ImGuiColorEditFlags_PickerHueWheel | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel);
-
-						ImGui::TreePop();
-					}*/
 				}
 			}
 		}

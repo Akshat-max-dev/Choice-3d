@@ -106,8 +106,10 @@ namespace choice
 		return Id;
 	}
 
-	const uint32_t LoadTextureCubemap(const std::string& hdrmap)
+	const std::vector<uint32_t> LoadTextureCubemap(const std::string& hdrmap)
 	{
+		std::vector<uint32_t> Ids;
+
 		uint32_t framebuffer;
 		glCreateFramebuffers(1, &framebuffer);
 		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
@@ -143,7 +145,8 @@ namespace choice
 		if (!data)
 		{
 			std::cout << "Failed To Load HDR Image" << std::endl;
-			return 0;
+			Ids.push_back(0); Ids.push_back(0); Ids.push_back(0); Ids.push_back(0);
+			return Ids;
 		}
 
 		glCreateTextures(GL_TEXTURE_2D, 1, &hdr);
@@ -159,6 +162,9 @@ namespace choice
 		if (ext == ".hdr") { stbi_image_free(data); }
 		else if (ext == ".exr") { free(data); }
 
+		// enable seamless cubemap sampling for lower mip levels in the pre-filter map.
+		glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
+
 		uint32_t hdrcubemap;
 		glCreateTextures(GL_TEXTURE_CUBE_MAP, 1, &hdrcubemap);
 		glBindTexture(GL_TEXTURE_CUBE_MAP, hdrcubemap);
@@ -169,7 +175,7 @@ namespace choice
 		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR); //Enable TriLinear Filtering
 		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
 		glm::mat4 captureProjection = glm::perspective(glm::radians(90.0f), (float)1024 / (float)1024, 0.1f, 10.0f);
@@ -184,20 +190,20 @@ namespace choice
 		};
 
 		std::unique_ptr<Drawable> cube(LoadDrawable("", DrawableType::CUBE, false));
-		std::unique_ptr<Shader> hdrToCubemap = std::make_unique<Shader>("Choice/assets/shaders/HDRToCubemap.glsl");
+		std::unique_ptr<Shader> shader = std::make_unique<Shader>("Choice/assets/shaders/HDRToCubemap.glsl");
 
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, hdr);
 
-		hdrToCubemap->Use();
-		hdrToCubemap->Int("hdrMap", 0);
-		hdrToCubemap->Mat4("uProjection", captureProjection);
+		shader->Use();
+		shader->Int("hdrMap", 0);
+		shader->Mat4("uProjection", captureProjection);
 
 		glViewport(0, 0, 1024, 1024);
 		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
 		for (uint32_t i = 0; i < 6; i++)
 		{
-			hdrToCubemap->Mat4("uView", captureViews[i]);
+			shader->Mat4("uView", captureViews[i]);
 			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, hdrcubemap, 0);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -206,7 +212,127 @@ namespace choice
 		}
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-		return hdrcubemap;
+		glDeleteTextures(1, &hdr);
+
+		//Start Of Code For IBL
+		glBindTexture(GL_TEXTURE_CUBE_MAP, hdrcubemap);
+		glGenerateMipmap(GL_TEXTURE_CUBE_MAP); //Generate Mip-Maps For Pre-Filter Cubemap
+
+		//Irradiance Convolution
+		shader.reset();
+		shader = std::make_unique<Shader>("Choice/assets/shaders/IrradianceConvolution.glsl");
+
+		//Create Convolution Cubemap Texture
+		uint32_t irradianceConvolution;
+		glCreateTextures(GL_TEXTURE_CUBE_MAP, 1, &irradianceConvolution);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceConvolution);
+		for (uint32_t i = 0; i < 6; i++)
+		{
+			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, internalformat, 128, 128, 0, dataformat, GL_FLOAT, nullptr);
+		}
+		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, hdrcubemap);
+
+		shader->Use();
+		shader->Int("icHDRSkybox", 0);
+		shader->Mat4("uProjection", captureProjection);
+
+		glViewport(0, 0, 128, 128);
+		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+		for (uint32_t i = 0; i < 6; i++)
+		{
+			shader->Mat4("uView", captureViews[i]);
+			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, irradianceConvolution, 0);
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+			cube->GetMeshes()[0].first->Bind();
+			glDrawArrays(GL_TRIANGLES, 0, 36);
+		}
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+		//Pre-Filter Cubemap
+		shader.reset();
+		shader = std::make_unique<Shader>("Choice/assets/shaders/Pre-FilterCubemap.glsl");
+
+		uint32_t prefilterCubemap;
+		glCreateTextures(GL_TEXTURE_CUBE_MAP, 1, &prefilterCubemap);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, prefilterCubemap);
+
+		for (uint32_t i = 0; i < 6; i++)
+		{
+			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, internalformat, 128, 128, 0, dataformat, GL_FLOAT, nullptr);
+		}
+		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR); //Enable TriLinear Filtering 
+		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
+
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, hdrcubemap);
+
+		shader->Use();
+		shader->Int("pfHDRSkybox", 0);
+		shader->Mat4("uProjection", captureProjection);
+
+		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+		const uint32_t maxMipLevels = 5;
+		for (uint32_t mip = 0; mip < maxMipLevels; mip++)
+		{
+			const uint32_t mipWidth  = 128 * pow(0.5, mip);
+			const uint32_t mipHeight = 128 * pow(0.5, mip);
+			glViewport(0, 0, mipWidth, mipHeight);
+			float roughness = (float)mip / (float)(maxMipLevels - 1);
+			shader->Float("pfRoughness", roughness);
+			for (uint32_t i = 0; i < 6; i++)
+			{
+				shader->Mat4("uView", captureViews[i]);
+				glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, prefilterCubemap, mip);
+				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+				cube->GetMeshes()[0].first->Bind();
+				glDrawArrays(GL_TRIANGLES, 0, 36);
+			}
+		}
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+		//BRDF Lookup Texture
+		shader.reset();
+		shader = std::make_unique<Shader>("Choice/assets/shaders/BRDFLookup.glsl");
+
+		uint32_t brdfLookup;
+		glCreateTextures(GL_TEXTURE_2D, 1, &brdfLookup);
+		glBindTexture(GL_TEXTURE_2D, brdfLookup);
+
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RG16F, 512, 512, 0, GL_RG, GL_FLOAT, nullptr);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, brdfLookup, 0);
+
+		glViewport(0, 0, 512, 512);
+		shader->Use();
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glDrawArrays(GL_TRIANGLES, 0, 3);
+
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+		glDeleteFramebuffers(1, &framebuffer);
+
+		Ids.push_back(hdrcubemap); Ids.push_back(irradianceConvolution); 
+		Ids.push_back(prefilterCubemap); Ids.push_back(brdfLookup);
+
+		return Ids;
 	}
 
 	CMP_ERROR LoadTextureFromMemory(void* data, int width, int height, CMP_MipSet* MipSetIn)

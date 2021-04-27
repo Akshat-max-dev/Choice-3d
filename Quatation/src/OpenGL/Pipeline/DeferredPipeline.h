@@ -24,11 +24,11 @@ namespace choice
 		DeferredGeometryCapture(uint32_t w, uint32_t h);
 		~DeferredGeometryCapture();
 
-		void BindGBuffer(glm::uvec4 slots);
+		void BindGBuffer(uint32_t slots[]);
 		PixelInfo* ReadPixels(uint32_t xpos, uint32_t ypos);
 	private:
 		void Invalidate()override;
-		uint32_t mAlbedoSId, mPositionId, mNormalId, mPickingId, mDepthStencilId;
+		uint32_t mAlbedoSId, mPositionId, mNormalId, mRoughMetalAo, mPickingId, mDepthStencilId;
 		PixelInfo* mPixelInfo;
 	};
 

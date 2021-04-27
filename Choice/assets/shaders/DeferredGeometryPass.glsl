@@ -5,6 +5,7 @@ layout(location = 0)in vec3 aPosition;
 layout(location = 1)in vec3 aNormal;
 layout(location = 2)in vec2 aTexCoords;
 layout(location = 3)in vec3 aTangent;
+layout(location = 4)in vec4 aBiTangent;
 
 uniform mat4 uViewProjection;
 uniform mat4 uTransform;
@@ -27,10 +28,11 @@ void main()
 #source fragment
 #version 450 core
 
-layout(location = 0)out vec4 gPosition;
-layout(location = 1)out vec4 gNormal;
+layout(location = 0)out vec3 gPosition;
+layout(location = 1)out vec3 gNormal;
 layout(location = 2)out vec4 gAlbedoS;
-layout(location = 3)out vec3 gPixelInfo;
+layout(location = 3)out vec3 gRoughMetalAo; 
+layout(location = 4)out vec3 gPixelInfo;
 
 struct Material
 {
@@ -38,6 +40,7 @@ struct Material
 	sampler2D Normal;
 	float Roughness;
 	float Metallic;
+	float AO;
 	vec4 Color;
 };
 
@@ -57,19 +60,16 @@ uniform int gDrawIndex;
 
 void main()
 {
-	gPosition.rgb = fs_in.vFragPos; //Fragment Position
-	gPosition.a = gMaterial.Roughness; //Roughness
+	gPosition = fs_in.vFragPos; //Fragment Position
 
 	if(gHasNormalMap == 1)
 	{
-		gNormal.rgb = texture(gMaterial.Normal, fs_in.vTexCoords).rgb; //Normals From NormalMap
+		gNormal = texture(gMaterial.Normal, fs_in.vTexCoords).rgb; //Normals From NormalMap
 	}
 	else
 	{
-		gNormal.rgb = fs_in.vNormal; //Normals From Vertex Attributes
+		gNormal = fs_in.vNormal; //Normals From Vertex Attributes
 	}
-
-	gNormal.a = gMaterial.Metallic; //Metallic
 
 	if(gHasDiffuseMap == 1)
 	{
@@ -81,6 +81,8 @@ void main()
 		gAlbedoS = gMaterial.Color;
 	}
 	//gAlbedoS.a = texture(gMaterial.Specular, fs_in.vTexCoords).r;
+
+	gRoughMetalAo = vec3(gMaterial.Roughness, gMaterial.Metallic, gMaterial.AO);
 
 	gPixelInfo = vec3(float(gObjectIndex), float(gDrawIndex), float(gl_PrimitiveID + 1));
 }
