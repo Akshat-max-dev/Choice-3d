@@ -140,6 +140,9 @@ namespace choice
 
 	void DeferredPipeline::Init(uint32_t w, uint32_t h)
 	{
+		mShadowMapCapturePass.first = new ShadowMapCapture(w, h);
+		mShadowMapCapturePass.second = new Shader("Choice/assets/shaders/ShadowMap.glsl");
+
 		mGeometryPass.first = new DeferredGeometryCapture(w, h);
 		mGeometryPass.second = new Shader("Choice/assets/shaders/DeferredGeometryPass.glsl");
 
@@ -151,6 +154,7 @@ namespace choice
 
 	void DeferredPipeline::Visible(uint32_t w, uint32_t h)
 	{
+		mShadowMapCapturePass.first->Visible(w, h);
 		mGeometryPass.first->Visible(w, h);
 		mLightingPass.first->Visible(w, h);
 	}
@@ -158,6 +162,66 @@ namespace choice
 	void DeferredPipeline::Update(Scene* scene, Camera* camera)
 	{
 		glEnable(GL_DEPTH_TEST);
+
+		glCullFace(GL_FRONT);
+		mShadowMapCapturePass.first->Bind();
+		glClear(GL_DEPTH_BUFFER_BIT);
+
+		mShadowMapCapturePass.second->Use();
+		for (auto& object : scene->GetSceneObjects())
+		{
+			if (object)
+			{
+				Light* light = object->GetProperty<Light>();
+				if (light)
+				{
+					switch (light->GetLightType())
+					{
+					case LightType::DIRECTIONAL:
+						for (auto& _object : scene->GetSceneObjects())
+						{
+							if (_object)
+							{
+								Drawable* drawable = _object->GetProperty<Drawable>();
+								if (drawable)
+								{
+									for (auto& mesh : drawable->GetMeshes())
+									{
+										mShadowMapCapturePass.second->Mat4("uLightViewProjection", light->ViewProjection(_object->GetProperty<Transform>())[0]);
+										mShadowMapCapturePass.second->Mat4("uTransform", _object->GetProperty<Transform>()->GetTransform());
+										mesh.first->Bind();
+
+										switch (drawable->GetDrawableType())
+										{
+										case DrawableType::CUBE:
+											glDrawArrays(GL_TRIANGLES, 0, 36);
+											break;
+										case DrawableType::SPHERE:
+										{
+											uint32_t scount = mesh.first->GetCount();
+											glDrawElements(GL_TRIANGLE_STRIP, scount, GL_UNSIGNED_INT, nullptr);
+										}
+										break;
+										case DrawableType::MODEL:
+										{
+											uint32_t mcount = mesh.first->GetCount();
+											glDrawElements(GL_TRIANGLES, mcount, GL_UNSIGNED_INT, nullptr);
+										}
+										break;
+										}
+									}
+								}
+							}
+						}
+						break;
+					}
+				}
+			}
+		}
+
+		mShadowMapCapturePass.first->UnBind();
+		glCullFace(GL_BACK);
+
 		glEnable(GL_STENCIL_TEST);
 		glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
 
@@ -197,7 +261,7 @@ namespace choice
 					{
 						drawindex++;
 						//Bind Diffuse Map
-						if (drawable->GetMaterials()[mesh.second]->DiffuseMap.first 
+						if (drawable->GetMaterials()[mesh.second]->DiffuseMap.first
 							&& drawable->GetMaterials()[mesh.second]->DiffuseMap.second.first)
 						{
 							drawable->GetMaterials()[mesh.second]->DiffuseMap.second.first->Bind(0);
@@ -290,9 +354,83 @@ namespace choice
 							break;
 						}
 					}
+
+					//Calculating Scene AABB
+					glm::vec4 min = object->GetProperty<Transform>()->GetTransform() * 
+						glm::vec4(drawable->GetBoundingBox().second.Min, 1.0f);
+					
+					scene->GetBoundingBox().second.Min.x = min.x < scene->GetBoundingBox().second.Min.x ? min.x : scene->GetBoundingBox().second.Min.x;
+					scene->GetBoundingBox().second.Min.y = min.y < scene->GetBoundingBox().second.Min.y ? min.y : scene->GetBoundingBox().second.Min.y;
+					scene->GetBoundingBox().second.Min.z = min.z < scene->GetBoundingBox().second.Min.z ? min.z : scene->GetBoundingBox().second.Min.z;
+
+					glm::vec4 max = object->GetProperty<Transform>()->GetTransform() *
+						glm::vec4(drawable->GetBoundingBox().second.Max, 1.0f);	
+
+					scene->GetBoundingBox().second.Max.x = max.x > scene->GetBoundingBox().second.Max.x ? max.x : scene->GetBoundingBox().second.Max.x;
+					scene->GetBoundingBox().second.Max.y = max.y > scene->GetBoundingBox().second.Max.y ? max.y : scene->GetBoundingBox().second.Max.y;
+					scene->GetBoundingBox().second.Max.z = max.z > scene->GetBoundingBox().second.Max.z ? max.z : scene->GetBoundingBox().second.Max.z;
+
+					mGeometryPass.second->Mat4("uViewProjection", camera->ViewProjection());
+					mGeometryPass.second->Mat4("uTransform", object->GetProperty<Transform>()->GetTransform());
+
+					drawable->GetBoundingBox().first->Bind();
+					uint32_t count = (uint32_t)drawable->GetBoundingBox().first->GetCount();
+					glDrawElements(GL_LINES, count, GL_UNSIGNED_INT, 0);
+					glLineWidth(2.0f);
 				}
 			}
 		}
+
+		//Drawing Scene AABB
+		scene->GetBoundingBox().first = CreateBoundingBox(ExpandAABB(scene->GetBoundingBox().second));
+		mGeometryPass.second->Use();
+		mGeometryPass.second->Mat4("uViewProjection", camera->ViewProjection());
+		mGeometryPass.second->Mat4("uTransform", glm::mat4(1.0f));
+		scene->GetBoundingBox().first->Bind();
+		uint32_t count = (uint32_t)scene->GetBoundingBox().first->GetCount();
+		glDrawElements(GL_LINES, count, GL_UNSIGNED_INT, 0);
+		glLineWidth(2.0f);
+		delete scene->GetBoundingBox().first;
+
+		//Calculate Scene AABB In Light Space
+		BoundingBox lightAABB = CalculateBoundingBox(nullptr, 0, 0);
+		auto expanded = ExpandAABB(scene->GetBoundingBox().second);
+
+		glm::mat4 lightview = scene->GetSceneObjects()[1]->GetProperty<Light>()->View(scene->GetSceneObjects()[1]->GetProperty<Transform>());
+
+		for (auto& point : expanded)
+		{
+			const glm::vec4 pointinview = lightview * glm::vec4(point, 1.0f);
+			
+			lightAABB.Min.x = pointinview.x < lightAABB.Min.x ? pointinview.x : lightAABB.Min.x;
+			lightAABB.Min.y = pointinview.y < lightAABB.Min.y ? pointinview.y : lightAABB.Min.y;
+			lightAABB.Min.z = pointinview.z < lightAABB.Min.z ? pointinview.z : lightAABB.Min.z;
+
+			lightAABB.Max.x = pointinview.x > lightAABB.Max.x ? pointinview.x : lightAABB.Max.x;
+			lightAABB.Max.y = pointinview.y > lightAABB.Max.y ? pointinview.y : lightAABB.Max.y;
+			lightAABB.Max.z = pointinview.z > lightAABB.Max.z ? pointinview.z : lightAABB.Max.z;
+		}
+
+		//Draw LightSpace AABB
+		expanded.clear();
+		expanded = ExpandAABB(lightAABB);
+		for (auto& point : expanded)
+		{
+			glm::vec4 temp = glm::inverse(lightview) * glm::vec4(point, 1.0f);
+			point.x = temp.x;
+			point.y = temp.y;
+			point.z = temp.z;
+		}
+
+		VertexArray* va = CreateBoundingBox(expanded);
+		va->Bind();
+		uint32_t count_ = va->GetCount();
+		glDrawElements(GL_LINES, count_, GL_UNSIGNED_INT, nullptr);
+		glLineWidth(2.0f);
+		delete va;
+
+		scene->GetBoundingBox().second = CalculateBoundingBox(nullptr, 0, 0);
+
 		mGeometryPass.first->UnBind();
 
 		BlitData();
@@ -317,6 +455,7 @@ namespace choice
 					uint32_t slots[] = { 0, 1, 2, 3, 4 };
 					mGeometryPass.first->BindGBuffer(slots);
 					scene->GetSceneObjects()[0]->GetProperty<Skybox>()->BindIBL({ 5, 6, 7 });
+					mShadowMapCapturePass.first->BindCaptures({ 8, 9 });
 					mLightingPass.second->Int("lGBuffer.Position", 0);
 					mLightingPass.second->Int("lGBuffer.Normal", 1);
 					mLightingPass.second->Int("lGBuffer.AlbedoS", 2);
@@ -324,6 +463,8 @@ namespace choice
 					mLightingPass.second->Int("lIBL.IrradianceMap", 5);
 					mLightingPass.second->Int("lIBL.PreFilterMap", 6);
 					mLightingPass.second->Int("lIBL.BRDFLookup", 7);
+					mLightingPass.second->Int("lFragposLightSpace", 8);
+					mLightingPass.second->Int("lShadowMap", 9);
 					switch (light->GetLightType())
 					{
 					case LightType::DIRECTIONAL:
@@ -429,6 +570,8 @@ namespace choice
 
 	void DeferredPipeline::Shutdown()
 	{
+		delete mShadowMapCapturePass.first;
+		delete mShadowMapCapturePass.second;
 		delete mGeometryPass.first;
 		delete mGeometryPass.second;
 		delete mOutline;
@@ -487,6 +630,75 @@ namespace choice
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, mDepthStencilId, 0);
+
+		if (!(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE))
+		{
+#ifdef DEBUG
+			std::cout << "Framebuffer Not Complete" << std::endl;
+			choiceassert(0);
+#endif
+		}
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	}
+
+	ShadowMapCapture::ShadowMapCapture(uint32_t w, uint32_t h)
+		:Framebuffer(w, h)
+	{
+		Invalidate();
+	}
+
+	ShadowMapCapture::~ShadowMapCapture()
+	{
+		Framebuffer::Destroy();
+		glDeleteTextures(1, &mShadowmap);
+		glDeleteTextures(1, &mFragpos);
+	}
+
+	void ShadowMapCapture::BindCaptures(glm::uvec2 slots) const
+	{
+		glActiveTexture(GL_TEXTURE0 + slots.x);
+		glBindTexture(GL_TEXTURE_2D, mFragpos);
+		glActiveTexture(GL_TEXTURE0 + slots.y);
+		glBindTexture(GL_TEXTURE_2D, mShadowmap);
+	}
+
+	void ShadowMapCapture::Invalidate()
+	{
+		if (mRendererId)
+		{
+			Framebuffer::Destroy();
+			glDeleteTextures(1, &mShadowmap);
+			glDeleteTextures(1, &mFragpos);
+		}
+
+		glCreateFramebuffers(1, &mRendererId);
+		glBindFramebuffer(GL_FRAMEBUFFER, mRendererId);
+
+		glCreateTextures(GL_TEXTURE_2D, 1, &mFragpos);
+		glBindTexture(GL_TEXTURE_2D, mFragpos);
+
+		glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA32F, mWidth, mHeight);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, mFragpos, 0);
+
+		glCreateTextures(GL_TEXTURE_2D, 1, &mShadowmap);
+		glBindTexture(GL_TEXTURE_2D, mShadowmap);
+
+		glTexStorage2D(GL_TEXTURE_2D, 1, GL_DEPTH_COMPONENT24, mWidth, mHeight);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, mShadowmap, 0);
+
+		glDrawBuffer(GL_COLOR_ATTACHMENT0);
 
 		if (!(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE))
 		{

@@ -26,6 +26,8 @@ namespace choice
 		transform->Scale = { 1.0f, 1.0f, 1.0f };
 		_object->AddProperty<Transform>(transform);
 		mSceneObjects.push_back(_object);
+
+		mBoundingBox.second = CalculateBoundingBox(nullptr, 0, 0);
 	}
 
 	Scene::Scene(const std::string& cscene)
@@ -41,6 +43,8 @@ namespace choice
 			std::cout << "Failed To Load Scene" << std::endl;
 			return;
 		}
+
+		mBoundingBox.second = CalculateBoundingBox(nullptr, 0, 0);
 
 		uint32_t sceneobjectssize;
 		containedscene.read((char*)&sceneobjectssize, sizeof(sceneobjectssize));

@@ -44,6 +44,18 @@ namespace choice
 		uint32_t mCapture, mDepthStencilId;
 	};
 
+	class ShadowMapCapture :public Framebuffer
+	{
+	public:
+		ShadowMapCapture(uint32_t w, uint32_t h);
+		~ShadowMapCapture();
+
+		void BindCaptures(glm::uvec2 slots)const;
+	private:
+		void Invalidate()override;
+		uint32_t mShadowmap, mFragpos;
+	};
+
 	class DeferredPipeline :public Pipeline
 	{
 	public:
@@ -54,6 +66,7 @@ namespace choice
 		const uint32_t& Capture()const override;
 		void Shutdown()override;
 	private:
+		std::pair<ShadowMapCapture*, Shader*> mShadowMapCapturePass;
 		std::pair<DeferredGeometryCapture*, Shader*> mGeometryPass;
 		Shader* mOutline;
 		std::pair<DeferredLightingCapture*, Shader*> mLightingPass;
