@@ -62,6 +62,40 @@ uniform vec3 lViewpos;
 uniform int ldLightsActive;
 uniform int lpLightsActive;
 
+uniform mat4 uLightViewProjection;
+uniform sampler2DShadow lShadowMap;
+
+float CalculateShadows(vec4 fragPosLightSpace)
+{
+	vec3 ProjCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+    vec2 UVCoords;
+    UVCoords.x = 0.5 * ProjCoords.x + 0.5;
+    UVCoords.y = 0.5 * ProjCoords.y + 0.5;
+    float z    = 0.5 * ProjCoords.z + 0.5;
+
+	vec2 texelSize = textureSize(lShadowMap, 0);
+
+    float xOffset = 1.0/texelSize.x;
+    float yOffset = 1.0/texelSize.y;
+
+    float Factor = 0.0;
+
+	if(z > 1.0)
+	{
+		return 1.0;
+	}
+
+    for (int y = -1 ; y <= 1 ; y++) {
+        for (int x = -1 ; x <= 1 ; x++) {
+            vec2 Offsets = vec2(x * xOffset, y * yOffset);
+            vec3 UVC = vec3(UVCoords + Offsets, (z - 0.05) + 0.001);
+            Factor += texture(lShadowMap, UVC);
+        }
+    }
+
+    return (0.5 + (Factor / 9.0));
+}
+
 const float PI = 3.14159265359;
 
 // ----------------------------------------------------------------------------
@@ -137,6 +171,7 @@ vec3 CalculateLo(vec3 L, vec3 N, vec3 V, vec3 Ra, vec3 F0, float R, float M, vec
 }
 
 // ----------------------------------------------------------------------------
+
 void main()
 {
 	vec3 FragPos	= texture(lGBuffer.Position, vTexCoords).rgb;
@@ -145,6 +180,8 @@ void main()
 	float Roughness = texture(lGBuffer.RoughMetalAo, vTexCoords).r;
 	float Metallic  = texture(lGBuffer.RoughMetalAo, vTexCoords).g;
 	float AO		= texture(lGBuffer.RoughMetalAo, vTexCoords).b;
+
+	vec4 FragPosLightSpace = uLightViewProjection * vec4(FragPos, 1.0);
 
 	N = normalize(N);
 
@@ -185,7 +222,7 @@ void main()
     vec3 Specular = PreFilteredColor * (F * BRDF.x + BRDF.y);
 
 	vec3 Ambient = (Kd * Diffuse + Specular) * AO;
-	vec3 Color = Ambient + Lo;
+	vec3 Color = (Ambient + Lo) * CalculateShadows(FragPosLightSpace);
 
 	// HDR tonemapping
     Color = Color / (Color + vec3(1.0));

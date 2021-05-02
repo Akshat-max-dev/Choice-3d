@@ -16,7 +16,7 @@ namespace choice
 		void DeleteObject(uint32_t index) { delete mSceneObjects[index]; mSceneObjects[index] = nullptr; }
 
 		std::vector<SceneObject*>& GetSceneObjects() { return mSceneObjects; }
-		std::pair<VertexArray*, BoundingBox>& GetBoundingBox() { return mBoundingBox; }
+		BoundingBox& GetBoundingBox() { return mBoundingBox; }
 
 		void Save();
 		void Clean();
@@ -27,6 +27,6 @@ namespace choice
 		std::string mName;
 		std::string mDirectory;
 		std::vector<SceneObject*> mSceneObjects;
-		std::pair<VertexArray*, BoundingBox> mBoundingBox;
+		BoundingBox mBoundingBox;
 	};
 }

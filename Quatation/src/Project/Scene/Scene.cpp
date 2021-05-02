@@ -19,7 +19,12 @@ namespace choice
 		mSceneObjects.push_back(object);
 
 		SceneObject* _object = new SceneObject();
-		_object->AddProperty<Light>(new DirectionalLight());
+
+		DirectionalLight* directionallight = new DirectionalLight();
+		directionallight->Name = "Directional Light";
+		directionallight->Type = LightType::DIRECTIONAL;
+		_object->AddProperty<Light>(directionallight);
+
 		Transform* transform = new Transform();
 		transform->Position = { 0.0f, 0.0f, 0.0f };
 		transform->Rotation = { 0.0f, 0.0f, 0.0f };
@@ -27,7 +32,7 @@ namespace choice
 		_object->AddProperty<Transform>(transform);
 		mSceneObjects.push_back(_object);
 
-		mBoundingBox.second = CalculateBoundingBox(nullptr, 0, 0);
+		mBoundingBox = CalculateBoundingBox(nullptr, 0, 0);
 	}
 
 	Scene::Scene(const std::string& cscene)
@@ -44,7 +49,7 @@ namespace choice
 			return;
 		}
 
-		mBoundingBox.second = CalculateBoundingBox(nullptr, 0, 0);
+		mBoundingBox = CalculateBoundingBox(nullptr, 0, 0);
 
 		uint32_t sceneobjectssize;
 		containedscene.read((char*)&sceneobjectssize, sizeof(sceneobjectssize));
@@ -134,10 +139,26 @@ namespace choice
 				switch (lightype)
 				{
 				case 0:
-					object->AddProperty<Light>(new DirectionalLight(lightname, color, intensity));
+					{
+						DirectionalLight* directionallight = new DirectionalLight();
+						directionallight->Name = lightname;
+						directionallight->Type = LightType::DIRECTIONAL;
+						directionallight->Color = color;
+						directionallight->Intensity = intensity;
+						directionallight->Radius = radius;
+						object->AddProperty<Light>(directionallight);
+					}
 					break;
 				case 1:
-					object->AddProperty<Light>(new PointLight(lightname, color, intensity, radius));
+					{
+						PointLight* pointlight = new PointLight();
+						pointlight->Name = lightname;
+						pointlight->Type = LightType::POINT;
+						pointlight->Color = color;
+						pointlight->Intensity = intensity;
+						pointlight->Radius = radius;
+						object->AddProperty<Light>(pointlight);
+					}
 					break;
 				}
 			}
@@ -260,19 +281,19 @@ namespace choice
 				auto lightprop = object->GetProperty<Light>();
 				if (lightprop)
 				{
-					int lighttype = static_cast<int>(lightprop->GetLightType());
+					int lighttype = static_cast<int>(lightprop->Type);
 					cscene.write((char*)&lighttype, sizeof(lighttype));
 
-					uint32_t lightnamesize = (uint32_t)lightprop->GetName().size();
+					uint32_t lightnamesize = (uint32_t)lightprop->Name.size();
 					cscene.write((char*)&lightnamesize, sizeof(lightnamesize));
-					cscene.write((char*)lightprop->GetName().data(), lightnamesize);
+					cscene.write((char*)lightprop->Name.data(), lightnamesize);
 
-					cscene.write((char*)&lightprop->GetDiffuse().x, sizeof(lightprop->GetDiffuse().x));
-					cscene.write((char*)&lightprop->GetDiffuse().y, sizeof(lightprop->GetDiffuse().y));
-					cscene.write((char*)&lightprop->GetDiffuse().z, sizeof(lightprop->GetDiffuse().z));
+					cscene.write((char*)&lightprop->Color.x, sizeof(lightprop->Color.x));
+					cscene.write((char*)&lightprop->Color.y, sizeof(lightprop->Color.y));
+					cscene.write((char*)&lightprop->Color.z, sizeof(lightprop->Color.z));
 
-					cscene.write((char*)&lightprop->GetIntensity(), sizeof(lightprop->GetIntensity()));
-					cscene.write((char*)&lightprop->GetRadius(), sizeof(lightprop->GetRadius()));
+					cscene.write((char*)&lightprop->Intensity, sizeof(lightprop->Intensity));
+					cscene.write((char*)&lightprop->Radius, sizeof(lightprop->Radius));
 				}
 				else
 				{

@@ -797,22 +797,22 @@ namespace choice
 				ImGui::SameLine();
 				ImGui::SetNextItemWidth(ImGui::GetContentRegionAvailWidth());
 				const char* comboitems[] = { "Directional Light", "Point Light" };
-				static int type = static_cast<int>(mLight.value()->GetLightType());
+				static int type = static_cast<int>(mLight.value()->Type);
 				ImGui::Combo("##Type", &type, comboitems, IM_ARRAYSIZE(comboitems));
 
 				ImGui::Text("Color        ");
 				ImGui::SameLine();
-				ImGui::ColorEdit3("##Color", glm::value_ptr(mLight.value()->GetDiffuse()), ImGuiColorEditFlags_PickerHueWheel);
+				ImGui::ColorEdit3("##Color", glm::value_ptr(mLight.value()->Color), ImGuiColorEditFlags_PickerHueWheel);
 			
 				ImGui::Text("Intensity    ");
 				ImGui::SameLine();
-				ImGui::DragFloat("##Intensity", &mLight.value()->GetIntensity(), 0.2f, 0.0f, 10.0f);
+				ImGui::DragFloat("##Intensity", &mLight.value()->Intensity, 0.2f, 0.0f, 10.0f);
 
-				if (mLight.value()->GetLightType() == LightType::POINT)
+				if (mLight.value()->Type == LightType::POINT)
 				{
 					ImGui::Text("Radius      ");
 					ImGui::SameLine();
-					ImGui::DragFloat("##Radius", &mLight.value()->GetRadius(), 0.2f, 0.0f, 100.0f);
+					ImGui::DragFloat("##Radius", &mLight.value()->Radius, 0.2f, 0.0f, 100.0f);
 				}
 			}
 		}
@@ -821,11 +821,6 @@ namespace choice
 	void Editor::DrawObjectInspectorPanel(SceneObject* object)
 	{
 		ImGui::Begin(ICON_FK_INFO_CIRCLE" Inspector");
-
-		if (ImGui::IsWindowFocused())
-		{
-			Choice::Instance()->GetPipeline()->MousePicking(false);
-		}
 
 		ImGui::Text(("Name :" + object->Name()).c_str());
 		ImGui::Button("Rename TODO");
@@ -962,23 +957,35 @@ namespace choice
 				if (ImGui::MenuItem("Directional Light"))
 				{
 					SceneObject* sceneobject = new SceneObject();
-					sceneobject->AddProperty<Light>(new DirectionalLight());
+
+					DirectionalLight* directionallight = new DirectionalLight();
+					directionallight->Name = "Directional Light";
+					directionallight->Type = LightType::DIRECTIONAL;
+					sceneobject->AddProperty<Light>(directionallight);
+
 					Transform* transform = new Transform();
 					transform->Position = { 0.0f, 0.0f, 0.0f };
 					transform->Rotation = { 0.0f, 0.0f, 0.0f };
 					transform->Scale = { 1.0f, 1.0f, 1.0f };
 					sceneobject->AddProperty<Transform>(transform);
+
 					mActiveProject->ActiveScene()->AddObject(sceneobject);
 				}
 				if (ImGui::MenuItem("Point Light"))
 				{
 					SceneObject* sceneobject = new SceneObject();
-					sceneobject->AddProperty<Light>(new PointLight());
+					
+					PointLight* pointlight = new PointLight();
+					pointlight->Name = "Point Light";
+					pointlight->Type = LightType::POINT;
+					sceneobject->AddProperty<Light>(pointlight);
+
 					Transform* transform = new Transform();
 					transform->Position = { 0.0f, 0.0f, 0.0f };
 					transform->Rotation = { 0.0f, 0.0f, 0.0f };
 					transform->Scale = { 1.0f, 1.0f, 1.0f };
 					sceneobject->AddProperty<Transform>(transform);
+
 					mActiveProject->ActiveScene()->AddObject(sceneobject);
 				}
 				ImGui::EndMenu();

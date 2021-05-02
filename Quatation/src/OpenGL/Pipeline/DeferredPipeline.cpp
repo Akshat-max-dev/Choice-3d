@@ -31,8 +31,6 @@ namespace choice
 		glBindTexture(GL_TEXTURE_2D, mAlbedoSId);
 		glActiveTexture(GL_TEXTURE0 + slots[3]);
 		glBindTexture(GL_TEXTURE_2D, mRoughMetalAo);
-		glActiveTexture(GL_TEXTURE0 + slots[4]);
-		glBindTexture(GL_TEXTURE_2D, mDepthStencilId);
 	}
 
 	PixelInfo* DeferredGeometryCapture::ReadPixels(uint32_t xpos, uint32_t ypos)
@@ -114,8 +112,6 @@ namespace choice
 		glTexStorage2D(GL_TEXTURE_2D, 1, GL_DEPTH24_STENCIL8, mWidth, mHeight);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
@@ -140,87 +136,56 @@ namespace choice
 
 	void DeferredPipeline::Init(uint32_t w, uint32_t h)
 	{
-		mShadowMapCapturePass.first = new ShadowMapCapture(w, h);
-		mShadowMapCapturePass.second = new Shader("Choice/assets/shaders/ShadowMap.glsl");
-
+		//Configure Geometry Pass
 		mGeometryPass.first = new DeferredGeometryCapture(w, h);
 		mGeometryPass.second = new Shader("Choice/assets/shaders/DeferredGeometryPass.glsl");
 
+		//Configure Samplers
+		mGeometryPass.second->Use();
+		mGeometryPass.second->Int("gMaterial.Diffuse", 0);
+		mGeometryPass.second->Int("gMaterial.Normal", 1);
+		mGeometryPass.second->Int("gMaterial.Roughness", 2);
+		mGeometryPass.second->Int("gMaterial.Metallic", 3);
+		mGeometryPass.second->Int("gMaterial.AmbientOcclusion", 4);
+
+		//Configure Shadow Map Pass
+		mShadowMapPass.first = new ShadowMapCapture(1024, 1024);
+		mShadowMapPass.second = new Shader("Choice/assets/shaders/ShadowMap.glsl");
+
+		//Configure Outline Pass
 		mOutline = new Shader("Choice/assets/shaders/Outline.glsl");
 
+		//Configure Lighting Pass
 		mLightingPass.first = new DeferredLightingCapture(w, h);
 		mLightingPass.second = new Shader("Choice/assets/shaders/DeferredLightingPass.glsl");
+
+		//Configure Samplers
+		mLightingPass.second->Use();
+		mLightingPass.second->Int("lGBuffer.Position", 0);
+		mLightingPass.second->Int("lGBuffer.Normal", 1);
+		mLightingPass.second->Int("lGBuffer.AlbedoS", 2);
+		mLightingPass.second->Int("lGBuffer.RoughMetalAo", 3);
+		mLightingPass.second->Int("lIBL.IrradianceMap", 4);
+		mLightingPass.second->Int("lIBL.PreFilterMap", 5);
+		mLightingPass.second->Int("lIBL.BRDFLookup", 6);
+		mLightingPass.second->Int("lShadowMap", 7);
 	}
 
 	void DeferredPipeline::Visible(uint32_t w, uint32_t h)
 	{
-		mShadowMapCapturePass.first->Visible(w, h);
 		mGeometryPass.first->Visible(w, h);
 		mLightingPass.first->Visible(w, h);
+	}
+
+	static bool BindMap(std::pair<bool, std::pair<Texture2D*, Texture2DData*>>& map, uint32_t slot)
+	{
+		if (map.first && map.second.first) { map.second.first->Bind(slot); return true; }
+		return false;
 	}
 
 	void DeferredPipeline::Update(Scene* scene, Camera* camera)
 	{
 		glEnable(GL_DEPTH_TEST);
-
-		glCullFace(GL_FRONT);
-		mShadowMapCapturePass.first->Bind();
-		glClear(GL_DEPTH_BUFFER_BIT);
-
-		mShadowMapCapturePass.second->Use();
-		for (auto& object : scene->GetSceneObjects())
-		{
-			if (object)
-			{
-				Light* light = object->GetProperty<Light>();
-				if (light)
-				{
-					switch (light->GetLightType())
-					{
-					case LightType::DIRECTIONAL:
-						for (auto& _object : scene->GetSceneObjects())
-						{
-							if (_object)
-							{
-								Drawable* drawable = _object->GetProperty<Drawable>();
-								if (drawable)
-								{
-									for (auto& mesh : drawable->GetMeshes())
-									{
-										mShadowMapCapturePass.second->Mat4("uLightViewProjection", light->ViewProjection(_object->GetProperty<Transform>())[0]);
-										mShadowMapCapturePass.second->Mat4("uTransform", _object->GetProperty<Transform>()->GetTransform());
-										mesh.first->Bind();
-
-										switch (drawable->GetDrawableType())
-										{
-										case DrawableType::CUBE:
-											glDrawArrays(GL_TRIANGLES, 0, 36);
-											break;
-										case DrawableType::SPHERE:
-										{
-											uint32_t scount = mesh.first->GetCount();
-											glDrawElements(GL_TRIANGLE_STRIP, scount, GL_UNSIGNED_INT, nullptr);
-										}
-										break;
-										case DrawableType::MODEL:
-										{
-											uint32_t mcount = mesh.first->GetCount();
-											glDrawElements(GL_TRIANGLES, mcount, GL_UNSIGNED_INT, nullptr);
-										}
-										break;
-										}
-									}
-								}
-							}
-						}
-						break;
-					}
-				}
-			}
-		}
-
-		mShadowMapCapturePass.first->UnBind();
-		glCullFace(GL_BACK);
 
 		glEnable(GL_STENCIL_TEST);
 		glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
@@ -239,6 +204,7 @@ namespace choice
 			Choice::Instance()->GetEditor()->SetSelectedObjectIndex(mPickedObjectId);
 		}
 
+		//Geometry Pass
 		mGeometryPass.first->Bind();
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 		int objectindex = -1;
@@ -261,71 +227,26 @@ namespace choice
 					{
 						drawindex++;
 						//Bind Diffuse Map
-						if (drawable->GetMaterials()[mesh.second]->DiffuseMap.first
-							&& drawable->GetMaterials()[mesh.second]->DiffuseMap.second.first)
-						{
-							drawable->GetMaterials()[mesh.second]->DiffuseMap.second.first->Bind(0);
-							mGeometryPass.second->Int("gHasDiffuseMap", 1);
-						}
-						else
-						{
-							mGeometryPass.second->Float4("gMaterial.Color", drawable->GetMaterials()[mesh.second]->Color);
-							mGeometryPass.second->Int("gHasDiffuseMap", 0);
-						}
+						if (BindMap(drawable->GetMaterials()[mesh.second]->DiffuseMap, 0)) { mGeometryPass.second->Int("gHasDiffuseMap", 1); }
+						else { mGeometryPass.second->Int("gHasDiffuseMap", 0); }
 
 						//Bind Normal Map
-						if (drawable->GetMaterials()[mesh.second]->NormalMap.first 
-							&& drawable->GetMaterials()[mesh.second]->NormalMap.second.first)
-						{
-							drawable->GetMaterials()[mesh.second]->NormalMap.second.first->Bind(1);
-							mGeometryPass.second->Int("gHasNormalMap", 1);
-						}
-						else
-						{
-							mGeometryPass.second->Int("gHasNormalMap", 0);
-						}
+						if (BindMap(drawable->GetMaterials()[mesh.second]->NormalMap, 1)) { mGeometryPass.second->Int("gHasNormalMap", 1); }
+						else { mGeometryPass.second->Int("gHasNormalMap", 0); }
 
 						//Bind Roughness Map
-						if (drawable->GetMaterials()[mesh.second]->RoughnessMap.first
-							&& drawable->GetMaterials()[mesh.second]->RoughnessMap.second.first)
-						{
-							drawable->GetMaterials()[mesh.second]->RoughnessMap.second.first->Bind(2);
-							mGeometryPass.second->Int("gHasRoughnessMap", 1);
-						}
-						else
-						{
-							mGeometryPass.second->Int("gHasRoughnessMap", 0);
-						}
+						if (BindMap(drawable->GetMaterials()[mesh.second]->RoughnessMap, 2)) { mGeometryPass.second->Int("gHasRoughnessMap", 1); }
+						else { mGeometryPass.second->Int("gHasRoughnessMap", 0); }
 
 						//Bind Metallic Map
-						if (drawable->GetMaterials()[mesh.second]->MetallicMap.first
-							&& drawable->GetMaterials()[mesh.second]->MetallicMap.second.first)
-						{
-							drawable->GetMaterials()[mesh.second]->MetallicMap.second.first->Bind(3);
-							mGeometryPass.second->Int("gHasMetallicMap", 1);
-						}
-						else
-						{
-							mGeometryPass.second->Int("gHasMetallicMap", 0);
-						}
+						if (BindMap(drawable->GetMaterials()[mesh.second]->MetallicMap, 3)) { mGeometryPass.second->Int("gHasMetallicMap", 1); }
+						else { mGeometryPass.second->Int("gHasMetallicMap", 0); }
 
 						//Bind Ambient Occlusion Map
-						if (drawable->GetMaterials()[mesh.second]->AOMap.first
-							&& drawable->GetMaterials()[mesh.second]->AOMap.second.first)
-						{
-							drawable->GetMaterials()[mesh.second]->AOMap.second.first->Bind(4);
-							mGeometryPass.second->Int("gHasAmbientOcclusionMap", 1);
-						}
-						else
-						{
-							mGeometryPass.second->Int("gHasAmbientOcclusionMap", 0);
-						}
+						if (BindMap(drawable->GetMaterials()[mesh.second]->AOMap, 4)) { mGeometryPass.second->Int("gHasAmbientOcclusionMap", 1); }
+						else { mGeometryPass.second->Int("gHasAmbientOcclusionMap", 0); }
 
-						mGeometryPass.second->Int("gMaterial.Diffuse", 0);
-						mGeometryPass.second->Int("gMaterial.Normal", 1);
-						mGeometryPass.second->Int("gMaterial.Roughness", 2);
-						mGeometryPass.second->Int("gMaterial.Metallic", 3);
-						mGeometryPass.second->Int("gMaterial.AmbientOcclusion", 4);
+						mGeometryPass.second->Float4("gMaterial.Color", drawable->GetMaterials()[mesh.second]->Color);
 						mGeometryPass.second->Float("gMaterial.RoughnessFactor", drawable->GetMaterials()[mesh.second]->Roughness);
 						mGeometryPass.second->Float("gMaterial.MetallicFactor", drawable->GetMaterials()[mesh.second]->Metallic);
 						mGeometryPass.second->Float("gMaterial.AO", drawable->GetMaterials()[mesh.second]->Ao);
@@ -356,82 +277,80 @@ namespace choice
 					}
 
 					//Calculating Scene AABB
-					glm::vec4 min = object->GetProperty<Transform>()->GetTransform() * 
-						glm::vec4(drawable->GetBoundingBox().second.Min, 1.0f);
-					
-					scene->GetBoundingBox().second.Min.x = min.x < scene->GetBoundingBox().second.Min.x ? min.x : scene->GetBoundingBox().second.Min.x;
-					scene->GetBoundingBox().second.Min.y = min.y < scene->GetBoundingBox().second.Min.y ? min.y : scene->GetBoundingBox().second.Min.y;
-					scene->GetBoundingBox().second.Min.z = min.z < scene->GetBoundingBox().second.Min.z ? min.z : scene->GetBoundingBox().second.Min.z;
+					glm::vec4 min = object->GetProperty<Transform>()->GetTransform() *
+						glm::vec4(drawable->GetBoundingBox().Min, 1.0f);
+
+					scene->GetBoundingBox().Min.x = min.x < scene->GetBoundingBox().Min.x ? min.x : scene->GetBoundingBox().Min.x;
+					scene->GetBoundingBox().Min.y = min.y < scene->GetBoundingBox().Min.y ? min.y : scene->GetBoundingBox().Min.y;
+					scene->GetBoundingBox().Min.z = min.z < scene->GetBoundingBox().Min.z ? min.z : scene->GetBoundingBox().Min.z;
 
 					glm::vec4 max = object->GetProperty<Transform>()->GetTransform() *
-						glm::vec4(drawable->GetBoundingBox().second.Max, 1.0f);	
+						glm::vec4(drawable->GetBoundingBox().Max, 1.0f);
 
-					scene->GetBoundingBox().second.Max.x = max.x > scene->GetBoundingBox().second.Max.x ? max.x : scene->GetBoundingBox().second.Max.x;
-					scene->GetBoundingBox().second.Max.y = max.y > scene->GetBoundingBox().second.Max.y ? max.y : scene->GetBoundingBox().second.Max.y;
-					scene->GetBoundingBox().second.Max.z = max.z > scene->GetBoundingBox().second.Max.z ? max.z : scene->GetBoundingBox().second.Max.z;
-
-					mGeometryPass.second->Mat4("uViewProjection", camera->ViewProjection());
-					mGeometryPass.second->Mat4("uTransform", object->GetProperty<Transform>()->GetTransform());
-
-					drawable->GetBoundingBox().first->Bind();
-					uint32_t count = (uint32_t)drawable->GetBoundingBox().first->GetCount();
-					glDrawElements(GL_LINES, count, GL_UNSIGNED_INT, 0);
-					glLineWidth(2.0f);
+					scene->GetBoundingBox().Max.x = max.x > scene->GetBoundingBox().Max.x ? max.x : scene->GetBoundingBox().Max.x;
+					scene->GetBoundingBox().Max.y = max.y > scene->GetBoundingBox().Max.y ? max.y : scene->GetBoundingBox().Max.y;
+					scene->GetBoundingBox().Max.z = max.z > scene->GetBoundingBox().Max.z ? max.z : scene->GetBoundingBox().Max.z;
 				}
 			}
 		}
-
-		//Drawing Scene AABB
-		scene->GetBoundingBox().first = CreateBoundingBox(ExpandAABB(scene->GetBoundingBox().second));
-		mGeometryPass.second->Use();
-		mGeometryPass.second->Mat4("uViewProjection", camera->ViewProjection());
-		mGeometryPass.second->Mat4("uTransform", glm::mat4(1.0f));
-		scene->GetBoundingBox().first->Bind();
-		uint32_t count = (uint32_t)scene->GetBoundingBox().first->GetCount();
-		glDrawElements(GL_LINES, count, GL_UNSIGNED_INT, 0);
-		glLineWidth(2.0f);
-		delete scene->GetBoundingBox().first;
-
-		//Calculate Scene AABB In Light Space
-		BoundingBox lightAABB = CalculateBoundingBox(nullptr, 0, 0);
-		auto expanded = ExpandAABB(scene->GetBoundingBox().second);
-
-		glm::mat4 lightview = scene->GetSceneObjects()[1]->GetProperty<Light>()->View(scene->GetSceneObjects()[1]->GetProperty<Transform>());
-
-		for (auto& point : expanded)
-		{
-			const glm::vec4 pointinview = lightview * glm::vec4(point, 1.0f);
-			
-			lightAABB.Min.x = pointinview.x < lightAABB.Min.x ? pointinview.x : lightAABB.Min.x;
-			lightAABB.Min.y = pointinview.y < lightAABB.Min.y ? pointinview.y : lightAABB.Min.y;
-			lightAABB.Min.z = pointinview.z < lightAABB.Min.z ? pointinview.z : lightAABB.Min.z;
-
-			lightAABB.Max.x = pointinview.x > lightAABB.Max.x ? pointinview.x : lightAABB.Max.x;
-			lightAABB.Max.y = pointinview.y > lightAABB.Max.y ? pointinview.y : lightAABB.Max.y;
-			lightAABB.Max.z = pointinview.z > lightAABB.Max.z ? pointinview.z : lightAABB.Max.z;
-		}
-
-		//Draw LightSpace AABB
-		expanded.clear();
-		expanded = ExpandAABB(lightAABB);
-		for (auto& point : expanded)
-		{
-			glm::vec4 temp = glm::inverse(lightview) * glm::vec4(point, 1.0f);
-			point.x = temp.x;
-			point.y = temp.y;
-			point.z = temp.z;
-		}
-
-		VertexArray* va = CreateBoundingBox(expanded);
-		va->Bind();
-		uint32_t count_ = va->GetCount();
-		glDrawElements(GL_LINES, count_, GL_UNSIGNED_INT, nullptr);
-		glLineWidth(2.0f);
-		delete va;
-
-		scene->GetBoundingBox().second = CalculateBoundingBox(nullptr, 0, 0);
-
 		mGeometryPass.first->UnBind();
+
+		//Shadow Map Pass
+		mShadowMapPass.first->Bind();
+		glClear(GL_DEPTH_BUFFER_BIT);
+
+		mShadowMapPass.second->Use();
+		for (auto& object : scene->GetSceneObjects())
+		{
+			if (object)
+			{
+				Light* light = object->GetProperty<Light>();
+				if (light)
+				{
+					switch (light->Type)
+					{
+					case LightType::DIRECTIONAL:
+						for (auto& _object : scene->GetSceneObjects())
+						{
+							if (_object)
+							{
+								Drawable* drawable = _object->GetProperty<Drawable>();
+								if (drawable)
+								{
+									for (auto& mesh : drawable->GetMeshes())
+									{
+										mShadowMapPass.second->Mat4("uLightViewProjection", light->ViewProjection(object->GetProperty<Transform>(), &scene->GetBoundingBox())[0]);
+										mShadowMapPass.second->Mat4("uTransform", _object->GetProperty<Transform>()->GetTransform());
+										mesh.first->Bind();
+
+										switch (drawable->GetDrawableType())
+										{
+										case DrawableType::CUBE:
+											glDrawArrays(GL_TRIANGLES, 0, 36);
+											break;
+										case DrawableType::SPHERE:
+										{
+											uint32_t scount = mesh.first->GetCount();
+											glDrawElements(GL_TRIANGLE_STRIP, scount, GL_UNSIGNED_INT, nullptr);
+										}
+										break;
+										case DrawableType::MODEL:
+										{
+											uint32_t mcount = mesh.first->GetCount();
+											glDrawElements(GL_TRIANGLES, mcount, GL_UNSIGNED_INT, nullptr);
+										}
+										break;
+										}
+									}
+								}
+							}
+						}
+						break;
+					}
+				}
+			}
+		}
+		mShadowMapPass.first->UnBind();
 
 		BlitData();
 
@@ -439,6 +358,7 @@ namespace choice
 		glStencilMask(0x00);
 		glDisable(GL_DEPTH_TEST);
 
+		//Lighting Pass
 		mLightingPass.first->Bind();
 		glClear(GL_COLOR_BUFFER_BIT);
 		int directinalLightCount = -1;
@@ -452,33 +372,25 @@ namespace choice
 				{
 					Transform* transform = object->GetProperty<Transform>();
 					mLightingPass.second->Use();
-					uint32_t slots[] = { 0, 1, 2, 3, 4 };
+					uint32_t slots[] = { 0, 1, 2, 3 };
 					mGeometryPass.first->BindGBuffer(slots);
-					scene->GetSceneObjects()[0]->GetProperty<Skybox>()->BindIBL({ 5, 6, 7 });
-					mShadowMapCapturePass.first->BindCaptures({ 8, 9 });
-					mLightingPass.second->Int("lGBuffer.Position", 0);
-					mLightingPass.second->Int("lGBuffer.Normal", 1);
-					mLightingPass.second->Int("lGBuffer.AlbedoS", 2);
-					mLightingPass.second->Int("lGBuffer.RoughMetalAo", 3);
-					mLightingPass.second->Int("lIBL.IrradianceMap", 5);
-					mLightingPass.second->Int("lIBL.PreFilterMap", 6);
-					mLightingPass.second->Int("lIBL.BRDFLookup", 7);
-					mLightingPass.second->Int("lFragposLightSpace", 8);
-					mLightingPass.second->Int("lShadowMap", 9);
-					switch (light->GetLightType())
+					scene->GetSceneObjects()[0]->GetProperty<Skybox>()->BindIBL({ 4, 5, 6 });
+					mShadowMapPass.first->BindShadowMap(7);
+					switch (light->Type)
 					{
 					case LightType::DIRECTIONAL:
 						directinalLightCount++;
-						mLightingPass.second->Float3(("ldLights[" + std::to_string(directinalLightCount) + "].Direction").c_str(), transform->GetTransform()[2]);
-						mLightingPass.second->Float3(("ldLights[" + std::to_string(directinalLightCount) + "].Diffuse").c_str(), light->GetDiffuse() * light->GetIntensity());
-						mLightingPass.second->Float3(("ldLights[" + std::to_string(directinalLightCount) + "].Specular").c_str(), light->GetDiffuse() * light->GetIntensity());
+						mLightingPass.second->Mat4("uLightViewProjection", light->ViewProjection(transform, &scene->GetBoundingBox())[0]);
+						mLightingPass.second->Float3(("ldLights[" + std::to_string(directinalLightCount) + "].Direction").c_str(), glm::normalize(transform->GetTransform()[2]));
+						mLightingPass.second->Float3(("ldLights[" + std::to_string(directinalLightCount) + "].Diffuse").c_str(), light->Color * light->Intensity);
+						mLightingPass.second->Float3(("ldLights[" + std::to_string(directinalLightCount) + "].Specular").c_str(), light->Color * light->Intensity);
 						break;
 					case LightType::POINT:
 						pointLightCount++;
 						mLightingPass.second->Float3(("lpLights[" + std::to_string(pointLightCount) + "].Position").c_str(), transform->Position);
-						mLightingPass.second->Float3(("lpLights[" + std::to_string(pointLightCount) + "].Diffuse").c_str(), light->GetDiffuse() * light->GetIntensity());
-						mLightingPass.second->Float3(("lpLights[" + std::to_string(pointLightCount) + "].Specular").c_str(), light->GetDiffuse() * light->GetIntensity());
-						mLightingPass.second->Float(("lpLights[" + std::to_string(pointLightCount) + "].Radius").c_str(), light->GetRadius() / 10.0f);
+						mLightingPass.second->Float3(("lpLights[" + std::to_string(pointLightCount) + "].Diffuse").c_str(), light->Color * light->Intensity);
+						mLightingPass.second->Float3(("lpLights[" + std::to_string(pointLightCount) + "].Specular").c_str(), light->Color * light->Intensity);
+						mLightingPass.second->Float(("lpLights[" + std::to_string(pointLightCount) + "].Radius").c_str(), light->Radius / 10.0f);
 						break;
 					}
 					mLightingPass.second->Float3("lViewpos", camera->Position());
@@ -517,7 +429,6 @@ namespace choice
 						mOutline->Use();
 						for (auto& mesh : drawable->GetMeshes())
 						{
-							mOutline->Mat4("uProjection", camera->Projection());
 							mOutline->Mat4("uViewProjection", camera->ViewProjection());
 							Transform* transform = object->GetProperty<Transform>();
 							mOutline->Mat4("uTransform", glm::scale(transform->GetTransform(), glm::vec3(1.02f, 1.02f, 1.02f)));
@@ -551,6 +462,9 @@ namespace choice
 		mLightingPass.first->UnBind();
 
 		glDepthMask(0x01);
+
+		//Reset Scene AABB
+		scene->GetBoundingBox() = CalculateBoundingBox(nullptr, 0, 0);
 	}
 
 	void DeferredPipeline::BlitData()
@@ -570,10 +484,10 @@ namespace choice
 
 	void DeferredPipeline::Shutdown()
 	{
-		delete mShadowMapCapturePass.first;
-		delete mShadowMapCapturePass.second;
 		delete mGeometryPass.first;
 		delete mGeometryPass.second;
+		delete mShadowMapPass.first;
+		delete mShadowMapPass.second;
 		delete mOutline;
 		delete mLightingPass.first;
 		delete mLightingPass.second;
@@ -624,8 +538,6 @@ namespace choice
 		glTexStorage2D(GL_TEXTURE_2D, 1, GL_DEPTH24_STENCIL8, mWidth, mHeight);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
@@ -651,14 +563,11 @@ namespace choice
 	{
 		Framebuffer::Destroy();
 		glDeleteTextures(1, &mShadowmap);
-		glDeleteTextures(1, &mFragpos);
 	}
 
-	void ShadowMapCapture::BindCaptures(glm::uvec2 slots) const
+	void ShadowMapCapture::BindShadowMap(uint32_t slot) const
 	{
-		glActiveTexture(GL_TEXTURE0 + slots.x);
-		glBindTexture(GL_TEXTURE_2D, mFragpos);
-		glActiveTexture(GL_TEXTURE0 + slots.y);
+		glActiveTexture(GL_TEXTURE0 + slot);
 		glBindTexture(GL_TEXTURE_2D, mShadowmap);
 	}
 
@@ -668,27 +577,15 @@ namespace choice
 		{
 			Framebuffer::Destroy();
 			glDeleteTextures(1, &mShadowmap);
-			glDeleteTextures(1, &mFragpos);
 		}
 
 		glCreateFramebuffers(1, &mRendererId);
 		glBindFramebuffer(GL_FRAMEBUFFER, mRendererId);
 
-		glCreateTextures(GL_TEXTURE_2D, 1, &mFragpos);
-		glBindTexture(GL_TEXTURE_2D, mFragpos);
-
-		glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA32F, mWidth, mHeight);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, mFragpos, 0);
-
 		glCreateTextures(GL_TEXTURE_2D, 1, &mShadowmap);
 		glBindTexture(GL_TEXTURE_2D, mShadowmap);
 
-		glTexStorage2D(GL_TEXTURE_2D, 1, GL_DEPTH_COMPONENT24, mWidth, mHeight);
+		glTexStorage2D(GL_TEXTURE_2D, 1, GL_DEPTH_COMPONENT32F, mWidth, mHeight);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
@@ -698,7 +595,8 @@ namespace choice
 
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, mShadowmap, 0);
 
-		glDrawBuffer(GL_COLOR_ATTACHMENT0);
+		glDrawBuffer(GL_NONE);
+		glReadBuffer(GL_NONE);
 
 		if (!(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE))
 		{

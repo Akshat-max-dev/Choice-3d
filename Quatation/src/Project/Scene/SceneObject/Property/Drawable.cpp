@@ -487,8 +487,7 @@ namespace choice
 
 				mesh.second = 0;
 
-				drawable->GetBoundingBox().second = CalculateBoundingBox(vertices, 36 * 8, 8);
-				drawable->GetBoundingBox().first = CreateBoundingBox(ExpandAABB(drawable->GetBoundingBox().second));
+				drawable->GetBoundingBox() = CalculateBoundingBox(vertices, 36 * 8, 8);
 			}
 			break;
 		case DrawableType::SPHERE: //Create Sphere
@@ -580,8 +579,7 @@ namespace choice
 
 				mesh.second = 0;
 
-				drawable->GetBoundingBox().second = CalculateBoundingBox(vertices.data(), (uint32_t)vertices.size(), 8);
-				drawable->GetBoundingBox().first = CreateBoundingBox(ExpandAABB(drawable->GetBoundingBox().second));
+				drawable->GetBoundingBox() = CalculateBoundingBox(vertices.data(), (uint32_t)vertices.size(), 8);
 			}
 			break;
 		case DrawableType::MODEL: //Load Model
@@ -698,10 +696,8 @@ namespace choice
 				maxZ = b.Max.z > maxZ ? b.Max.z : maxZ;
 			}
 
-			drawable->GetBoundingBox().second.Min = { minX, minY, minZ };
-			drawable->GetBoundingBox().second.Max = { maxX, maxY, maxZ };
-
-			drawable->GetBoundingBox().first = CreateBoundingBox(ExpandAABB(drawable->GetBoundingBox().second));
+			drawable->GetBoundingBox().Min = { minX, minY, minZ };
+			drawable->GetBoundingBox().Max = { maxX, maxY, maxZ };
 
 			cmodel.close();
 			break;
@@ -717,7 +713,6 @@ namespace choice
 
 	Drawable::~Drawable()
 	{
-		if (mBoundingBox.first)delete mBoundingBox.first;
 		for (auto& material : mMaterials) { if (material)delete material; }
 		for (auto& mesh : mMeshes) { if (mesh.first)delete mesh.first; }
 	}

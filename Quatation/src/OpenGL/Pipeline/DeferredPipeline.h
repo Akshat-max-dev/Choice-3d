@@ -50,10 +50,10 @@ namespace choice
 		ShadowMapCapture(uint32_t w, uint32_t h);
 		~ShadowMapCapture();
 
-		void BindCaptures(glm::uvec2 slots)const;
+		void BindShadowMap(uint32_t slot)const;
 	private:
 		void Invalidate()override;
-		uint32_t mShadowmap, mFragpos;
+		uint32_t mShadowmap;
 	};
 
 	class DeferredPipeline :public Pipeline
@@ -66,7 +66,7 @@ namespace choice
 		const uint32_t& Capture()const override;
 		void Shutdown()override;
 	private:
-		std::pair<ShadowMapCapture*, Shader*> mShadowMapCapturePass;
+		std::pair<ShadowMapCapture*, Shader*> mShadowMapPass;;
 		std::pair<DeferredGeometryCapture*, Shader*> mGeometryPass;
 		Shader* mOutline;
 		std::pair<DeferredLightingCapture*, Shader*> mLightingPass;

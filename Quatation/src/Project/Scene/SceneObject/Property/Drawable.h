@@ -9,7 +9,7 @@ namespace choice
 {
 	enum class DrawableType
 	{
-		NONE = -1, MODEL = 0, CUBE = 1, SPHERE = 2, LINE = 3
+		NONE = -1, MODEL = 0, CUBE = 1, SPHERE = 2
 	};
 
 	class Drawable
@@ -20,12 +20,12 @@ namespace choice
 
 		std::vector<Material*>& GetMaterials() { return mMaterials; }
 		std::vector<std::pair<VertexArray*, uint32_t>>& GetMeshes() { return mMeshes; }
-		std::pair<VertexArray*, BoundingBox>& GetBoundingBox() { return mBoundingBox; }
+		BoundingBox& GetBoundingBox() { return mBoundingBox; }
 		std::string& GetName() { return mName; }
 		DrawableType& GetDrawableType() { return mDrawableType; }
 	private:
 		std::vector<Material*> mMaterials;
-		std::pair<VertexArray*, BoundingBox> mBoundingBox;
+		BoundingBox mBoundingBox;
 		std::vector<std::pair<VertexArray*, uint32_t>> mMeshes;
 		std::string mName;
 		DrawableType mDrawableType = DrawableType::NONE;
