@@ -8,6 +8,7 @@
 #include<glm/gtx/quaternion.hpp>
 
 #include "Transform.h"
+#include "BinaryHelper.h"
 
 namespace choice
 {
@@ -407,43 +408,32 @@ namespace choice
 			std::ofstream cmaterial(dstMaterialFile, std::ios::out | std::ios::binary);
 
 			uint32_t materialsize = (uint32_t)materialdata->size();
-			cmaterial.write((char*)&materialsize, sizeof(materialsize));
+			Binary::Write<uint32_t>(cmaterial, materialsize);
 			for (auto& material : *materialdata)
 			{
-				uint32_t materialnamesize = (uint32_t)material.MaterialName.size();
-				cmaterial.write((char*)&materialnamesize, sizeof(materialnamesize));
-				cmaterial.write((char*)material.MaterialName.data(), materialnamesize);
+				Binary::Write<std::string>(cmaterial, material.MaterialName);
 
-				cmaterial.write((char*)&material.Roughness, sizeof(material.Roughness));
-				cmaterial.write((char*)&material.Metallic, sizeof(material.Metallic));
+				Binary::Write<float>(cmaterial, material.Roughness);
+				Binary::Write<float>(cmaterial, material.Metallic);
+				
+				Binary::Write<glm::vec4>(cmaterial, material.Color);
 
-				cmaterial.write((char*)&material.Color.r, sizeof(material.Color.r));
-				cmaterial.write((char*)&material.Color.g, sizeof(material.Color.g));
-				cmaterial.write((char*)&material.Color.b, sizeof(material.Color.b));
-				cmaterial.write((char*)&material.Color.a, sizeof(material.Color.a));
-
-				uint32_t diffusemapnamesize = (uint32_t)material.DiffuseMap.Source.size();
-				cmaterial.write((char*)&diffusemapnamesize, sizeof(diffusemapnamesize));
-				if (diffusemapnamesize)
+				Binary::Write<std::string>(cmaterial, material.DiffuseMap.Source);
+				if (material.DiffuseMap.Source.size())
 				{
-					cmaterial.write((char*)material.DiffuseMap.Source.data(), diffusemapnamesize);
-
-					cmaterial.write((char*)&material.DiffuseMap.magFilter, sizeof(material.DiffuseMap.magFilter));
-					cmaterial.write((char*)&material.DiffuseMap.minFilter, sizeof(material.DiffuseMap.minFilter));
-					cmaterial.write((char*)&material.DiffuseMap.wrapS, sizeof(material.DiffuseMap.wrapS));
-					cmaterial.write((char*)&material.DiffuseMap.wrapT, sizeof(material.DiffuseMap.wrapT));
+					Binary::Write<uint32_t>(cmaterial, material.DiffuseMap.magFilter);
+					Binary::Write<uint32_t>(cmaterial, material.DiffuseMap.minFilter);
+					Binary::Write<uint32_t>(cmaterial, material.DiffuseMap.wrapS);
+					Binary::Write<uint32_t>(cmaterial, material.DiffuseMap.wrapT);
 				}
 
-				uint32_t normalmapnamesize = (uint32_t)material.NormalMap.Source.size();
-				cmaterial.write((char*)&normalmapnamesize, sizeof(normalmapnamesize));
-				if (normalmapnamesize)
+				Binary::Write<std::string>(cmaterial, material.NormalMap.Source);
+				if (material.NormalMap.Source.size())
 				{
-					cmaterial.write((char*)material.NormalMap.Source.data(), normalmapnamesize);
-
-					cmaterial.write((char*)&material.NormalMap.magFilter, sizeof(material.NormalMap.magFilter));
-					cmaterial.write((char*)&material.NormalMap.minFilter, sizeof(material.NormalMap.minFilter));
-					cmaterial.write((char*)&material.NormalMap.wrapS, sizeof(material.NormalMap.wrapS));
-					cmaterial.write((char*)&material.NormalMap.wrapT, sizeof(material.NormalMap.wrapT));
+					Binary::Write<uint32_t>(cmaterial, material.NormalMap.magFilter);
+					Binary::Write<uint32_t>(cmaterial, material.NormalMap.minFilter);
+					Binary::Write<uint32_t>(cmaterial, material.NormalMap.wrapS);
+					Binary::Write<uint32_t>(cmaterial, material.NormalMap.wrapT);
 				}
 			}
 
@@ -459,45 +449,30 @@ namespace choice
 			}
 
 			uint32_t meshsize = (uint32_t)meshdata->size();
-			cmodel.write((char*)&meshsize, sizeof(meshsize));
+			Binary::Write<uint32_t>(cmodel, meshsize);
 			for (auto& mesh : *meshdata)
 			{
-				uint32_t verticessize = (uint32_t)mesh.Vertices.size();
-				cmodel.write((char*)&verticessize, sizeof(verticessize));
-				cmodel.write((char*)mesh.Vertices.data(), verticessize * sizeof(float));
-
-				uint32_t indicessize = (uint32_t)mesh.Indices.size();
-				cmodel.write((char*)&indicessize, sizeof(indicessize));
-				cmodel.write((char*)mesh.Indices.data(), indicessize * sizeof(uint32_t));
-
-				cmodel.write((char*)&mesh.MaterialIndex, sizeof(mesh.MaterialIndex));
+				Binary::Write<std::vector<float>>(cmodel, mesh.Vertices);
+				Binary::Write<std::vector<uint32_t>>(cmodel, mesh.Indices);
+				Binary::Write<uint32_t>(cmodel, mesh.MaterialIndex);
 			}
 
 			delete meshdata;
 
 			uint32_t armaturesize = (uint32_t)armaturedata->size();
-			cmodel.write((char*)&armaturesize, sizeof(armaturesize));
+			Binary::Write<uint32_t>(cmodel, armaturesize);
 			if (armaturesize)
 			{
 				uint32_t jointssize = (uint32_t)armaturedata->at(0).Joints.size();
-				cmodel.write((char*)&jointssize, sizeof(jointssize));
+				Binary::Write<uint32_t>(cmodel, jointssize);
 				for (auto& joint : armaturedata->at(0).Joints)
 				{
-					uint32_t jointnamesize = (uint32_t)joint.Name.size();
-					cmodel.write((char*)&jointnamesize, sizeof(jointnamesize));
-					cmodel.write((char*)joint.Name.data(), jointnamesize);
-
-					uint32_t parentjointnamesize = (uint32_t)joint.ParentName.size();
-					cmodel.write((char*)&parentjointnamesize, sizeof(parentjointnamesize));
-					if (parentjointnamesize)
-					{
-						cmodel.write((char*)joint.ParentName.data(), parentjointnamesize);
-					}
-
-					cmodel.write((char*)glm::value_ptr(joint.InvBindMatrix), sizeof(joint.InvBindMatrix));
+					Binary::Write<std::string>(cmodel, joint.Name);
+					Binary::Write<std::string>(cmodel, joint.ParentName);
+					Binary::Write<glm::mat4>(cmodel, joint.InvBindMatrix);
 				}
 
-				cmodel.write((char*)glm::value_ptr(armaturedata->at(0).transform), sizeof(armaturedata->at(0).transform));
+				Binary::Write<glm::mat4>(cmodel, armaturedata->at(0).transform);
 			}
 
 			delete armaturedata;
@@ -515,6 +490,8 @@ namespace choice
 	Drawable* LoadDrawable(const std::string& info, DrawableType type, bool loadMaterials)
 	{
 		Drawable* drawable = {};
+
+		if (info.empty()) { std::cout << "Drawable Info Is Empty" << std::endl; return drawable; }
 
 		switch (type)
 		{
@@ -691,24 +668,18 @@ namespace choice
 				std::ifstream cmaterial(info.substr(0, info.find_last_of('.')) + ".cmaterial", std::ios::in | std::ios::binary);
 
 				uint32_t materialssize;
-				cmaterial.read((char*)&materialssize, sizeof(materialssize));
+				Binary::Read<uint32_t>(cmaterial, materialssize);
 				drawable->GetMaterials().resize(materialssize);
 				for (auto& material : drawable->GetMaterials())
 				{
 					material = new Material();
 
-					uint32_t namesize;
-					cmaterial.read((char*)&namesize, sizeof(namesize));
-					material->Name.resize(namesize);
-					cmaterial.read((char*)material->Name.data(), namesize);
+					Binary::Read<std::string>(cmaterial, material->Name);
 
-					cmaterial.read((char*)&material->Roughness, sizeof(material->Roughness));
-					cmaterial.read((char*)&material->Metallic, sizeof(material->Metallic));
+					Binary::Read<float>(cmaterial, material->Roughness);
+					Binary::Read<float>(cmaterial, material->Metallic);
 
-					cmaterial.read((char*)&material->Color.r, sizeof(material->Color.r));
-					cmaterial.read((char*)&material->Color.g, sizeof(material->Color.g));
-					cmaterial.read((char*)&material->Color.b, sizeof(material->Color.b));
-					cmaterial.read((char*)&material->Color.a, sizeof(material->Color.a));
+					Binary::Read<glm::vec4>(cmaterial, material->Color);
 
 					//Diffuse Map
 					Texture2DData* diffusemapdata = new Texture2DData();
@@ -744,7 +715,7 @@ namespace choice
 
 			//Read Number Of Mesh In The Model
 			uint32_t meshsize;
-			cmodel.read((char*)&meshsize, sizeof(meshsize));
+			Binary::Read<uint32_t>(cmodel, meshsize);
 			drawable->GetMeshes().resize(meshsize);
 
 			std::vector<BoundingBox> meshboundingboxes;
@@ -752,20 +723,14 @@ namespace choice
 			//Read Geometry Data
 			for (auto& mesh : drawable->GetMeshes())
 			{
-				uint32_t verticessize;
-				cmodel.read((char*)&verticessize, sizeof(verticessize));
 				std::vector<float> vertices;
-				vertices.resize(verticessize);
-				cmodel.read((char*)vertices.data(), verticessize * sizeof(float));
+				Binary::Read<std::vector<float>>(cmodel, vertices);
 
-				uint32_t indicessize;
-				cmodel.read((char*)&indicessize, sizeof(indicessize));
 				std::vector<uint32_t> indices;
-				indices.resize(indicessize);
-				cmodel.read((char*)indices.data(), indicessize * sizeof(uint32_t));
+				Binary::Read<std::vector<uint32_t>>(cmodel, indices);
 
 				uint32_t materialindex;
-				cmodel.read((char*)&materialindex, sizeof(materialindex));
+				Binary::Read<uint32_t>(cmodel, materialindex);
 
 				mesh.first = new VertexArray();
 				mesh.first->VertexBuffer(vertices.data(), vertices.size() * sizeof(float), "3323");
@@ -798,31 +763,24 @@ namespace choice
 
 			//Read Animation Data
 			uint32_t armaturesize;
-			cmodel.read((char*)&armaturesize, sizeof(armaturesize));
+			Binary::Read<uint32_t>(cmodel, armaturesize);
 			if (armaturesize)
 			{
 				Animation* anim = new Animation();
 
 				uint32_t jointssize;
-				cmodel.read((char*)&jointssize, sizeof(jointssize));
+				Binary::Read<uint32_t>(cmodel, jointssize);
 				anim->GetSkeleton()->GetJointsData().resize(jointssize);
 				for (auto& joint : anim->GetSkeleton()->GetJointsData())
 				{
 					joint = new Joint();
 
-					uint32_t jointnamesize;
-					cmodel.read((char*)&jointnamesize, sizeof(jointnamesize));
-					joint->Name.resize(jointnamesize);
-					cmodel.read((char*)joint->Name.data(), jointnamesize);
+					Binary::Read<std::string>(cmodel, joint->Name);
 
-					uint32_t parentnamesize;
-					cmodel.read((char*)&parentnamesize, sizeof(parentnamesize));
-					if (parentnamesize)
+					std::string parentname;
+					Binary::Read<std::string>(cmodel, parentname);
+					if (!parentname.empty())
 					{
-						std::string parentname;
-						parentname.resize(parentnamesize);
-						cmodel.read((char*)parentname.data(), parentnamesize);
-
 						for (auto& search_joint : anim->GetSkeleton()->GetJointsData())
 						{
 							if (search_joint->Name == parentname)
@@ -833,11 +791,11 @@ namespace choice
 						}
 					}
 
-					cmodel.read((char*)glm::value_ptr(joint->InvBindMatrix), sizeof(joint->InvBindMatrix));
+					Binary::Read<glm::mat4>(cmodel, joint->InvBindMatrix);
 				}
 
 				glm::mat4 t;
-				cmodel.read((char*)glm::value_ptr(t), sizeof(t));
+				Binary::Read<glm::mat4>(cmodel, t);
 				anim->GetSkeleton()->SetArmatureTransform(t);
 
 				drawable->SetAnimation(anim);

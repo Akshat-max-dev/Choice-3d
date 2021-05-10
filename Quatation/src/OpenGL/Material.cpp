@@ -1,29 +1,25 @@
 #include "Material.h"
 
+#include "BinaryHelper.h"
+
 namespace choice
 {
 	void LoadMaterials(std::ifstream& from, std::vector<Material*>& materials)
 	{
 		uint32_t materialssize;
-		from.read((char*)&materialssize, sizeof(materialssize));
+		Binary::Read<uint32_t>(from, materialssize);
 		materials.resize(materialssize);
 		for (auto& material : materials)
 		{
 			material = new Material();
 
-			uint32_t namesize;
-			from.read((char*)&namesize, sizeof(namesize));
-			material->Name.resize(namesize);
-			from.read((char*)material->Name.data(), namesize);
+			Binary::Read<std::string>(from, material->Name);
 
-			from.read((char*)&material->Roughness, sizeof(material->Roughness));
-			from.read((char*)&material->Metallic, sizeof(material->Metallic));
-			from.read((char*)&material->Ao, sizeof(material->Ao));
+			Binary::Read<float>(from, material->Roughness);
+			Binary::Read<float>(from, material->Metallic);
+			Binary::Read<float>(from, material->Ao);
 
-			from.read((char*)&material->Color.r, sizeof(material->Color.r));
-			from.read((char*)&material->Color.g, sizeof(material->Color.g));
-			from.read((char*)&material->Color.b, sizeof(material->Color.b));
-			from.read((char*)&material->Color.a, sizeof(material->Color.a));
+			Binary::Read<glm::vec4>(from, material->Color);
 
 			//Diffuse Map
 			Texture2DData* diffusemapdata = new Texture2DData();
@@ -84,17 +80,13 @@ namespace choice
 
 	bool LoadMaterialsData(std::ifstream& from, Texture2DData* data)
 	{
-		uint32_t sourcefilenamesize;
-		from.read((char*)&sourcefilenamesize, sizeof(sourcefilenamesize));
-		if (sourcefilenamesize)
+		Binary::Read<std::string>(from, data->Source);
+		if (!data->Source.empty())
 		{
-			data->Source.resize(sourcefilenamesize);
-			from.read((char*)data->Source.data(), sourcefilenamesize);
-
-			from.read((char*)&data->magFilter, sizeof(data->magFilter));
-			from.read((char*)&data->minFilter, sizeof(data->minFilter));
-			from.read((char*)&data->wrapS, sizeof(data->wrapS));
-			from.read((char*)&data->wrapT, sizeof(data->wrapT));
+			Binary::Read(from, data->magFilter);
+			Binary::Read(from, data->minFilter);
+			Binary::Read(from, data->wrapS);
+			Binary::Read(from, data->wrapT);
 
 			return true;
 		}
@@ -105,19 +97,17 @@ namespace choice
 	{
 		if (data)
 		{
-			uint32_t sourcefilenamesize = (uint32_t)data->Source.size();
-			to.write((char*)&sourcefilenamesize, sizeof(sourcefilenamesize));
-			to.write((char*)data->Source.data(), sourcefilenamesize);
+			Binary::Write<std::string>(to, data->Source);
 
-			to.write((char*)&data->magFilter, sizeof(data->magFilter));
-			to.write((char*)&data->minFilter, sizeof(data->minFilter));
-			to.write((char*)&data->wrapS, sizeof(data->wrapS));
-			to.write((char*)&data->wrapT, sizeof(data->wrapT));
+			Binary::Write(to, data->magFilter);
+			Binary::Write(to, data->minFilter);
+			Binary::Write(to, data->wrapS);
+			Binary::Write(to, data->wrapT);
 		}
 		else
 		{
 			uint32_t sourcefilenamesize = 0;
-			to.write((char*)&sourcefilenamesize, sizeof(sourcefilenamesize));
+			Binary::Write<uint32_t>(to, sourcefilenamesize);
 		}
 	}
 

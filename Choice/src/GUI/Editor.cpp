@@ -9,6 +9,7 @@
 
 #include "Input.h"
 #include "Choice.h"
+#include "BinaryHelper.h"
 
 #include <glm/glm.hpp>
 
@@ -26,31 +27,20 @@ namespace choice
 		}
 		else
 		{
-			uint32_t cprojsize;
-			o.read((char*)&cprojsize, sizeof(cprojsize));
 			std::string cproj;
-			cproj.resize(cprojsize);
-			o.read((char*)cproj.data(), cprojsize);
+			Binary::Read<std::string>(o, cproj);
 
 			glm::vec3 focus;
-			o.read((char*)&focus.x, sizeof(focus.x));
-			o.read((char*)&focus.y, sizeof(focus.y));
-			o.read((char*)&focus.z, sizeof(focus.z));
+			Binary::Read<glm::vec3>(o, focus);
 
 			glm::vec3 offset;
-			o.read((char*)&offset.x, sizeof(offset.x));
-			o.read((char*)&offset.y, sizeof(offset.y));
-			o.read((char*)&offset.z, sizeof(offset.z));
+			Binary::Read<glm::vec3>(o, offset);
 
 			glm::vec3 up;
-			o.read((char*)&up.x, sizeof(up.x));
-			o.read((char*)&up.y, sizeof(up.y));
-			o.read((char*)&up.z, sizeof(up.z));
+			Binary::Read<glm::vec3>(o, up);
 
 			glm::vec3 right;
-			o.read((char*)&right.x, sizeof(right.x));
-			o.read((char*)&right.y, sizeof(right.y));
-			o.read((char*)&right.z, sizeof(right.z));
+			Binary::Read<glm::vec3>(o, right);
 
 			mCamera = new EditorCamera((float)w / (float)h, focus, offset, up, right);
 
@@ -68,25 +58,19 @@ namespace choice
 		if (mActiveProject)
 		{
 			std::string cproj = mActiveProject->Directory() + "\\" + mActiveProject->Name() + "\\" + mActiveProject->Name() + ".cproj";
-			uint32_t activeprojectsize = (uint32_t)cproj.size();
-			o.write((char*)&activeprojectsize, sizeof(activeprojectsize));
-			o.write((char*)cproj.data(), activeprojectsize);
+			Binary::Write<std::string>(o, cproj);
 
-			o.write((char*)&mCamera->Focus().x, sizeof(mCamera->Focus().x));
-			o.write((char*)&mCamera->Focus().y, sizeof(mCamera->Focus().y));
-			o.write((char*)&mCamera->Focus().z, sizeof(mCamera->Focus().z));
+			glm::vec3 t = mCamera->Focus();
+			Binary::Write<glm::vec3>(o, t);
 
-			o.write((char*)&mCamera->Offset().x, sizeof(mCamera->Offset().x));
-			o.write((char*)&mCamera->Offset().y, sizeof(mCamera->Offset().y));
-			o.write((char*)&mCamera->Offset().z, sizeof(mCamera->Offset().z));
+			t = mCamera->Offset();
+			Binary::Write<glm::vec3>(o, t);
 
-			o.write((char*)&mCamera->Up().x, sizeof(mCamera->Up().x));
-			o.write((char*)&mCamera->Up().y, sizeof(mCamera->Up().y));
-			o.write((char*)&mCamera->Up().z, sizeof(mCamera->Up().z));
+			t = mCamera->Up();
+			Binary::Write<glm::vec3>(o, t);
 
-			o.write((char*)&mCamera->Right().x, sizeof(mCamera->Right().x));
-			o.write((char*)&mCamera->Right().y, sizeof(mCamera->Right().y));
-			o.write((char*)&mCamera->Right().z, sizeof(mCamera->Right().z));
+			t = mCamera->Right();
+			Binary::Write<glm::vec3>(o, t);
 		}
 		o.close();
 

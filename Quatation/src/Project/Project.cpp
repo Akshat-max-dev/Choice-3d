@@ -1,8 +1,9 @@
 #include "Project.h"
 
+#include "BinaryHelper.h"
+
 namespace choice
 {
-	
 	Project::Project(const std::string& name, const std::string& path)
 		:mName(name), mDirectory(path)
 	{
@@ -34,11 +35,9 @@ namespace choice
 			return;
 		}
 
-		uint32_t activescenenamesize;
-		readcproj.read((char*)&activescenenamesize, sizeof(activescenenamesize));
 		std::string activescenename;
-		activescenename.resize(activescenenamesize);
-		readcproj.read((char*)activescenename.data(), activescenenamesize);
+		Binary::Read<std::string>(readcproj, activescenename);
+
 		mActiveScene = new Scene(mDirectory + "\\" + mName + "\\" + activescenename + "\\" + activescenename + ".cscene");
 		readcproj.close();
 	}
@@ -67,9 +66,7 @@ namespace choice
 			cproj.close(); 
 			return;
 		}
-		uint32_t activescenenamesize = (uint32_t)mActiveScene->Name().size();
-		cproj.write((char*)&activescenenamesize, sizeof(activescenenamesize));
-		cproj.write((char*)mActiveScene->Name().data(), activescenenamesize);
+		Binary::Write<std::string>(cproj, mActiveScene->Name());
 		cproj.close();
 
 		mActiveScene->Save();

@@ -1,6 +1,7 @@
 #include "Scene.h"
 
 #include <glad/glad.h>
+#include "BinaryHelper.h"
 
 namespace choice
 {
@@ -52,56 +53,43 @@ namespace choice
 		mBoundingBox = CalculateBoundingBox(nullptr, 0, 0);
 
 		uint32_t sceneobjectssize;
-		containedscene.read((char*)&sceneobjectssize, sizeof(sceneobjectssize));
+		Binary::Read<uint32_t>(containedscene, sceneobjectssize);
 		mSceneObjects.resize(sceneobjectssize);
 		for (auto& object : mSceneObjects)
 		{
 			object = new SceneObject();
 
-			uint32_t skyboxsrcFileSize;
-			containedscene.read((char*)&skyboxsrcFileSize, sizeof(skyboxsrcFileSize));
-			if (skyboxsrcFileSize)
+			std::string skyboxsrcFile;
+			Binary::Read<std::string>(containedscene, skyboxsrcFile);
+			if (!skyboxsrcFile.empty())
 			{
-				std::string skyboxsrcFile;
-				skyboxsrcFile.resize(skyboxsrcFileSize);
-				containedscene.read((char*)skyboxsrcFile.data(), skyboxsrcFileSize);
-
 				object->AddProperty<Skybox>(new Skybox(skyboxsrcFile));
 			}
 
 			int drawabletype;
-			containedscene.read((char*)&drawabletype, sizeof(drawabletype));
+			Binary::Read<int>(containedscene, drawabletype);
 			if (drawabletype != -1)
 			{
 				switch (drawabletype)
 				{
 				case 0: //Model
 					{
-						uint32_t modelsrcFileSize;
-						containedscene.read((char*)&modelsrcFileSize, sizeof(modelsrcFileSize));
 						std::string modelsrcFile;
-						modelsrcFile.resize(modelsrcFileSize);
-						containedscene.read((char*)modelsrcFile.data(), modelsrcFileSize);
+						Binary::Read<std::string>(containedscene, modelsrcFile);
 						object->AddProperty<Drawable>(LoadDrawable(modelsrcFile, DrawableType::MODEL, false));
 					}
 					break;
 				case 1: //Cube
 					{
-						uint32_t namesize;
-						containedscene.read((char*)&namesize, sizeof(namesize));
 						std::string name;
-						name.resize(namesize);
-						containedscene.read((char*)name.data(), namesize);
+						Binary::Read<std::string>(containedscene, name);
 						object->AddProperty<Drawable>(LoadDrawable(name, DrawableType::CUBE, false));
 					}
 					break;
 				case 2: //Sphere
 					{
-						uint32_t namesize;
-						containedscene.read((char*)&namesize, sizeof(namesize));
 						std::string name;
-						name.resize(namesize);
-						containedscene.read((char*)name.data(), namesize);
+						Binary::Read<std::string>(containedscene, name);
 						object->AddProperty<Drawable>(LoadDrawable(name, DrawableType::SPHERE, false));
 					}
 					break;
@@ -116,25 +104,20 @@ namespace choice
 			}
 			
 			int lightype;
-			containedscene.read((char*)&lightype, sizeof(lightype));
+			Binary::Read<int>(containedscene, lightype);
 			if (lightype != -1)
 			{
-				uint32_t lightnamesize;
-				containedscene.read((char*)&lightnamesize, sizeof(lightnamesize));
 				std::string lightname;
-				lightname.resize(lightnamesize);
-				containedscene.read((char*)lightname.data(), lightnamesize);
+				Binary::Read<std::string>(containedscene, lightname);
 
 				glm::vec3 color;
-				containedscene.read((char*)&color.x, sizeof(color.x));
-				containedscene.read((char*)&color.y, sizeof(color.y));
-				containedscene.read((char*)&color.z, sizeof(color.z));
+				Binary::Read<glm::vec3>(containedscene, color);
 
 				float intensity;
-				containedscene.read((char*)&intensity, sizeof(intensity));
+				Binary::Read<float>(containedscene, intensity);
 
 				float radius;
-				containedscene.read((char*)&radius, sizeof(radius));
+				Binary::Read<float>(containedscene, radius);
 
 				switch (lightype)
 				{
@@ -167,17 +150,9 @@ namespace choice
 			{
 				Transform* transform = new Transform();
 
-				containedscene.read((char*)&transform->Position.x, sizeof(transform->Position.x));
-				containedscene.read((char*)&transform->Position.y, sizeof(transform->Position.y));
-				containedscene.read((char*)&transform->Position.z, sizeof(transform->Position.z));
-
-				containedscene.read((char*)&transform->Rotation.x, sizeof(transform->Rotation.x));
-				containedscene.read((char*)&transform->Rotation.y, sizeof(transform->Rotation.y));
-				containedscene.read((char*)&transform->Rotation.z, sizeof(transform->Rotation.z));
-
-				containedscene.read((char*)&transform->Scale.x, sizeof(transform->Scale.x));
-				containedscene.read((char*)&transform->Scale.y, sizeof(transform->Scale.y));
-				containedscene.read((char*)&transform->Scale.z, sizeof(transform->Scale.z));
+				Binary::Read<glm::vec3>(containedscene, transform->Position);
+				Binary::Read<glm::vec3>(containedscene, transform->Rotation);
+				Binary::Read<glm::vec3>(containedscene, transform->Scale);
 
 				object->AddProperty<Transform>(transform);
 			}
@@ -203,7 +178,7 @@ namespace choice
 		}
 
 		uint32_t sceneobjectssize = (uint32_t)mSceneObjects.size();
-		cscene.write((char*)&sceneobjectssize, sizeof(sceneobjectssize));
+		Binary::Write<uint32_t>(cscene, sceneobjectssize);
 		for (auto& object : mSceneObjects)
 		{
 			if (object)
@@ -211,21 +186,20 @@ namespace choice
 				auto skyboxprop = object->GetProperty<Skybox>();
 				if (skyboxprop)
 				{
-					uint32_t skyboxsrcFilesize = (uint32_t)skyboxprop->GetFilepath().size();
-					cscene.write((char*)&skyboxsrcFilesize, sizeof(skyboxsrcFilesize));
-					cscene.write(skyboxprop->GetFilepath().data(), skyboxsrcFilesize);
+					std::string t = skyboxprop->GetFilepath();
+					Binary::Write<std::string>(cscene, t);
 				}
 				else
 				{
 					uint32_t skyboxsrcFilesize = 0;
-					cscene.write((char*)&skyboxsrcFilesize, sizeof(skyboxsrcFilesize));
+					Binary::Write<uint32_t>(cscene, skyboxsrcFilesize);
 				}
 
 				auto drawableprop = object->GetProperty<Drawable>();
 				if (drawableprop)
 				{
 					int drawabletype = static_cast<int>(drawableprop->GetDrawableType());
-					cscene.write((char*)&drawabletype, sizeof(drawabletype));
+					Binary::Write<int>(cscene, drawabletype);
 
 					switch (drawabletype)
 					{
@@ -233,17 +207,13 @@ namespace choice
 						//Write Model Filepath
 						{
 							std::string modelsrcFile = mDirectory + "\\" + mName + "\\" + "Assets\\" + drawableprop->GetName() + ".cmodel";
-							uint32_t modelsrcFileSize = (uint32_t)modelsrcFile.size();
-							cscene.write((char*)&modelsrcFileSize, sizeof(modelsrcFileSize));
-							cscene.write((char*)modelsrcFile.data(), modelsrcFileSize);
+							Binary::Write<std::string>(cscene, modelsrcFile);
 						}
 						break;
 					case 1: //Cube
 					case 2: //Sphere
 						//Write Name
-						uint32_t namesize = (uint32_t)drawableprop->GetName().size();
-						cscene.write((char*)&namesize, sizeof(namesize));
-						cscene.write((char*)drawableprop->GetName().data(), namesize);
+						Binary::Write<std::string>(cscene, drawableprop->GetName());
 						break;
 					}
 
@@ -252,18 +222,13 @@ namespace choice
 					cscene.write((char*)&materialssize, sizeof(materialssize));
 					for (auto& material : drawableprop->GetMaterials())
 					{
-						uint32_t materialnamesize = (uint32_t)material->Name.size();
-						cscene.write((char*)&materialnamesize, sizeof(materialnamesize));
-						cscene.write((char*)material->Name.data(), materialnamesize);
+						Binary::Write<std::string>(cscene, material->Name);
 
-						cscene.write((char*)&material->Roughness, sizeof(material->Roughness));
-						cscene.write((char*)&material->Metallic, sizeof(material->Metallic));
-						cscene.write((char*)&material->Ao, sizeof(material->Ao));
+						Binary::Write<float>(cscene, material->Roughness);
+						Binary::Write<float>(cscene, material->Metallic);
+						Binary::Write<float>(cscene, material->Ao);
 
-						cscene.write((char*)&material->Color.r, sizeof(material->Color.r));
-						cscene.write((char*)&material->Color.g, sizeof(material->Color.g));
-						cscene.write((char*)&material->Color.b, sizeof(material->Color.b));
-						cscene.write((char*)&material->Color.a, sizeof(material->Color.a));
+						Binary::Write<glm::vec4>(cscene, material->Color);
 
 						SaveMaterialsData(cscene, material->DiffuseMap.second.second);
 						SaveMaterialsData(cscene, material->NormalMap.second.second);
@@ -275,46 +240,34 @@ namespace choice
 				else
 				{
 					int drawabletype = -1;
-					cscene.write((char*)&drawabletype, sizeof(drawabletype));
+					Binary::Write<int>(cscene, drawabletype);
 				}
 
 				auto lightprop = object->GetProperty<Light>();
 				if (lightprop)
 				{
 					int lighttype = static_cast<int>(lightprop->Type);
-					cscene.write((char*)&lighttype, sizeof(lighttype));
+					Binary::Write<int>(cscene, lighttype);
 
-					uint32_t lightnamesize = (uint32_t)lightprop->Name.size();
-					cscene.write((char*)&lightnamesize, sizeof(lightnamesize));
-					cscene.write((char*)lightprop->Name.data(), lightnamesize);
+					Binary::Write<std::string>(cscene, lightprop->Name);
 
-					cscene.write((char*)&lightprop->Color.x, sizeof(lightprop->Color.x));
-					cscene.write((char*)&lightprop->Color.y, sizeof(lightprop->Color.y));
-					cscene.write((char*)&lightprop->Color.z, sizeof(lightprop->Color.z));
+					Binary::Write<glm::vec3>(cscene, lightprop->Color);
 
-					cscene.write((char*)&lightprop->Intensity, sizeof(lightprop->Intensity));
-					cscene.write((char*)&lightprop->Radius, sizeof(lightprop->Radius));
+					Binary::Write<float>(cscene, lightprop->Intensity);
+					Binary::Write<float>(cscene, lightprop->Radius);
 				}
 				else
 				{
 					int lighttype = -1;
-					cscene.write((char*)&lighttype, sizeof(lighttype));
+					Binary::Write<int>(cscene, lighttype);
 				}
 
 				auto transformprop = object->GetProperty<Transform>();
 				if (transformprop)
 				{
-					cscene.write((char*)&transformprop->Position.x, sizeof(transformprop->Position.x));
-					cscene.write((char*)&transformprop->Position.y, sizeof(transformprop->Position.y));
-					cscene.write((char*)&transformprop->Position.z, sizeof(transformprop->Position.z));
-
-					cscene.write((char*)&transformprop->Rotation.x, sizeof(transformprop->Rotation.x));
-					cscene.write((char*)&transformprop->Rotation.y, sizeof(transformprop->Rotation.y));
-					cscene.write((char*)&transformprop->Rotation.z, sizeof(transformprop->Rotation.z));
-
-					cscene.write((char*)&transformprop->Scale.x, sizeof(transformprop->Scale.x));
-					cscene.write((char*)&transformprop->Scale.y, sizeof(transformprop->Scale.y));
-					cscene.write((char*)&transformprop->Scale.z, sizeof(transformprop->Scale.z));
+					Binary::Write<glm::vec3>(cscene, transformprop->Position);
+					Binary::Write<glm::vec3>(cscene, transformprop->Rotation);
+					Binary::Write<glm::vec3>(cscene, transformprop->Scale);
 				}
 			}
 		}

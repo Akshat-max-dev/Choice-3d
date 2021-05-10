@@ -189,7 +189,7 @@ namespace choice
 			glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))
 		};
 
-		std::unique_ptr<Drawable> cube(LoadDrawable("", DrawableType::CUBE, false));
+		std::unique_ptr<Drawable> cube(LoadDrawable("Cube", DrawableType::CUBE, false));
 		std::unique_ptr<Shader> shader = std::make_unique<Shader>("Choice/assets/shaders/HDRToCubemap.glsl");
 
 		glActiveTexture(GL_TEXTURE0);
