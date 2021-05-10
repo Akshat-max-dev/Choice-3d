@@ -153,7 +153,7 @@ namespace choice
 		mShadowMapPass.second = new Shader("Choice/assets/shaders/ShadowMap.glsl");
 
 		//Configure Outline Pass
-		mOutline = new Shader("Choice/assets/shaders/Outline.glsl");
+		mOutline = new Shader("Choice/assets/shaders/Line.glsl");
 
 		//Configure Lighting Pass
 		mLightingPass.first = new DeferredLightingCapture(w, h);
@@ -417,16 +417,17 @@ namespace choice
 					glDepthFunc(GL_LESS);
 				}
 
-				if (objectindex == mPickedObjectId)
+				Drawable* drawable = object->GetProperty<Drawable>();
+				if (drawable)
 				{
-					Drawable* drawable = object->GetProperty<Drawable>();
-					if (drawable)
+					if (objectindex == mPickedObjectId)
 					{
 						glEnable(GL_STENCIL_TEST);
 						glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
 						glStencilMask(0x00);
 						glDisable(GL_DEPTH_TEST);
 						mOutline->Use();
+						mOutline->Float4("oColor", { 1.0f, 1.0f, 0.0f, 1.0f });
 						for (auto& mesh : drawable->GetMeshes())
 						{
 							mOutline->Mat4("uViewProjection", camera->ViewProjection());
@@ -455,6 +456,15 @@ namespace choice
 						}
 						glStencilFunc(GL_ALWAYS, 0, 0xFF);
 						glStencilMask(0xFF);
+					}
+
+					if (drawable->GetAnimation())
+					{
+						glDisable(GL_STENCIL_TEST);
+						mOutline->Use();
+						mOutline->Mat4("uViewProjection", camera->ViewProjection());
+						drawable->GetAnimation()->GetSkeleton()->Draw(object->GetProperty<Transform>(),
+							mOutline, false);
 					}
 				}
 			}

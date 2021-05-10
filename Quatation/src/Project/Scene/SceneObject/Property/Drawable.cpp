@@ -28,6 +28,20 @@ namespace choice
 		glm::vec4 Color;
 	};
 
+	struct DumpableJointData
+	{
+		std::string Name;
+		std::string ParentName;
+		glm::mat4 InvBindMatrix;
+	};
+
+	struct DumpableArmatureData
+	{
+		std::vector<DumpableJointData> Joints;
+		glm::mat4 transform;
+		//TODO : Animation
+	};
+
 	static cgltf_size component_size(cgltf_component_type component_tpe)
 	{
 		switch (component_tpe)
@@ -71,10 +85,10 @@ namespace choice
 
 	void cgltfMatrixtoMat4(const cgltf_float data[16], glm::mat4& transform)
 	{
-		transform[0][0] = data[0];  transform[1][0] = data[1];	transform[2][0] = data[2];  transform[3][0] = data[3];
-		transform[0][1] = data[4];  transform[1][1] = data[5];	transform[2][1] = data[6];	transform[3][1] = data[7];
-		transform[0][2] = data[8];	transform[1][2] = data[9];	transform[2][2] = data[10]; transform[3][2] = data[11];
-		transform[0][3] = data[12]; transform[1][3] = data[13];	transform[2][3] = data[14];	transform[3][3] = data[15];
+		transform[0][0] = data[0];  transform[1][0] = data[4];	transform[2][0] = data[8];  transform[3][0] = data[12];
+		transform[0][1] = data[1];  transform[1][1] = data[5];	transform[2][1] = data[9];	transform[3][1] = data[13];
+		transform[0][2] = data[2];	transform[1][2] = data[6];	transform[2][2] = data[10]; transform[3][2] = data[14];
+		transform[0][3] = data[3];  transform[1][3] = data[7];	transform[2][3] = data[11];	transform[3][3] = data[15];
 	}
 
 	glm::mat4 toTranform(const glm::vec3 position, const glm::quat rotation, const glm::vec3 scale)
@@ -92,9 +106,23 @@ namespace choice
 		"POSITION", "NORMAL", "TEXCOORD_0", "TANGENT"
 	};
 
+	//Load All Joints Node
+	void loadJointNode(const cgltf_node* node, DumpableArmatureData& armaturedata, uint32_t& callCount)
+	{
+		armaturedata.Joints[callCount].Name = node->name;
+		armaturedata.Joints[callCount].ParentName = callCount ? node->parent->name : "";
+
+		//Visit The Children Joint Nodes
+		for (auto i = 0; i < node->children_count; i++)
+		{
+			const auto* child = node->children[i];
+			loadJointNode(child, armaturedata, ++callCount);
+		}
+	}
+
 	//Load Node
 	void loadNode(const cgltf_node* node, std::vector<DumpableMeshData>* meshdata,
-		std::vector<DumpableMaterialData>* materialdata, glm::mat4& parenttransform,
+		std::vector<DumpableMaterialData>* materialdata, std::vector<DumpableArmatureData>* armaturedata,
 		const std::string& dstDirectory)
 	{
 		if (node->mesh)
@@ -218,24 +246,6 @@ namespace choice
 
 			DumpableMeshData data;
 
-			if (node->has_matrix) { cgltfMatrixtoMat4(node->matrix, parenttransform); }
-			else
-			{
-				glm::vec3 _translation = node->has_translation ?
-					glm::vec3(node->translation[0], node->translation[1], node->translation[2]) :
-					glm::vec3(0.0f, 0.0f, 0.0f);
-
-				glm::quat _rotation = node->has_rotation ?
-					glm::quat(node->rotation[0], node->rotation[1], node->rotation[2], node->rotation[3]) :
-					glm::quat(0.0f, glm::vec3(0.0f, 0.0f, 0.0f));
-
-				glm::vec3 _scale = node->has_scale ?
-					glm::vec3(node->scale[0], node->scale[1], node->scale[2]) :
-					glm::vec3(1.0f, 1.0f, 1.0f);
-
-				parenttransform *= toTranform(_translation, _rotation, _scale);
-			}
-
 			//Index Buffer
 			const cgltf_accessor* accessor = primitive.indices;
 			const auto* view = accessor->buffer_view;
@@ -291,11 +301,66 @@ namespace choice
 			meshdata->push_back(data);
 		}
 
+		if (node->skin) //Load Skin Info
+		{
+			//Extract Per-Joint Inverse Bind Matrix
+			DumpableArmatureData data;
+
+			data.Joints.resize(node->skin->joints_count);
+
+			const cgltf_accessor* accessor = node->skin->inverse_bind_matrices;
+			const auto* view = accessor->buffer_view;
+			const float* buffer = reinterpret_cast<float*>((char*)view->buffer->data + view->offset);
+
+			auto componentcount = component_count(accessor->type);
+			for (auto idx = 0; idx < accessor->count; idx++)
+			{
+				float t[16] = {
+					buffer[idx * componentcount + 0],  buffer[idx * componentcount + 1],
+					buffer[idx * componentcount + 2],  buffer[idx * componentcount + 3],
+
+					buffer[idx * componentcount + 4],  buffer[idx * componentcount + 5],
+					buffer[idx * componentcount + 6],  buffer[idx * componentcount + 7],
+
+					buffer[idx * componentcount + 8],  buffer[idx * componentcount + 9],
+					buffer[idx * componentcount + 10], buffer[idx * componentcount + 11],
+
+					buffer[idx * componentcount + 12], buffer[idx * componentcount + 13],
+					buffer[idx * componentcount + 14], buffer[idx * componentcount + 15]
+				};
+
+				cgltfMatrixtoMat4(t, data.Joints[idx].InvBindMatrix);
+			}
+
+			//Extract Armature TRS
+			glm::vec3 t = node->skin->joints[0]->parent->has_translation ?
+				glm::vec3(node->skin->joints[0]->parent->translation[0], node->skin->joints[0]->parent->translation[1],
+					node->skin->joints[0]->parent->translation[2]) :
+				glm::vec3(0.0f, 0.0f, 0.0f);
+
+			glm::quat r = node->skin->joints[0]->parent->has_rotation ?
+				glm::quat(node->skin->joints[0]->parent->rotation[0], node->skin->joints[0]->parent->rotation[1],
+					node->skin->joints[0]->parent->rotation[2], node->skin->joints[0]->parent->rotation[3]) :
+				glm::quat(0.0f, 0.0f, 0.0f, 1.0f);
+
+			glm::vec3 s = node->skin->joints[0]->parent->has_scale ?
+				glm::vec3(node->skin->joints[0]->parent->scale[0], node->skin->joints[0]->parent->scale[1],
+					node->skin->joints[0]->parent->scale[2]) :
+				glm::vec3(0.0f, 0.0f, 0.0f);
+
+			data.transform = toTranform(t, glm::quat(0.0f, 0.0f, 0.0f, 1.0f), s);
+
+			uint32_t callCount = 0;
+			loadJointNode(node->skin->joints[0], data, callCount);
+
+			armaturedata->push_back(data);
+		}
+
 		//Children Nodes
 		for (auto i = 0; i < node->children_count; i++)
 		{
 			const auto* child = node->children[i];
-			loadNode(child, meshdata, materialdata, parenttransform, dstDirectory);
+			loadNode(child, meshdata, materialdata, armaturedata, dstDirectory);
 		}
 	}
 
@@ -329,18 +394,15 @@ namespace choice
 
 			std::vector<DumpableMeshData>* meshdata = new std::vector<DumpableMeshData>();
 			std::vector<DumpableMaterialData>* materialdata = new std::vector<DumpableMaterialData>();
-
-			glm::mat4 parenttransform = glm::mat4(1.0f);
+			std::vector<DumpableArmatureData>* armaturedata = new std::vector<DumpableArmatureData>();
 
 			cgltf_scene* scene = data->scene;
 			auto nodescount = scene->nodes_count;
 			for (auto i = 0; i < nodescount; i++)
 			{
 				const auto* node = scene->nodes[i];
-				loadNode(node, meshdata, materialdata, parenttransform, dstDirectory);
+				loadNode(node, meshdata, materialdata, armaturedata, dstDirectory);
 			}
-
-			//Transform Not Extracted
 
 			std::ofstream cmaterial(dstMaterialFile, std::ios::out | std::ios::binary);
 
@@ -362,21 +424,27 @@ namespace choice
 
 				uint32_t diffusemapnamesize = (uint32_t)material.DiffuseMap.Source.size();
 				cmaterial.write((char*)&diffusemapnamesize, sizeof(diffusemapnamesize));
-				cmaterial.write((char*)material.DiffuseMap.Source.data(), diffusemapnamesize);
+				if (diffusemapnamesize)
+				{
+					cmaterial.write((char*)material.DiffuseMap.Source.data(), diffusemapnamesize);
 
-				cmaterial.write((char*)&material.DiffuseMap.magFilter, sizeof(material.DiffuseMap.magFilter));
-				cmaterial.write((char*)&material.DiffuseMap.minFilter, sizeof(material.DiffuseMap.minFilter));
-				cmaterial.write((char*)&material.DiffuseMap.wrapS, sizeof(material.DiffuseMap.wrapS));
-				cmaterial.write((char*)&material.DiffuseMap.wrapT, sizeof(material.DiffuseMap.wrapT));
+					cmaterial.write((char*)&material.DiffuseMap.magFilter, sizeof(material.DiffuseMap.magFilter));
+					cmaterial.write((char*)&material.DiffuseMap.minFilter, sizeof(material.DiffuseMap.minFilter));
+					cmaterial.write((char*)&material.DiffuseMap.wrapS, sizeof(material.DiffuseMap.wrapS));
+					cmaterial.write((char*)&material.DiffuseMap.wrapT, sizeof(material.DiffuseMap.wrapT));
+				}
 
 				uint32_t normalmapnamesize = (uint32_t)material.NormalMap.Source.size();
 				cmaterial.write((char*)&normalmapnamesize, sizeof(normalmapnamesize));
-				cmaterial.write((char*)material.NormalMap.Source.data(), normalmapnamesize);
+				if (normalmapnamesize)
+				{
+					cmaterial.write((char*)material.NormalMap.Source.data(), normalmapnamesize);
 
-				cmaterial.write((char*)&material.NormalMap.magFilter, sizeof(material.NormalMap.magFilter));
-				cmaterial.write((char*)&material.NormalMap.minFilter, sizeof(material.NormalMap.minFilter));
-				cmaterial.write((char*)&material.NormalMap.wrapS, sizeof(material.NormalMap.wrapS));
-				cmaterial.write((char*)&material.NormalMap.wrapT, sizeof(material.NormalMap.wrapT));
+					cmaterial.write((char*)&material.NormalMap.magFilter, sizeof(material.NormalMap.magFilter));
+					cmaterial.write((char*)&material.NormalMap.minFilter, sizeof(material.NormalMap.minFilter));
+					cmaterial.write((char*)&material.NormalMap.wrapS, sizeof(material.NormalMap.wrapS));
+					cmaterial.write((char*)&material.NormalMap.wrapT, sizeof(material.NormalMap.wrapT));
+				}
 			}
 
 			delete materialdata;
@@ -407,12 +475,41 @@ namespace choice
 
 			delete meshdata;
 
+			uint32_t armaturesize = (uint32_t)armaturedata->size();
+			cmodel.write((char*)&armaturesize, sizeof(armaturesize));
+			if (armaturesize)
+			{
+				uint32_t jointssize = (uint32_t)armaturedata->at(0).Joints.size();
+				cmodel.write((char*)&jointssize, sizeof(jointssize));
+				for (auto& joint : armaturedata->at(0).Joints)
+				{
+					uint32_t jointnamesize = (uint32_t)joint.Name.size();
+					cmodel.write((char*)&jointnamesize, sizeof(jointnamesize));
+					cmodel.write((char*)joint.Name.data(), jointnamesize);
+
+					uint32_t parentjointnamesize = (uint32_t)joint.ParentName.size();
+					cmodel.write((char*)&parentjointnamesize, sizeof(parentjointnamesize));
+					if (parentjointnamesize)
+					{
+						cmodel.write((char*)joint.ParentName.data(), parentjointnamesize);
+					}
+
+					cmodel.write((char*)glm::value_ptr(joint.InvBindMatrix), sizeof(joint.InvBindMatrix));
+				}
+
+				cmodel.write((char*)glm::value_ptr(armaturedata->at(0).transform), sizeof(armaturedata->at(0).transform));
+			}
+
+			delete armaturedata;
+
 			cmodel.close();
 
 			cgltf_free(data);
 
 			return dstFile;
 		}
+
+		return {};
 	}
 
 	Drawable* LoadDrawable(const std::string& info, DrawableType type, bool loadMaterials)
@@ -583,14 +680,6 @@ namespace choice
 			}
 			break;
 		case DrawableType::MODEL: //Load Model
-			std::ifstream cmodel(info, std::ios::in | std::ios::binary);
-			if (cmodel.fail())
-			{
-				std::cout << "Error Loading Model" << std::endl;
-				cmodel.close();
-				break;
-			}
-
 			//Extract Name From File
 			std::string temp = info.substr(info.find_last_of('\\') + 1, info.size());
 
@@ -643,6 +732,14 @@ namespace choice
 				}
 
 				cmaterial.close();
+			}
+
+			std::ifstream cmodel(info, std::ios::in | std::ios::binary);
+			if (cmodel.fail())
+			{
+				std::cout << "Error Loading Model" << std::endl;
+				cmodel.close();
+				break;
 			}
 
 			//Read Number Of Mesh In The Model
@@ -699,6 +796,53 @@ namespace choice
 			drawable->GetBoundingBox().Min = { minX, minY, minZ };
 			drawable->GetBoundingBox().Max = { maxX, maxY, maxZ };
 
+			//Read Animation Data
+			uint32_t armaturesize;
+			cmodel.read((char*)&armaturesize, sizeof(armaturesize));
+			if (armaturesize)
+			{
+				Animation* anim = new Animation();
+
+				uint32_t jointssize;
+				cmodel.read((char*)&jointssize, sizeof(jointssize));
+				anim->GetSkeleton()->GetJointsData().resize(jointssize);
+				for (auto& joint : anim->GetSkeleton()->GetJointsData())
+				{
+					joint = new Joint();
+
+					uint32_t jointnamesize;
+					cmodel.read((char*)&jointnamesize, sizeof(jointnamesize));
+					joint->Name.resize(jointnamesize);
+					cmodel.read((char*)joint->Name.data(), jointnamesize);
+
+					uint32_t parentnamesize;
+					cmodel.read((char*)&parentnamesize, sizeof(parentnamesize));
+					if (parentnamesize)
+					{
+						std::string parentname;
+						parentname.resize(parentnamesize);
+						cmodel.read((char*)parentname.data(), parentnamesize);
+
+						for (auto& search_joint : anim->GetSkeleton()->GetJointsData())
+						{
+							if (search_joint->Name == parentname)
+							{
+								joint->Parent = search_joint;
+								break;
+							}
+						}
+					}
+
+					cmodel.read((char*)glm::value_ptr(joint->InvBindMatrix), sizeof(joint->InvBindMatrix));
+				}
+
+				glm::mat4 t;
+				cmodel.read((char*)glm::value_ptr(t), sizeof(t));
+				anim->GetSkeleton()->SetArmatureTransform(t);
+
+				drawable->SetAnimation(anim);
+			}
+
 			cmodel.close();
 			break;
 		}
@@ -709,11 +853,13 @@ namespace choice
 	Drawable::Drawable(const std::string& name, DrawableType type)
 		:mName(name), mDrawableType(type)
 	{
+		mAnimation = {};
 	}
 
 	Drawable::~Drawable()
 	{
 		for (auto& material : mMaterials) { if (material)delete material; }
 		for (auto& mesh : mMeshes) { if (mesh.first)delete mesh.first; }
+		if (mAnimation) { delete mAnimation; }
 	}
 }

@@ -14,9 +14,11 @@ void main()
 #source fragment
 #version 450 core
 
-out vec4 oColor;
+out vec4 oResult;
+
+uniform vec4 oColor;
 
 void main()
 {
-	oColor = vec4(1.0, 1.0, 0.0, 1.0);
+	oResult = oColor;
 }

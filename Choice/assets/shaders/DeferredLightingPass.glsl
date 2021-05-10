@@ -196,6 +196,7 @@ void main()
 	for(int i = 0; i < ldLightsActive; i++)
 	{
 		Lo += CalculateLo(-ldLights[i].Direction, N, V, ldLights[i].Diffuse, F0, Roughness, Metallic, Albedo);
+		Lo = Lo * CalculateShadows(FragPosLightSpace);
 	}
 
 	for(int i = 0; i < lpLightsActive; i++)
@@ -222,7 +223,7 @@ void main()
     vec3 Specular = PreFilteredColor * (F * BRDF.x + BRDF.y);
 
 	vec3 Ambient = (Kd * Diffuse + Specular) * AO;
-	vec3 Color = (Ambient + Lo) * CalculateShadows(FragPosLightSpace);
+	vec3 Color = Ambient + Lo;
 
 	// HDR tonemapping
     Color = Color / (Color + vec3(1.0));

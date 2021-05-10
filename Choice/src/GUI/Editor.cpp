@@ -20,7 +20,7 @@ namespace choice
 
 		std::ifstream o(".choiceeditorconfig", std::ios::in | std::ios::binary);
 		if (!o.is_open())
-		{ 
+		{
 			mCamera = new EditorCamera((float)w / (float)h);
 			mActiveProject = {};
 		}
@@ -57,7 +57,7 @@ namespace choice
 			if (!ghc::filesystem::exists(cproj)) { mActiveProject = {}; }
 			else { mActiveProject = std::make_unique<Project>(cproj); }
 		}
-		
+
 		o.close();
 	}
 
@@ -375,7 +375,7 @@ namespace choice
 					sceneobject->AddProperty<Drawable>(drawable);
 					Transform* transform = new Transform();
 					transform->Position = { 0.0f, 0.0f, 0.0f };
-					transform->Rotation = { glm::radians(90.0f), 0.0f, 0.0f };
+					transform->Rotation = { 0.0f, 0.0f, 0.0f };
 					transform->Scale = { 1.0f, 1.0f, 1.0f };
 					sceneobject->AddProperty<Transform>(transform);
 
@@ -565,13 +565,13 @@ namespace choice
 				std::string texture = ImGuiFileDialog::Instance()->GetFilePathName();
 				std::string dstDirectory = Choice::Instance()->GetEditor()->GetActiveProject()->ActiveScene()->Directory() + "\\" +
 					Choice::Instance()->GetEditor()->GetActiveProject()->ActiveScene()->Name() + "\\Assets";
-				
+
 				Texture2DData* data = new Texture2DData();
 				data->Source = CompressTexture(texture, dstDirectory, format, false);
 				data->magFilter = (uint32_t)GL_LINEAR;
 				data->minFilter = (uint32_t)GL_LINEAR;
-				data->wrapS		= (uint32_t)GL_REPEAT;
-				data->wrapT		= (uint32_t)GL_REPEAT;
+				data->wrapS = (uint32_t)GL_REPEAT;
+				data->wrapT = (uint32_t)GL_REPEAT;
 
 				if (map.second.first) { delete map.second.first; }
 				map.second.first = new Texture2D(LoadTexture2D(*data));
@@ -580,7 +580,7 @@ namespace choice
 			}
 			ImGuiFileDialog::Instance()->Close();
 		}//Open Texture
-		
+
 	}
 
 	template<>
@@ -641,7 +641,7 @@ namespace choice
 						name += " - ";
 						name += ghc::filesystem::path(ghc::filesystem::path(material->NormalMap.second.second->Source).stem().string()).stem().string();
 					}
-					
+
 					if (ImGui::TreeNode(name.c_str()))
 					{
 						MaterialUI(name, material->NormalMap, BlockCompressionFormat::BC5);
@@ -659,7 +659,7 @@ namespace choice
 					if (ImGui::TreeNode(name.c_str()))
 					{
 						MaterialUI(name, material->RoughnessMap, BlockCompressionFormat::BC4);
-						
+
 						ImGui::SameLine();
 						ImGui::SliderFloat("##Roughness", &material->Roughness, 0.0f, 1.0f);
 
@@ -782,7 +782,7 @@ namespace choice
 	{
 		if (mSkybox.has_value())
 		{
-			
+
 		}
 	}
 
@@ -803,7 +803,7 @@ namespace choice
 				ImGui::Text("Color        ");
 				ImGui::SameLine();
 				ImGui::ColorEdit3("##Color", glm::value_ptr(mLight.value()->Color), ImGuiColorEditFlags_PickerHueWheel);
-			
+
 				ImGui::Text("Intensity    ");
 				ImGui::SameLine();
 				ImGui::DragFloat("##Intensity", &mLight.value()->Intensity, 0.2f, 0.0f, 10.0f);
@@ -844,7 +844,7 @@ namespace choice
 			ImGui::DockBuilderAddNode(mDockIds.root,
 				ImGuiDockNodeFlags_DockSpace);  // Add empty node
 			ImGui::DockBuilderSetNodeSize(mDockIds.root,
-				{ (float)Choice::Instance()->GetWindow()->GetWidth(), 
+				{ (float)Choice::Instance()->GetWindow()->GetWidth(),
 				(float)Choice::Instance()->GetWindow()->GetHeight() });
 
 			mDockIds.right = ImGui::DockBuilderSplitNode(mDockIds.root, ImGuiDir_Right,
@@ -940,9 +940,9 @@ namespace choice
 				if (ImGui::MenuItem("Model"))
 				{
 					ImGuiFileDialog::Instance()->SetExtentionInfos(".obj", { 0.1f, 1.0f, 0.1f, 1.0f });
-					ImGuiFileDialog::Instance()->OpenModal("AddModel", "Import Model", ".obj,.FBX,.fbx", "");
+					ImGuiFileDialog::Instance()->OpenModal("AddModel", "Import Model", ".obj,.FBX,.fbx,.dae,.glb", "");
 				}
-				
+
 				ImGui::EndMenu();
 			}
 
@@ -974,7 +974,7 @@ namespace choice
 				if (ImGui::MenuItem("Point Light"))
 				{
 					SceneObject* sceneobject = new SceneObject();
-					
+
 					PointLight* pointlight = new PointLight();
 					pointlight->Name = "Point Light";
 					pointlight->Type = LightType::POINT;
