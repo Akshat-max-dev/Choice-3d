@@ -18,6 +18,7 @@ if(!msg){__debugbreak();}
 #include <optional>
 #include <vector>
 #include <sstream>
+#include <functional>
 
 #ifndef GHC_USE_STD_FS
 #include <filesystem.hpp>

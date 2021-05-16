@@ -14,24 +14,14 @@ namespace choice
 		ghc::filesystem::copy("Choice/assets/hdri_skybox/Road_to_MonumentValley_Ref.hdr", 
 			mDirectory + "\\" + mName + "\\" + "Assets\\Road_to_MonumentValley_Ref.hdr");
 
-		SceneObject* object = new SceneObject();
 		std::string dstHDRI = mDirectory + "\\" + mName + "\\" + "Assets\\Road_to_MonumentValley_Ref.hdr";
-		object->AddProperty<Skybox>(new Skybox(dstHDRI));
-		mSceneObjects.push_back(object);
-
-		SceneObject* _object = new SceneObject();
+		mSkybox = new Skybox(dstHDRI);
 
 		DirectionalLight* directionallight = new DirectionalLight();
 		directionallight->Name = "Directional Light";
-		directionallight->Type = LightType::DIRECTIONAL;
-		_object->AddProperty<Light>(directionallight);
-
-		Transform* transform = new Transform();
-		transform->Position = { 0.0f, 0.0f, 0.0f };
-		transform->Rotation = { 0.0f, 0.0f, 0.0f };
-		transform->Scale = { 1.0f, 1.0f, 1.0f };
-		_object->AddProperty<Transform>(transform);
-		mSceneObjects.push_back(_object);
+		directionallight->Type = LIGHT_TYPE::DIRECTIONAL;
+		directionallight->node_data_type = NODE_DATA_TYPE::LIGHT;
+		mNodes.push_back(directionallight);
 
 		mBoundingBox = CalculateBoundingBox(nullptr, 0, 0);
 	}
@@ -52,7 +42,7 @@ namespace choice
 
 		mBoundingBox = CalculateBoundingBox(nullptr, 0, 0);
 
-		uint32_t sceneobjectssize;
+		/*uint32_t sceneobjectssize;
 		Binary::Read<uint32_t>(containedscene, sceneobjectssize);
 		mSceneObjects.resize(sceneobjectssize);
 		for (auto& object : mSceneObjects)
@@ -156,21 +146,26 @@ namespace choice
 
 				object->AddProperty<Transform>(transform);
 			}
-		}
+		}*/
 		containedscene.close();
 	}
 
 	Scene::~Scene()
 	{
-		for (auto& object : mSceneObjects)
+		for (auto& node : mNodes)
 		{
-			if (object) { delete object; }
+			if (node)
+			{
+				delete node;
+			}
 		}
+
+		delete mSkybox;
 	}
 
 	void Scene::Save()
 	{
-		std::ofstream cscene(mDirectory + "\\" + mName + "\\" + mName + ".cscene", std::ios::out | std::ios::binary);
+		/*std::ofstream cscene(mDirectory + "\\" + mName + "\\" + mName + ".cscene", std::ios::out | std::ios::binary);
 		if (cscene.fail())
 		{
 			std::cout << "Cannot Save Scene" << std::endl;
@@ -272,12 +267,12 @@ namespace choice
 			}
 		}
 
-		cscene.close();
+		cscene.close();*/
 	}
 
 	void Scene::Clean()
 	{
-		//TODO : Fix For CUBE And SPHERE
+		/*//TODO : Fix For CUBE And SPHERE
 		std::string cscenefile = mDirectory + "\\" + mName + "\\" + mName + ".cscene";
 		std::ifstream cscene(cscenefile, std::ios::in | std::ios::binary);
 		
@@ -320,6 +315,6 @@ namespace choice
 			}
 		}
 
-		cscene.close();
+		cscene.close();*/
 	}
 }

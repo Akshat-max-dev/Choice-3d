@@ -6,7 +6,11 @@ namespace choice
 {
 	Skybox::Skybox(const std::string& skybox) :mFilepath(skybox)
 	{
-		mCube = LoadDrawable("Skybox Cube", DrawableType::CUBE, false);
+		mCube = Cube();
+		//Delete Unwanted Memory In Cube
+		delete mCube->NodeTransform; mCube->NodeTransform = nullptr;
+		delete mCube->primitives[0]->material; mCube->primitives[0]->material = nullptr;
+
 		mShader = new Shader("Choice/assets/shaders/HDRSkybox.glsl");
 
 		std::vector<uint32_t> Ids = LoadTextureCubemap(skybox);
@@ -43,11 +47,8 @@ namespace choice
 		mShader->Mat4("uView", glm::mat4(glm::mat3(camera->View())));
 		mCubemap->Bind(0);
 		//Draw Cube
-		for (auto& mesh : mCube->GetMeshes())
-		{
-			mesh.first->Bind();
-			glDrawArrays(GL_TRIANGLES, 0, 36);
-		}
+		mCube->primitives[0]->vertexarray->Bind();
+		glDrawArrays(GL_TRIANGLES, 0, 36);
 	}
 
 }

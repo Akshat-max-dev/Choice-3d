@@ -9,7 +9,7 @@
 #include <tinyexr.h>
 
 #include "Shader.h"
-#include "Project/Scene/SceneObject/Property/Drawable.h"
+#include "Project/Scene/Nodes/Mesh.h"
 
 namespace choice
 {
@@ -189,7 +189,11 @@ namespace choice
 			glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))
 		};
 
-		std::unique_ptr<Drawable> cube(LoadDrawable("Cube", DrawableType::CUBE, false));
+		std::unique_ptr<Mesh> cube(Cube());
+		//Delete Unwanted Material In Cube
+		delete cube->NodeTransform; cube->NodeTransform = {};
+		delete cube->primitives[0]->material; cube->primitives[0]->material = {};
+
 		std::unique_ptr<Shader> shader = std::make_unique<Shader>("Choice/assets/shaders/HDRToCubemap.glsl");
 
 		glActiveTexture(GL_TEXTURE0);
@@ -207,7 +211,7 @@ namespace choice
 			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, hdrcubemap, 0);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-			cube->GetMeshes()[0].first->Bind();
+			cube->primitives[0]->vertexarray->Bind();
 			glDrawArrays(GL_TRIANGLES, 0, 36);
 		}
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -251,7 +255,7 @@ namespace choice
 			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, irradianceConvolution, 0);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-			cube->GetMeshes()[0].first->Bind();
+			cube->primitives[0]->vertexarray->Bind();
 			glDrawArrays(GL_TRIANGLES, 0, 36);
 		}
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -297,7 +301,7 @@ namespace choice
 				glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, prefilterCubemap, mip);
 				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-				cube->GetMeshes()[0].first->Bind();
+				cube->primitives[0]->vertexarray->Bind();
 				glDrawArrays(GL_TRIANGLES, 0, 36);
 			}
 		}

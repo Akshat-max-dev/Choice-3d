@@ -1,7 +1,10 @@
 #pragma once
 #include "cpch.h"
 
-#include "SceneObject/SceneObject.h"
+#include "Nodes/Mesh.h"
+#include "Nodes/Light.h"
+#include "Nodes/BoundingBox.h"
+#include "Skybox.h"
 
 namespace choice
 {
@@ -12,11 +15,12 @@ namespace choice
 		Scene(const std::string& cscene);
 		~Scene();
 
-		void AddObject(SceneObject* sceneobject) { mSceneObjects.push_back(sceneobject); }
-		void DeleteObject(uint32_t index) { delete mSceneObjects[index]; mSceneObjects[index] = nullptr; }
+		void AddNode(Node* node) { mNodes.push_back(node); }
+		void SetSkybox(Skybox* skybox) { mSkybox = skybox; }
 
-		std::vector<SceneObject*>& GetSceneObjects() { return mSceneObjects; }
+		std::vector<Node*>& GetNodes() { return mNodes; }
 		BoundingBox& GetBoundingBox() { return mBoundingBox; }
+		Skybox* GetSkybox() { return mSkybox; }
 
 		void Save();
 		void Clean();
@@ -26,7 +30,8 @@ namespace choice
 	private:
 		std::string mName;
 		std::string mDirectory;
-		std::vector<SceneObject*> mSceneObjects;
+		std::vector<Node*> mNodes;
+		Skybox* mSkybox;
 		BoundingBox mBoundingBox;
 	};
 }

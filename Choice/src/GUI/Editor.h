@@ -6,6 +6,10 @@
 
 #include "Project/Project.h"
 
+#include "SceneHierarchy.h"
+#include "NodeInspector.h"
+#include "ProjectExplorer.h"
+
 namespace choice
 {
 	class Editor
@@ -20,16 +24,17 @@ namespace choice
 		void SetSelectedObjectIndex(int index) { mSelectedObjectIndex = index; }
 
 		Camera* GetCamera() { return mCamera; }
-		std::unique_ptr<Project>& GetActiveProject() { return mActiveProject; }
+		Project* GetActiveProject() { return mActiveProject; }
 	private:
-		void DrawObjectInspectorPanel(SceneObject* object);
-		void SetEditorLayout();
-		void DrawProjectExplorer();
-		void ShowAddingScneObjectMenu();
+		void ShowFileMenu();
 	private:
 		Camera* mCamera;
+		Project* mActiveProject;
 
-		std::unique_ptr<Project> mActiveProject;
+		SceneHierarchy* mSceneHierarchy;
+		NodeInspector* mNodeInspector;
+		ProjectExplorer* mProjectExplorer;
+
 		enum class ModalPurpose
 		{
 			NONE = -1, NEWPROJECT = 0
@@ -37,20 +42,9 @@ namespace choice
 		ModalPurpose mModalPurpose = ModalPurpose::NONE;
 		bool mShowModal = false;
 		bool mIsBlenderLinked = false;
-		bool mShowProjectExplorer = false;
 	private:
 		int mSelectedObjectIndex = -1;
 		int mGizmoType = -1;
-
-		struct DockIds
-		{
-			uint32_t root = 0;
-			uint32_t right = 0;
-			uint32_t left = 0;
-			uint32_t right_bottom = 0;
-		};
-
-		DockIds mDockIds;
 		glm::vec2 mVisibleRegion;
 	};
 }

@@ -60,7 +60,7 @@ uniform int gHasDiffuseMap;
 uniform int gHasRoughnessMap;
 uniform int gHasMetallicMap;
 uniform int gHasAmbientOcclusionMap;
-uniform int gObjectIndex;
+uniform int gNodeIndex;
 uniform int gDrawIndex;
 
 void main()
@@ -130,5 +130,5 @@ void main()
 
 	gRoughMetalAo = vec3(Roughness, Metallic, AO);
 
-	gPixelInfo = vec3(float(gObjectIndex), float(gDrawIndex), float(gl_PrimitiveID + 1));
+	gPixelInfo = vec3(float(gNodeIndex), float(gDrawIndex), float(gl_PrimitiveID + 1));
 }

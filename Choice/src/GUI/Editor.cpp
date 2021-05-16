@@ -10,6 +10,8 @@
 #include "Input.h"
 #include "Choice.h"
 #include "BinaryHelper.h"
+#include "Project/Scene/Nodes/Mesh.h"
+#include "FileDialog.h"
 
 #include <glm/glm.hpp>
 
@@ -17,38 +19,43 @@ namespace choice
 {
 	Editor::Editor(uint32_t w, uint32_t h)
 	{
-		if (ghc::filesystem::exists("gltf.bat")) { mIsBlenderLinked = true;; }
+		if (ghc::filesystem::exists("gltf.bat")) { mIsBlenderLinked = true; }
 
-		std::ifstream o(".choiceeditorconfig", std::ios::in | std::ios::binary);
-		if (!o.is_open())
+		if (ghc::filesystem::exists(".choiceeditorconfig"))
 		{
-			mCamera = new EditorCamera((float)w / (float)h);
-			mActiveProject = {};
-		}
-		else
-		{
+			std::ifstream file(".choiceeditorconfig", std::ios::in | std::ios::binary);
+
 			std::string cproj;
-			Binary::Read<std::string>(o, cproj);
+			Binary::Read<std::string>(file, cproj);
 
 			glm::vec3 focus;
-			Binary::Read<glm::vec3>(o, focus);
+			Binary::Read<glm::vec3>(file, focus);
 
 			glm::vec3 offset;
-			Binary::Read<glm::vec3>(o, offset);
+			Binary::Read<glm::vec3>(file, offset);
 
 			glm::vec3 up;
-			Binary::Read<glm::vec3>(o, up);
+			Binary::Read<glm::vec3>(file, up);
 
 			glm::vec3 right;
-			Binary::Read<glm::vec3>(o, right);
+			Binary::Read<glm::vec3>(file, right);
 
 			mCamera = new EditorCamera((float)w / (float)h, focus, offset, up, right);
 
 			if (!ghc::filesystem::exists(cproj)) { mActiveProject = {}; }
-			else { mActiveProject = std::make_unique<Project>(cproj); }
+			else { mActiveProject = new Project(cproj); }
+
+			file.close();
+		}
+		else
+		{
+			mCamera = new EditorCamera((float)w / (float)h);
+			mActiveProject = {};
 		}
 
-		o.close();
+		mSceneHierarchy = new SceneHierarchy();
+		mNodeInspector = new NodeInspector();
+		mProjectExplorer = new ProjectExplorer();
 	}
 
 	Editor::~Editor()
@@ -75,12 +82,13 @@ namespace choice
 		o.close();
 
 		delete mCamera;
+		delete mSceneHierarchy;
+		delete mNodeInspector;
+		delete mProjectExplorer;
 	}
 
 	void Editor::Execute()
 	{
-		//SetEditorLayout();
-
 		auto dockspace_id = ImGui::GetID("Root_Dockspace");
 
 		auto* viewport = ImGui::GetMainViewport();
@@ -95,7 +103,8 @@ namespace choice
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
 
 		static ImGuiWindowFlags host_window_flags = 0;
-		host_window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDocking;
+		host_window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse;
+		host_window_flags |= ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDocking;
 		host_window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
 
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
@@ -113,44 +122,7 @@ namespace choice
 		//Main Menu Bar
 		if (ImGui::BeginMainMenuBar())
 		{
-			if (ImGui::BeginMenu("File"))
-			{
-				if (ImGui::MenuItem("New Project", "Ctrl + N"))
-				{
-					mModalPurpose = ModalPurpose::NEWPROJECT; mShowModal = true;
-				}
-
-				if (ImGui::MenuItem("Save Project", "Ctrl + S"))
-				{
-					if (mActiveProject) { mActiveProject->Save(); }
-				}
-
-				if (ImGui::MenuItem("Open Project", "Ctrl + O"))
-				{
-					ImGuiFileDialog::Instance()->SetExtentionInfos(".cproj", { 1.0f, 0.0f, 1.0f, 1.0f });
-					ImGuiFileDialog::Instance()->OpenModal("OpenProject", "Open Project", ".cproj", "");
-				}
-
-				ImGui::Separator();
-
-				if (ImGui::MenuItem("Blender", nullptr, mIsBlenderLinked))
-				{
-#ifdef EXE
-					ImGuiFileDialog::Instance()->SetExtentionInfos(".exe", { 0.5f, 0.1f, 0.6f, 1.0f });
-					ImGuiFileDialog::Instance()->OpenModal("LinkBlender", "Link Blender", ".exe", "");
-#endif
-				}
-				ImGui::EndMenu();
-			}
-
-			if (ImGui::BeginMenu("View"))
-			{
-				if (ImGui::MenuItem("Project Explorer", "Alt + P"))
-				{
-					mShowProjectExplorer = true;
-				}
-				ImGui::EndMenu();
-			}
+			ShowFileMenu();
 
 			ImGui::EndMainMenuBar();
 		}//Main Menu Bar
@@ -167,12 +139,15 @@ namespace choice
 			}
 			if (Input::IsKeyPressed(Key::O))
 			{
-				ImGuiFileDialog::Instance()->SetExtentionInfos(".cproj", { 1.0f, 0.0f, 1.0f, 1.0f });
-				ImGuiFileDialog::Instance()->OpenModal("OpenProject", "Open Project", ".cproj", "");
+				std::string cproj = FileDialog::OpenFile("Choice Project (*.cproj)\0*.cproj\0");
+				if (!cproj.empty())
+				{
+					if (mActiveProject) { delete mActiveProject; }
+					mActiveProject = new Project(cproj);
+					Choice::Instance()->GetWindow()->UpdateTitle(("Choice | " + mActiveProject->Name() + " |").c_str());
+				}
 			}
 		}
-
-		if (Input::IsKeyPressed(Key::LEFTALT) && Input::IsKeyPressed(Key::P)) { mShowProjectExplorer = true; }
 
 		//New Project
 		if (mShowModal)
@@ -231,8 +206,8 @@ namespace choice
 						if (strlen(namebuf) == 0) { std::cout << "Project Name Cant Be Empty" << std::endl; return; }
 						if (strlen(dirbuf) == 0) { std::cout << "No Directory Selected" << std::endl; return; }
 
-						if (mActiveProject) { mActiveProject.reset(); }
-						mActiveProject = std::make_unique<Project>(namebuf, dirbuf);
+						if (mActiveProject) { delete mActiveProject; }
+						mActiveProject = new Project(namebuf, dirbuf);
 						memset(namebuf, 0, sizeof(namebuf));
 						memset(dirbuf, 0, sizeof(dirbuf));
 
@@ -256,146 +231,6 @@ namespace choice
 			}
 		}//New Project
 
-
-		//Open Project
-		if (ImGuiFileDialog::Instance()->Display("OpenProject", ImGuiWindowFlags_NoCollapse, { IFDModalWidth, IFDModalHeight }))
-		{
-			if (ImGuiFileDialog::Instance()->IsOk())
-			{
-				std::string cproj = ImGuiFileDialog::Instance()->GetFilePathName();
-				if (mActiveProject) { mActiveProject.reset(); }
-				mActiveProject = std::make_unique<Project>(cproj);
-				Choice::Instance()->GetWindow()->UpdateTitle(("Choice | " + mActiveProject->Name() + " |").c_str());
-			}
-			ImGuiFileDialog::Instance()->Close();
-		}//Open Project
-
-
-		//Link Blender
-		if (ImGuiFileDialog::Instance()->Display("LinkBlender", ImGuiWindowFlags_NoCollapse, { IFDModalWidth, IFDModalHeight }))
-		{
-			if (ImGuiFileDialog::Instance()->IsOk())
-			{
-				std::string path = ImGuiFileDialog::Instance()->GetFilePathName();
-				std::string name = ImGuiFileDialog::Instance()->GetCurrentFileName();
-#ifdef EXE
-				if (name != "blender.exe")
-				{
-					std::cout << "The Selected File Is Not blender.exe" << std::endl;
-					ImGuiFileDialog::Instance()->Close();
-					return;
-				}
-				char c = '"';
-				std::ofstream writebat("gltf.bat", std::ios::out);
-
-				if (writebat.fail() && writebat.bad())
-				{
-					std::cout << "Couldn't write Batch File" << std::endl;
-					ImGuiFileDialog::Instance()->Close();
-					return;
-				}
-
-				//Absolute Path To gltf.py
-				std::string abspath = ghc::filesystem::absolute("Choice/assets/scripts/gltf.py").string();
-
-				writebat << "call " << c + path + c << " --background --python " << c + abspath + c << std::endl;
-				writebat << "cls";
-
-				writebat.close();
-#endif
-			}
-			ImGuiFileDialog::Instance()->Close();
-		}//Link Blender
-
-
-		//Load Model
-		if (ImGuiFileDialog::Instance()->Display("AddModel", ImGuiWindowFlags_NoCollapse, { IFDModalWidth, IFDModalHeight }))
-		{
-			if (ImGuiFileDialog::Instance()->IsOk())
-			{
-				std::string modelfilepath = ImGuiFileDialog::Instance()->GetFilePathName();
-
-				std::ifstream checkforbat("gltf.bat", std::ios::in);
-				if (checkforbat.fail())
-				{
-					std::cout << "Blender Not Linked" << std::endl;
-					ImGuiFileDialog::Instance()->Close();
-					return;
-				}
-				checkforbat.close();
-
-				std::string ext = ghc::filesystem::path(modelfilepath).extension().string();
-
-				if (!(ext == ".glb" || ext == ".gltf"))
-				{
-					std::ofstream temporary("Temporary", std::ios::out);
-					if (temporary.bad() || temporary.fail())
-					{
-						std::cout << "Cannot Write Temporary File" << std::endl;
-						ImGuiFileDialog::Instance()->Close();
-						return;
-					}
-					temporary << modelfilepath;
-					temporary.close();
-
-					std::system("gltf.bat");
-					ghc::filesystem::remove("Temporary");
-				}
-
-				std::string directory = mActiveProject->ActiveScene()->Directory() + "\\" +
-					mActiveProject->ActiveScene()->Name() + "\\" + "Assets";
-				std::string srcFile = DumpDrawable(modelfilepath.substr(0, modelfilepath.find_last_of('.')) + ".glb",
-					directory, DrawableType::MODEL);
-
-				if (!(ext == ".glb" || ext == ".gltf"))
-				{
-					ghc::filesystem::remove(modelfilepath.substr(0, modelfilepath.find_last_of('.')) + ".glb");
-				}
-
-				SceneObject* sceneobject = new SceneObject();
-				Drawable* drawable = LoadDrawable(srcFile, DrawableType::MODEL, true);
-				if (drawable)
-				{
-					sceneobject->AddProperty<Drawable>(drawable);
-					Transform* transform = new Transform();
-					transform->Position = { 0.0f, 0.0f, 0.0f };
-					transform->Rotation = { 0.0f, 0.0f, 0.0f };
-					transform->Scale = { 1.0f, 1.0f, 1.0f };
-					sceneobject->AddProperty<Transform>(transform);
-
-					mActiveProject->ActiveScene()->AddObject(sceneobject);
-				}
-				else
-				{
-					delete sceneobject;
-				}
-			}
-			ImGuiFileDialog::Instance()->Close();
-		}//Load Model
-
-		//Change Skybox
-		if (ImGuiFileDialog::Instance()->Display("ChangeSkybox", ImGuiWindowFlags_NoCollapse, { IFDModalWidth, IFDModalHeight }))
-		{
-			if (ImGuiFileDialog::Instance()->IsOk())
-			{
-				std::string hdri = ImGuiFileDialog::Instance()->GetFilePathName();
-
-				std::string hdriname = hdri.substr(hdri.find_last_of('\\') + 1, hdri.size());
-
-				std::string dsthdri = mActiveProject->ActiveScene()->Directory() + "\\" +
-					mActiveProject->ActiveScene()->Name() + "\\" + "Assets\\" + hdriname;
-
-				ghc::filesystem::copy_file(hdri, dsthdri);
-				ghc::filesystem::remove(mActiveProject->ActiveScene()->GetSceneObjects()[0]->GetProperty<Skybox>()->GetFilepath());
-				mActiveProject->ActiveScene()->DeleteObject(0);
-
-				mActiveProject->ActiveScene()->GetSceneObjects()[0] = new SceneObject();
-				mActiveProject->ActiveScene()->GetSceneObjects()[0]->AddProperty<Skybox>(new Skybox(dsthdri));
-			}
-			ImGuiFileDialog::Instance()->Close();
-		}//Change Skybox
-
-
 		//Viewport
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0.0f, 0.0f });
 		ImGui::Begin(ICON_FK_GAMEPAD" Viewport");
@@ -417,7 +252,10 @@ namespace choice
 
 		ImGui::Image((void*)(uintptr_t)Choice::Instance()->GetPipeline()->Capture(), { mVisibleRegion.x, mVisibleRegion.y }, ImVec2{ 0,1 }, ImVec2{ 1,0 });
 
-		ShowAddingScneObjectMenu();
+		if (mActiveProject)
+		{
+			ShowAddingMenu(mActiveProject->ActiveScene());
+		}
 
 		//Gizmo
 		if (Input::IsKeyPressed(Key::Q)) { mGizmoType = -1; }
@@ -425,7 +263,7 @@ namespace choice
 		if (Input::IsKeyPressed(Key::NUM2)) { mGizmoType = ImGuizmo::OPERATION::ROTATE; }
 		if (Input::IsKeyPressed(Key::NUM3)) { mGizmoType = ImGuizmo::OPERATION::SCALE; }
 
-		if (mSelectedObjectIndex != -1 && mGizmoType != -1)
+		/*if (mSelectedObjectIndex != -1 && mGizmoType != -1)
 		{
 			ImGuizmo::SetOrthographic(false);
 			ImGuizmo::SetDrawlist();
@@ -456,62 +294,15 @@ namespace choice
 				glm::vec3 deltaRotation = rotation - transform->Rotation;
 				transform->Rotation += deltaRotation;
 			}
-		}//Gizmo
+		}//Gizmo*/
 
 		ImGui::End();//Viewport
 
-
-		//Scene Hierarchy
-		ImGui::Begin(ICON_FK_LIST_UL" Hierarchy");
-
-		if (ImGui::IsWindowFocused() && ImGui::IsWindowHovered()) { Choice::Instance()->GetPipeline()->MousePicking(false); }
-
 		if (mActiveProject)
 		{
-			std::string icon = ICON_FK_PICTURE_O;
-			if (ImGui::CollapsingHeader((icon + " " + mActiveProject->ActiveScene()->Name()).c_str(), ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_DefaultOpen))
-			{
-				for (uint32_t i = 0; i < mActiveProject->ActiveScene()->GetSceneObjects().size(); i++)
-				{
-					SceneObject* object = mActiveProject->ActiveScene()->GetSceneObjects()[i];
-					if (object)
-					{
-						ImGuiTreeNodeFlags _flags_ = (i == mSelectedObjectIndex) ? ImGuiTreeNodeFlags_Selected : 0;
-						_flags_ |= ImGuiTreeNodeFlags_Leaf;
-						if (object->GetProperty<Skybox>()) { icon = ICON_FK_SKYATLAS; }
-						else if (object->GetProperty<Drawable>()) { icon = ICON_FK_CUBE; }
-						else if (object->GetProperty<Light>()) { icon = ICON_FK_LIGHTBULB_O; }
-						if (ImGui::TreeNodeEx((icon + " " + object->Name()).c_str(), _flags_))
-						{
-							if (ImGui::IsItemClicked())
-							{
-								mSelectedObjectIndex = i;
-								Choice::Instance()->GetPipeline()->PickedObject(static_cast<int>(i));
-							}
-							ImGui::TreePop();
-						}
-					}
-				}
-			}
-
-			ShowAddingScneObjectMenu();
+			mSceneHierarchy->Execute(mActiveProject->ActiveScene());
+			mNodeInspector->Execute(mSceneHierarchy->SelectedNode());
 		}
-		ImGui::End();//Scene Hierarchy
-
-
-		//Object Inspector
-		if (mSelectedObjectIndex != -1)
-		{
-			SceneObject* object = mActiveProject->ActiveScene()->GetSceneObjects()[mSelectedObjectIndex];
-			if (object) { DrawObjectInspectorPanel(object); }
-		}//Object Inspector
-
-
-		//Project Explorer
-		if (mShowProjectExplorer)
-		{
-			DrawProjectExplorer();
-		}//Project Explorer
 
 		ImGui::End();//Dockspace
 	}
@@ -521,460 +312,60 @@ namespace choice
 		mCamera->Update();
 	}
 
-	template<typename T>
-	void SceneObject::DrawProperty() { static_assert(false); }
-
-	static void MaterialUI(const std::string& label, std::pair<bool, std::pair<Texture2D*, Texture2DData*>>& map, BlockCompressionFormat format)
+	void Editor::ShowFileMenu()
 	{
-		if (ImGui::ImageButton(map.second.first ? (void*)(uintptr_t)map.second.first->GetId() : nullptr, { 50.0f, 50.0f }))
+		if (ImGui::BeginMenu("File"))
 		{
-			ImGuiFileDialog::Instance()->SetExtentionInfos(".png", { 0.5f, 1.0f, 0.5f, 1.0f });
-			ImGuiFileDialog::Instance()->SetExtentionInfos(".jpg", { 0.5f, 0.5f, 1.0f, 1.0f });
-			ImGuiFileDialog::Instance()->SetExtentionInfos(".tga", { 1.9f, 0.5f, 0.5f, 1.0f });
-			ImGuiFileDialog::Instance()->OpenModal(label, "Open Texture", ".png,.jpg,.tga", "");
-		}
-
-		if (map.second.first)
-		{
-			ImGui::SameLine();
-			ImGui::Checkbox("##UseMap", &map.first);
-		}
-
-		//Open Texture
-		if (ImGuiFileDialog::Instance()->Display(label, ImGuiWindowFlags_NoCollapse,
-			{ ImGui::GetMainViewport()->WorkSize.x / 2, ImGui::GetMainViewport()->WorkSize.y / 2 + 100.0f }))
-		{
-			if (ImGuiFileDialog::Instance()->IsOk())
+			if (ImGui::MenuItem("New Project", "Ctrl + N"))
 			{
-				std::string texture = ImGuiFileDialog::Instance()->GetFilePathName();
-				std::string dstDirectory = Choice::Instance()->GetEditor()->GetActiveProject()->ActiveScene()->Directory() + "\\" +
-					Choice::Instance()->GetEditor()->GetActiveProject()->ActiveScene()->Name() + "\\Assets";
-
-				Texture2DData* data = new Texture2DData();
-				data->Source = CompressTexture(texture, dstDirectory, format, false);
-				data->magFilter = (uint32_t)GL_LINEAR;
-				data->minFilter = (uint32_t)GL_LINEAR;
-				data->wrapS = (uint32_t)GL_REPEAT;
-				data->wrapT = (uint32_t)GL_REPEAT;
-
-				if (map.second.first) { delete map.second.first; }
-				map.second.first = new Texture2D(LoadTexture2D(*data));
-				if (map.second.second) { delete map.second.second; }
-				map.second.second = data;
-			}
-			ImGuiFileDialog::Instance()->Close();
-		}//Open Texture
-
-	}
-
-	template<>
-	void SceneObject::DrawProperty<Drawable>()
-	{
-		if (mDrawable.has_value())
-		{
-			if (ImGui::CollapsingHeader(ICON_FK_CUBE" Drawable", ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_DefaultOpen))
-			{
-				static bool showMaterialsInterface = true;
-				ImGui::Text("Show Materials Interface");
-				ImGui::SameLine();
-				ImGui::Checkbox("##SMI", &showMaterialsInterface);
-				if (showMaterialsInterface)
-				{
-					ImGui::Separator();
-
-					std::vector<const char*> comboitems;
-					if (comboitems.size() != mDrawable.value()->GetMaterials().size())
-					{
-						for (auto& material : mDrawable.value()->GetMaterials())
-						{
-							comboitems.push_back(material->Name.c_str());
-						}
-					}
-
-					ImGui::Text("Materials  ");
-					ImGui::SameLine();
-					ImGui::SetNextItemWidth(ImGui::GetContentRegionAvailWidth());
-					static int currentitem = 0;
-					ImGui::Combo("##Materials", &currentitem, comboitems.data(), comboitems.size());
-
-					Material* material = mDrawable.value()->GetMaterials()[currentitem];
-
-					std::string name = "Albedo";
-
-					if (material->DiffuseMap.second.second)
-					{
-						name += " - ";
-						name += ghc::filesystem::path(ghc::filesystem::path(material->DiffuseMap.second.second->Source).stem().string()).stem().string();
-					}
-
-					if (ImGui::TreeNode(name.c_str()))
-					{
-						MaterialUI(name, material->DiffuseMap, BlockCompressionFormat::BC1);
-						ImGui::SameLine();
-						ImGui::ColorEdit4("##Color", glm::value_ptr(mDrawable.value()->GetMaterials()[currentitem]->Color),
-							ImGuiColorEditFlags_PickerHueWheel | ImGuiColorEditFlags_NoInputs
-							| ImGuiColorEditFlags_NoLabel | ImGuiColorEditFlags_NoBorder);
-
-						ImGui::TreePop();
-					}
-
-					name = "Normal";
-
-					if (material->NormalMap.second.second)
-					{
-						name += " - ";
-						name += ghc::filesystem::path(ghc::filesystem::path(material->NormalMap.second.second->Source).stem().string()).stem().string();
-					}
-
-					if (ImGui::TreeNode(name.c_str()))
-					{
-						MaterialUI(name, material->NormalMap, BlockCompressionFormat::BC5);
-
-						ImGui::TreePop();
-					}
-
-					name = "Roughness";
-					if (material->RoughnessMap.second.second)
-					{
-						name += " - ";
-						name += ghc::filesystem::path(ghc::filesystem::path(material->RoughnessMap.second.second->Source).stem().string()).stem().string();
-					}
-
-					if (ImGui::TreeNode(name.c_str()))
-					{
-						MaterialUI(name, material->RoughnessMap, BlockCompressionFormat::BC4);
-
-						ImGui::SameLine();
-						ImGui::SliderFloat("##Roughness", &material->Roughness, 0.0f, 1.0f);
-
-						ImGui::TreePop();
-					}
-
-					name = "Metallic";
-					if (material->MetallicMap.second.second)
-					{
-						name += " - ";
-						name += ghc::filesystem::path(ghc::filesystem::path(material->MetallicMap.second.second->Source).stem().string()).stem().string();
-					}
-
-					if (ImGui::TreeNode(name.c_str()))
-					{
-						MaterialUI(name, material->MetallicMap, BlockCompressionFormat::BC4);
-
-						ImGui::SameLine();
-						ImGui::SliderFloat("##Metallic", &material->Metallic, 0.0f, 1.0f);
-
-						ImGui::TreePop();
-					}
-
-					name = "Ambient Occlusion";
-					if (material->AOMap.second.second)
-					{
-						name += " - ";
-						name += ghc::filesystem::path(ghc::filesystem::path(material->AOMap.second.second->Source).stem().string()).stem().string();
-					}
-
-					if (ImGui::TreeNode(name.c_str()))
-					{
-						MaterialUI(name, material->AOMap, BlockCompressionFormat::BC4);
-
-						ImGui::SameLine();
-						ImGui::SliderFloat("##Ao", &material->Ao, 0.0f, 1.0f);
-
-						ImGui::TreePop();
-					}
-				}
-			}
-		}
-	}
-
-	static void TransformUI(const std::string& label, glm::vec3& value, float resetValue)
-	{
-		ImGui::PushID(label.c_str());
-		ImGui::TableSetColumnIndex(0);
-		ImGui::Text(label.c_str());
-
-		ImGui::TableSetColumnIndex(1);
-		ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.8f, 0.1f, 0.1f, 1.0f });
-		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{ 1.0f, 0.1f, 0.1f, 1.0f });
-		ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{ 0.8f, 0.1f, 0.1f, 1.0f });
-		if (ImGui::Button("X"))
-		{
-			value.x = resetValue;
-		}
-		ImGui::PopStyleColor(3);
-
-		ImGui::TableSetColumnIndex(2);
-		ImGui::SetNextItemWidth(53.0f);
-		ImGui::DragFloat("##X", &value.x, 0.2f, 0.0f, 0.0f, "%.2f");
-
-		ImGui::TableSetColumnIndex(3);
-		ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.1f, 0.8f, 0.1f, 1.0f });
-		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{ 0.1f, 1.0f, 0.1f, 1.0f });
-		ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{ 0.1f, 0.8f, 0.1f, 1.0f });
-		if (ImGui::Button("Y"))
-		{
-			value.y = resetValue;
-		}
-		ImGui::PopStyleColor(3);
-
-		ImGui::TableSetColumnIndex(4);
-		ImGui::SetNextItemWidth(53.0f);
-		ImGui::DragFloat("##Y", &value.y, 0.2f, 0.0f, 0.0f, "%.2f");
-
-		ImGui::TableSetColumnIndex(5);
-		ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.1f, 0.1f, 0.8f, 1.0f });
-		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{ 0.1f, 0.1f, 1.0f, 1.0f });
-		ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{ 0.1f, 0.1f, 0.8f, 1.0f });
-		if (ImGui::Button("Z"))
-		{
-			value.z = resetValue;
-		}
-		ImGui::PopStyleColor(3);
-
-		ImGui::TableSetColumnIndex(6);
-		ImGui::SetNextItemWidth(53.0f);
-		ImGui::DragFloat("##Z", &value.z, 0.2f, 0.0f, 0.0f, "%.2f");
-		ImGui::PopID();
-	}
-
-	template<>
-	void SceneObject::DrawProperty<Transform>()
-	{
-		if (mTransform.has_value())
-		{
-			if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnArrow))
-			{
-				if (ImGui::BeginTable("##Transform", 7, ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingFixedFit))
-				{
-					ImGui::TableNextRow();
-					TransformUI("Position ", mTransform.value()->Position, 0.0f);
-					ImGui::TableNextRow();
-					glm::vec3 rotation = glm::degrees(mTransform.value()->Rotation);
-					TransformUI("Rotation ", rotation, 0.0f);
-					mTransform.value()->Rotation = glm::radians(rotation);
-					ImGui::TableNextRow();
-					TransformUI("Scale    ", mTransform.value()->Scale, 1.0f);
-					ImGui::EndTable();
-				}
-			}
-		}
-	}
-
-	template<>
-	void SceneObject::DrawProperty<Skybox>()
-	{
-		if (mSkybox.has_value())
-		{
-
-		}
-	}
-
-	template<>
-	void SceneObject::DrawProperty<Light>()
-	{
-		if (mLight.has_value())
-		{
-			if (ImGui::CollapsingHeader(ICON_FK_LIGHTBULB_O" Light", ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_DefaultOpen))
-			{
-				ImGui::Text("Type         ");
-				ImGui::SameLine();
-				ImGui::SetNextItemWidth(ImGui::GetContentRegionAvailWidth());
-				const char* comboitems[] = { "Directional Light", "Point Light" };
-				static int type = static_cast<int>(mLight.value()->Type);
-				ImGui::Combo("##Type", &type, comboitems, IM_ARRAYSIZE(comboitems));
-
-				ImGui::Text("Color        ");
-				ImGui::SameLine();
-				ImGui::ColorEdit3("##Color", glm::value_ptr(mLight.value()->Color), ImGuiColorEditFlags_PickerHueWheel);
-
-				ImGui::Text("Intensity    ");
-				ImGui::SameLine();
-				ImGui::DragFloat("##Intensity", &mLight.value()->Intensity, 0.2f, 0.0f, 10.0f);
-
-				if (mLight.value()->Type == LightType::POINT)
-				{
-					ImGui::Text("Radius      ");
-					ImGui::SameLine();
-					ImGui::DragFloat("##Radius", &mLight.value()->Radius, 0.2f, 0.0f, 100.0f);
-				}
-			}
-		}
-	}
-
-	void Editor::DrawObjectInspectorPanel(SceneObject* object)
-	{
-		ImGui::Begin(ICON_FK_INFO_CIRCLE" Inspector");
-
-		ImGui::Text(("Name :" + object->Name()).c_str());
-		ImGui::Button("Rename TODO");
-		ImGui::SameLine();
-		ImGui::Button("Delete TODO");
-
-		object->DrawProperty<Transform>();
-		object->DrawProperty<Drawable>();
-		object->DrawProperty<Skybox>();
-		object->DrawProperty<Light>();
-
-		ImGui::End();
-	}
-
-	void Editor::SetEditorLayout()
-	{
-		if (ImGui::DockBuilderGetNode(mDockIds.root) == NULL) {
-			mDockIds.root = ImGui::GetID("Root_Dockspace");
-
-			ImGui::DockBuilderRemoveNode(mDockIds.root);  // Clear out existing layout
-			ImGui::DockBuilderAddNode(mDockIds.root,
-				ImGuiDockNodeFlags_DockSpace);  // Add empty node
-			ImGui::DockBuilderSetNodeSize(mDockIds.root,
-				{ (float)Choice::Instance()->GetWindow()->GetWidth(),
-				(float)Choice::Instance()->GetWindow()->GetHeight() });
-
-			mDockIds.right = ImGui::DockBuilderSplitNode(mDockIds.root, ImGuiDir_Right,
-				0.2f, NULL, &mDockIds.root);
-			mDockIds.right_bottom = ImGui::DockBuilderSplitNode(mDockIds.right, ImGuiDir_Down,
-				0.2f, NULL, &mDockIds.right);
-			mDockIds.left = ImGui::DockBuilderSplitNode(mDockIds.root, ImGuiDir_Left,
-				0.2f, NULL, &mDockIds.root);
-
-			ImGui::DockBuilderFinish(mDockIds.root);
-		}
-	}
-
-	//Iterate Project Directory
-	void IterateDirectory(const std::string& directory)
-	{
-		for (auto& it : ghc::filesystem::directory_iterator(directory))
-		{
-			auto& f = it.path();
-			if (ghc::filesystem::is_directory(f))
-			{
-				std::string foldericon = ICON_FK_FOLDER_O;
-				if (ImGui::TreeNodeEx((foldericon + " " + f.filename().string()).c_str(), ImGuiTreeNodeFlags_OpenOnArrow))
-				{
-					IterateDirectory(f.string());
-					ImGui::TreePop();
-				}
-			}
-			else
-			{
-				std::string ext = f.filename().extension().string();
-				if (!(ext == ".cproj" || ext == ".cscene"))
-				{
-					std::string fileicon = ICON_FK_FILE_O;
-					if (ImGui::TreeNodeEx((fileicon + " " + f.filename().string()).c_str(), ImGuiTreeNodeFlags_Leaf))
-					{
-						ImGui::TreePop();
-					}
-				}
-			}
-		}
-	}//Iterate Project Directory
-
-	//Project Explorer
-	void Editor::DrawProjectExplorer()
-	{
-		ImGui::SetNextWindowDockID(mDockIds.left, ImGuiCond_Appearing);
-		ImGui::Begin(ICON_FK_FOLDER_OPEN_O" Explorer", &mShowProjectExplorer);
-
-		std::string icon = ICON_FK_FOLDER_OPEN;
-		if (ImGui::TreeNodeEx((icon + " " + mActiveProject->Name()).c_str(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Leaf))
-		{
-			IterateDirectory(mActiveProject->Directory() + "\\" + mActiveProject->Name()); //Iterate Project Directory
-			ImGui::TreePop();
-		}
-
-		ImGui::End();
-	}//Project Explorer
-
-	void Editor::ShowAddingScneObjectMenu()
-	{
-		if (ImGui::BeginPopupContextWindow(0, 1, false))
-		{
-			if (ImGui::BeginMenu("Add Drawable"))
-			{
-				//Add Cube
-				if (ImGui::MenuItem("Cube"))
-				{
-					SceneObject* sceneobject = new SceneObject();
-					sceneobject->AddProperty<Drawable>(LoadDrawable("Cube", DrawableType::CUBE, true));
-					Transform* transform = new Transform();
-					transform->Position = { 0.0f, 0.0f, 0.0f };
-					transform->Rotation = { 0.0f, 0.0f, 0.0f };
-					transform->Scale = { 1.0f, 1.0f, 1.0f };
-					sceneobject->AddProperty<Transform>(transform);
-					mActiveProject->ActiveScene()->AddObject(sceneobject);
-				}
-
-				//Add Sphere
-				if (ImGui::MenuItem("Sphere"))
-				{
-					SceneObject* sceneobject = new SceneObject();
-					sceneobject->AddProperty<Drawable>(LoadDrawable("Sphere", DrawableType::SPHERE, true));
-					Transform* transform = new Transform();
-					transform->Position = { 0.0f, 0.0f, 0.0f };
-					transform->Rotation = { 0.0f, 0.0f, 0.0f };
-					transform->Scale = { 1.0f, 1.0f, 1.0f };
-					sceneobject->AddProperty<Transform>(transform);
-					mActiveProject->ActiveScene()->AddObject(sceneobject);
-				}
-
-				//Add Model
-				if (ImGui::MenuItem("Model"))
-				{
-					ImGuiFileDialog::Instance()->SetExtentionInfos(".obj", { 0.1f, 1.0f, 0.1f, 1.0f });
-					ImGuiFileDialog::Instance()->OpenModal("AddModel", "Import Model", ".obj,.FBX,.fbx,.dae,.glb", "");
-				}
-
-				ImGui::EndMenu();
+				mModalPurpose = ModalPurpose::NEWPROJECT; mShowModal = true;
 			}
 
-			if (ImGui::MenuItem("Change Skybox"))
+			if (ImGui::MenuItem("Save Project", "Ctrl + S"))
 			{
-				ImGuiFileDialog::Instance()->SetExtentionInfos(".hdr", { 0.4f, 0.5f, 0.7f, 1.0f });
-				ImGuiFileDialog::Instance()->SetExtentionInfos(".exr", { 0.5f, 0.2f, 0.5f, 1.0f });
-				ImGuiFileDialog::Instance()->OpenModal("ChangeSkybox", "Change Skybox", ".hdr,.exr", "");
+				if (mActiveProject) { mActiveProject->Save(); }
 			}
-			if (ImGui::BeginMenu("Add Light"))
+
+			if (ImGui::MenuItem("Open Project", "Ctrl + O"))
 			{
-				if (ImGui::MenuItem("Directional Light"))
+				std::string cproj = FileDialog::OpenFile("Choice Project (*.cproj)\0*.cproj\0");
+				if (!cproj.empty())
 				{
-					SceneObject* sceneobject = new SceneObject();
-
-					DirectionalLight* directionallight = new DirectionalLight();
-					directionallight->Name = "Directional Light";
-					directionallight->Type = LightType::DIRECTIONAL;
-					sceneobject->AddProperty<Light>(directionallight);
-
-					Transform* transform = new Transform();
-					transform->Position = { 0.0f, 0.0f, 0.0f };
-					transform->Rotation = { 0.0f, 0.0f, 0.0f };
-					transform->Scale = { 1.0f, 1.0f, 1.0f };
-					sceneobject->AddProperty<Transform>(transform);
-
-					mActiveProject->ActiveScene()->AddObject(sceneobject);
+					if (mActiveProject) { delete mActiveProject; }
+					mActiveProject = new Project(cproj);
+					Choice::Instance()->GetWindow()->UpdateTitle(("Choice | " + mActiveProject->Name() + " |").c_str());
 				}
-				if (ImGui::MenuItem("Point Light"))
-				{
-					SceneObject* sceneobject = new SceneObject();
-
-					PointLight* pointlight = new PointLight();
-					pointlight->Name = "Point Light";
-					pointlight->Type = LightType::POINT;
-					sceneobject->AddProperty<Light>(pointlight);
-
-					Transform* transform = new Transform();
-					transform->Position = { 0.0f, 0.0f, 0.0f };
-					transform->Rotation = { 0.0f, 0.0f, 0.0f };
-					transform->Scale = { 1.0f, 1.0f, 1.0f };
-					sceneobject->AddProperty<Transform>(transform);
-
-					mActiveProject->ActiveScene()->AddObject(sceneobject);
-				}
-				ImGui::EndMenu();
 			}
-			ImGui::EndPopup();
+
+			ImGui::Separator();
+
+			if (ImGui::MenuItem("Blender", nullptr, mIsBlenderLinked))
+			{
+#ifdef EXE
+				std::string blenderpath = FileDialog::OpenFile("Executable (*.exe)\0*.exe\0");
+				if (!blenderpath.empty())
+				{
+					std::string name = blenderpath.substr(blenderpath.find_last_of('\\') + 1, blenderpath.size() - 1);
+					if (name != "blender.exe")
+					{
+						std::cout << "The Selected File Is Not blender.exe" << std::endl;
+						choiceassert(0);
+					}
+
+					char c = '"';
+					std::ofstream writebat("gltf.bat", std::ios::out);
+
+					//Absolute Path To gltf.py
+					std::string abspath = ghc::filesystem::absolute("Choice/assets/scripts/gltf.py").string();
+
+					writebat << "call " << c + blenderpath + c << " --background --python " << c + abspath + c << std::endl;
+					writebat << "cls";
+
+					writebat.close();
+				}
+#endif
+			}
+			ImGui::EndMenu();
 		}
 	}
 

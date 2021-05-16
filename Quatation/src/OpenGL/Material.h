@@ -6,14 +6,23 @@
 
 namespace choice
 {
+	struct TextureMap
+	{
+		std::string Name;
+		bool Show = true;
+		Texture2D* texture;
+
+		~TextureMap();
+	};
+
 	struct Material
 	{
 		std::string Name;
-		std::pair<bool, std::pair<Texture2D*, Texture2DData*>> DiffuseMap;
-		std::pair<bool, std::pair<Texture2D*, Texture2DData*>> NormalMap;
-		std::pair<bool, std::pair<Texture2D*, Texture2DData*>> RoughnessMap;
-		std::pair<bool, std::pair<Texture2D*, Texture2DData*>> MetallicMap;
-		std::pair<bool, std::pair<Texture2D*, Texture2DData*>> AOMap;
+		TextureMap* DiffuseMap;
+		TextureMap* NormalMap;
+		TextureMap* RoughnessMap;
+		TextureMap* MetallicMap;
+		TextureMap* AOMap;
 		float Roughness = 0.0f;
 		float Metallic = 0.0f;
 		float Ao = 1.0f;
@@ -21,6 +30,7 @@ namespace choice
 		~Material();
 	};
 
+	/*
 	//Load Materials From Saved Files In Engine Format
 	void LoadMaterials(std::ifstream& from, std::vector<Material*>& materials);
 
@@ -29,4 +39,5 @@ namespace choice
 
 	//Save Materials Data
 	void SaveMaterialsData(std::ofstream& to, Texture2DData* data);
+	*/
 }

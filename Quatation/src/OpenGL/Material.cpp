@@ -4,7 +4,7 @@
 
 namespace choice
 {
-	void LoadMaterials(std::ifstream& from, std::vector<Material*>& materials)
+	/*void LoadMaterials(std::ifstream& from, std::vector<Material*>& materials)
 	{
 		uint32_t materialssize;
 		Binary::Read<uint32_t>(from, materialssize);
@@ -109,20 +109,20 @@ namespace choice
 			uint32_t sourcefilenamesize = 0;
 			Binary::Write<uint32_t>(to, sourcefilenamesize);
 		}
-	}
+	}*/
 
 	Material::~Material()
 	{
-		if (DiffuseMap.second.first)   delete DiffuseMap.second.first;
-		if (DiffuseMap.second.second)  delete DiffuseMap.second.second;
-		if (NormalMap.second.first)    delete NormalMap.second.first;
-		if (NormalMap.second.second)   delete NormalMap.second.second;
-		if (RoughnessMap.second.first) delete RoughnessMap.second.first;
-		if (RoughnessMap.second.second)delete RoughnessMap.second.second;
-		if (MetallicMap.second.first)  delete MetallicMap.second.first;
-		if (MetallicMap.second.second) delete MetallicMap.second.second;
-		if (AOMap.second.first)		   delete AOMap.second.first;
-		if (AOMap.second.second)	   delete AOMap.second.second;
+		if (DiffuseMap) { delete DiffuseMap; }
+		if (NormalMap) { delete NormalMap; }
+		if (RoughnessMap) { delete RoughnessMap; }
+		if (MetallicMap) { delete MetallicMap; }
+		if (AOMap) { delete AOMap; }
+	}
+
+	TextureMap::~TextureMap()
+	{
+		if (texture) { delete texture; }
 	}
 
 }

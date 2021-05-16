@@ -3,8 +3,10 @@
 namespace choice
 {
 	//View Projection Directional Light
-	std::vector<glm::mat4> DirectionalLight::ViewProjection(Transform* transform, BoundingBox* sceneaabb)
+	std::vector<glm::mat4> DirectionalLight::ViewProjection(BoundingBox* sceneaabb)
 	{
+		Transform* transform = NodeTransform;
+
 		//Light View Matrix
 		glm::vec3 direction = glm::normalize(transform->GetTransform()[2]);
 		glm::vec3 cross = glm::normalize(glm::cross({ 0.0f, 1.0f, 0.0f }, direction));
@@ -39,7 +41,7 @@ namespace choice
 	}
 
 	//View Projection Point Light
-	std::vector<glm::mat4> PointLight::ViewProjection(Transform* transform, BoundingBox* sceneaabb)
+	std::vector<glm::mat4> PointLight::ViewProjection(BoundingBox* sceneaabb)
 	{
 		std::vector<glm::mat4> viewprojection(1);
 		viewprojection[0] = glm::mat4(1.0f);
