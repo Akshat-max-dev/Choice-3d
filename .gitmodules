@@ -25,3 +25,6 @@
 [submodule "vendor/ImGuizmo"]
 	path = vendor/ImGuizmo
 	url = https://github.com/Akshat-max-dev/ImGuizmo.git
+[submodule "vendor/SPIRV-Cross"]
+	path = vendor/SPIRV-Cross
+	url = https://github.com/Akshat-max-dev/SPIRV-Cross.git

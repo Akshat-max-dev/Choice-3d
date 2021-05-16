@@ -24,6 +24,7 @@ Dependency["gli"] = "%{wks.location}/vendor/gli"
 Dependency["tinyexr"] = "%{wks.location}/vendor/tinyexr"
 Dependency["filesystem"] = "%{wks.location}/vendor/filesystem"
 Dependency["ImGuizmo"] = "%{wks.location}/vendor/ImGuizmo"
+Dependency["SPIRV_Cross"] = "%{wks.location}/vendor/SPIRV-Cross"
 
 include "Choice"
 include "Quatation"

@@ -40,7 +40,37 @@ project "Quatation"
 
         --tinyexr
         "%{Dependency.tinyexr}/tinyexr.h",
-        "%{Dependency.tinyexr}/tinyexr.cpp"
+        "%{Dependency.tinyexr}/tinyexr.cpp",
+
+        --SPIRV_Cross
+        "%{Dependency.SPIRV_Cross}/GLSL.std.450.h",
+        "%{Dependency.SPIRV_Cross}/spirv_common.hpp",
+		"%{Dependency.SPIRV_Cross}/spirv_cross_containers.hpp",
+		"%{Dependency.SPIRV_Cross}/spirv_cross_error_handling.hpp",
+		"%{Dependency.SPIRV_Cross}/spirv.hpp",
+		"%{Dependency.SPIRV_Cross}/spirv_cross.hpp",
+		"%{Dependency.SPIRV_Cross}/spirv_cross.cpp",
+		"%{Dependency.SPIRV_Cross}/spirv_parser.hpp",
+		"%{Dependency.SPIRV_Cross}/spirv_parser.cpp",
+		"%{Dependency.SPIRV_Cross}/spirv_cross_parsed_ir.hpp",
+		"%{Dependency.SPIRV_Cross}/spirv_cross_parsed_ir.cpp",
+		"%{Dependency.SPIRV_Cross}/spirv_cfg.hpp",
+        "%{Dependency.SPIRV_Cross}/spirv_cfg.cpp",
+        "%{Dependency.SPIRV_Cross}/spirv.h",
+		"%{Dependency.SPIRV_Cross}/spirv_cross_c.cpp",
+		"%{Dependency.SPIRV_Cross}/spirv_cross_c.h",
+        "%{Dependency.SPIRV_Cross}/spirv_glsl.cpp",
+		"%{Dependency.SPIRV_Cross}/spirv_glsl.hpp",
+        "%{Dependency.SPIRV_Cross}/spirv_cpp.cpp",
+		"%{Dependency.SPIRV_Cross}/spirv_cpp.hpp",
+        "%{Dependency.SPIRV_Cross}/spirv_msl.cpp",
+		"%{Dependency.SPIRV_Cross}/spirv_msl.hpp",
+        "%{Dependency.SPIRV_Cross}/spirv_hlsl.cpp",
+        "%{Dependency.SPIRV_Cross}/spirv_hlsl.hpp",
+        "%{Dependency.SPIRV_Cross}/spirv_reflect.cpp",
+		"%{Dependency.SPIRV_Cross}/spirv_reflect.hpp",
+        "%{Dependency.SPIRV_Cross}/spirv_cross_util.cpp",
+		"%{Dependency.SPIRV_Cross}/spirv_cross_util.hpp"
     }
 
     includedirs
@@ -58,7 +88,8 @@ project "Quatation"
         "%{Dependency.gli}",
         "%{Dependency.tinyexr}",
         "%{Dependency.filesystem}",
-        "%{Dependency.ImGuizmo}"
+        "%{Dependency.ImGuizmo}",
+        "%{Dependency.SPIRV_Cross}"
     }
 
     libdirs

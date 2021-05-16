@@ -57,7 +57,8 @@ project "Choice"
         "%{Dependency.gli}",
         "%{Dependency.tinyexr}",
         "%{Dependency.filesystem}",
-        "%{Dependency.ImGuizmo}"
+        "%{Dependency.ImGuizmo}",
+        "%{Dependency.SPIRV_Cross}"
     }
 
     links
