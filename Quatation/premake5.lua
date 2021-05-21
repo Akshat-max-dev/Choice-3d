@@ -89,17 +89,20 @@ project "Quatation"
         "%{Dependency.tinyexr}",
         "%{Dependency.filesystem}",
         "%{Dependency.ImGuizmo}",
-        "%{Dependency.SPIRV_Cross}"
+        "%{Dependency.SPIRV_Cross}",
+        "%{Dependency.shaderc}/include"
     }
 
     libdirs
     {
-        "%{Dependency.compressonator}/bin"
+        "%{Dependency.compressonator}/bin",
+        "%{Dependency.shaderc}/lib"
     }
 
     links
     {
-        "CMP_Framework.lib"
+        "CMP_Framework.lib",
+        "shaderc_shared.lib"
     }
 
     defines
