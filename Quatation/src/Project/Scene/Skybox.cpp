@@ -32,20 +32,23 @@ namespace choice
 		delete mBRDFLookup;
 	}
 
-	void Skybox::BindIBL(glm::uvec3 slots) const
+	void Skybox::BindIBL(glm::uvec3 slots)
 	{
-		mIrradianceConvolution->Bind(slots.x);
-		mPreFilterCubemap->Bind(slots.y);
-		mBRDFLookup->Bind(slots.z);
+		if (mBindIBL)
+		{
+			mIrradianceConvolution->Bind(slots.x);
+			mPreFilterCubemap->Bind(slots.y);
+			mBRDFLookup->Bind(slots.z);
+			mBindIBL = false;
+		}
 	}
 
-	void Skybox::Draw(Camera* camera)
+	void Skybox::Draw(Camera* camera, UniformBuffer* camerabuffer)
 	{
-		mShader->Use();
-		mShader->Int("hdrSkybox", 0);
-		mShader->Mat4("uProjection", camera->Projection());
-		mShader->Mat4("uView", glm::mat4(glm::mat3(camera->View())));
 		mCubemap->Bind(0);
+		mShader->Use();
+		glm::mat4 vp = camera->Projection() * glm::mat4(glm::mat3(camera->View()));
+		camerabuffer->SetData("Camera.uViewProjection", &vp);
 		//Draw Cube
 		mCube->primitives[0]->vertexarray->Bind();
 		glDrawArrays(GL_TRIANGLES, 0, 36);

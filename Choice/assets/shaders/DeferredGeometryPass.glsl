@@ -6,21 +6,17 @@ layout(location = 1)in vec3 aNormal;
 layout(location = 2)in vec2 aTexCoords;
 layout(location = 3)in vec3 aTangent;
 
-uniform mat4 uViewProjection;
-uniform mat4 uTransform;
+from UniformBuffers.glsl include uniform Camera,uniform Transform;
 
-out VS_OUT
-{
-	vec3 vFragPos;
-	vec3 vNormal;
-	vec2 vTexCoords;
-}vs_out;
+from Structures.glsl include struct GPVertexOutput;
+
+layout(location = 0)out GPVertexOutput vOutput;
 
 void main()
 {
-	vs_out.vFragPos = (uTransform * vec4(aPosition, 1.0)).xyz;
-	vs_out.vNormal = aNormal;
-	vs_out.vTexCoords = aTexCoords;
+	vOutput.FragPos = (uTransform * vec4(aPosition, 1.0)).xyz;
+	vOutput.Normal = aNormal;
+	vOutput.TexCoords = aTexCoords;
 	gl_Position = uViewProjection * uTransform * vec4(aPosition, 1.0);
 }
 
@@ -33,50 +29,32 @@ layout(location = 2)out vec4 gAlbedoS;
 layout(location = 3)out vec3 gRoughMetalAo; 
 layout(location = 4)out vec3 gPixelInfo;
 
-struct Material
-{
-	sampler2D Diffuse;
-	sampler2D Normal;
-	sampler2D Roughness;
-	sampler2D Metallic;
-	sampler2D AmbientOcclusion;
-	float RoughnessFactor;
-	float MetallicFactor;
-	float AO;
-	vec4 Color;
-};
+from Structures.glsl include struct GPVertexOutput;
 
-uniform Material gMaterial;
+layout(location = 0)in GPVertexOutput gInput;
 
-in VS_OUT
-{
-	vec3 vFragPos;
-	vec3 vNormal;
-	vec2 vTexCoords;
-}fs_in;
+from UniformBuffers.glsl include uniform Material;
 
-uniform int gHasNormalMap;
-uniform int gHasDiffuseMap;
-uniform int gHasRoughnessMap;
-uniform int gHasMetallicMap;
-uniform int gHasAmbientOcclusionMap;
-uniform int gNodeIndex;
-uniform int gDrawIndex;
+layout(binding = 0)uniform sampler2D gAlbedoMap;
+layout(binding = 1)uniform sampler2D gNormalMap;
+layout(binding = 2)uniform sampler2D gRoughnessMap;
+layout(binding = 3)uniform sampler2D gMetallicMap;
+layout(binding = 4)uniform sampler2D gAoMap;
 
 void main()
 {
-	gPosition = fs_in.vFragPos; //Fragment Position
+	gPosition = gInput.FragPos; //Fragment Position
 
-	if(gHasNormalMap == 1)
+	if(HasNormalMap == 1)
 	{
-		vec3 tangentNormal = texture(gMaterial.Normal, fs_in.vTexCoords).xyz * 2.0 - 1.0;
+		vec3 tangentNormal = texture(gNormalMap, gInput.TexCoords).xyz * 2.0 - 1.0;
 
-		vec3 Q1  = dFdx(fs_in.vFragPos);
-		vec3 Q2  = dFdy(fs_in.vFragPos);
-		vec2 st1 = dFdx(fs_in.vTexCoords);
-		vec2 st2 = dFdy(fs_in.vTexCoords);
+		vec3 Q1  = dFdx(gInput.FragPos);
+		vec3 Q2  = dFdy(gInput.FragPos);
+		vec2 st1 = dFdx(gInput.TexCoords);
+		vec2 st2 = dFdy(gInput.TexCoords);
 
-		vec3 N   = normalize(fs_in.vNormal);
+		vec3 N   = normalize(gInput.Normal);
 		vec3 T  = normalize(Q1*st2.t - Q2*st1.t);
 		vec3 B  = -normalize(cross(N, T));
 		mat3 TBN = mat3(T, B, N);
@@ -85,50 +63,50 @@ void main()
 	}
 	else
 	{
-		gNormal = fs_in.vNormal; //Normals From Vertex Attributes
+		gNormal = gInput.Normal; //Normals From Vertex Attributes
 	}
 
-	if(gHasDiffuseMap == 1)
+	if(HasAlbedoMap == 1)
 	{
-		gAlbedoS.rgb = texture(gMaterial.Diffuse, fs_in.vTexCoords).rgb;
+		gAlbedoS.rgb = texture(gAlbedoMap, gInput.TexCoords).rgb;
 		gAlbedoS.a = 1.0;
 	}
 	else
 	{
-		gAlbedoS = gMaterial.Color;
+		gAlbedoS = Color;
 	}
 	
-	float Roughness;
-	if(gHasRoughnessMap == 1)
+	float roughness;
+	if(HasRoughnessMap == 1)
 	{
-		Roughness = texture(gMaterial.Roughness, fs_in.vTexCoords).r * gMaterial.RoughnessFactor;
+		roughness = texture(gRoughnessMap, gInput.TexCoords).r * Roughness;
 	}
 	else
 	{
-		Roughness = gMaterial.RoughnessFactor;
+		roughness = Roughness;
 	}
 
-	float Metallic;
-	if(gHasMetallicMap == 1)
+	float metallic;
+	if(HasMetallicMap == 1)
 	{
-		Metallic = texture(gMaterial.Metallic, fs_in.vTexCoords).r * gMaterial.MetallicFactor;
+		metallic = texture(gMetallicMap, gInput.TexCoords).r * Metallic;
 	}
 	else
 	{
-		Metallic = gMaterial.MetallicFactor;
+		metallic = Metallic;
 	}
 
-	float AO;
-	if(gHasAmbientOcclusionMap == 1)
+	float ao;
+	if(HasAoMap == 1)
 	{
-		AO = texture(gMaterial.AmbientOcclusion, fs_in.vTexCoords).r * gMaterial.AO;
+		ao = texture(gAoMap, gInput.TexCoords).r;
 	}
 	else
 	{
-		AO = gMaterial.AO;
+		ao = 1.0;
 	}
 
-	gRoughMetalAo = vec3(Roughness, Metallic, AO);
+	gRoughMetalAo = vec3(roughness, metallic, ao);
 
-	gPixelInfo = vec3(float(gNodeIndex), float(gDrawIndex), float(gl_PrimitiveID + 1));
+	gPixelInfo = vec3(0.0, 0.0, 0.0);
 }

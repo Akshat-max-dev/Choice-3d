@@ -3,8 +3,7 @@
 
 layout(location = 0)in vec3 aPosition;
 
-uniform mat4 uViewProjection;
-uniform mat4 uTransform;
+from UniformBuffers.glsl include uniform Camera,uniform Transform;
 
 void main()
 {
@@ -14,11 +13,11 @@ void main()
 #source fragment
 #version 450 core
 
-out vec4 oResult;
+layout(location = 0)out vec4 cResult;
 
-uniform vec4 oColor;
+from UniformBuffers.glsl include uniform Color;
 
 void main()
 {
-	oResult = oColor;
+	cResult = cColor;
 }

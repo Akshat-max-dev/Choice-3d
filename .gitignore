@@ -9,3 +9,6 @@
 **/bin/
 
 Choice/assets/cache
+.choiceeditorconfig
+gltf.bat
+imgui.ini

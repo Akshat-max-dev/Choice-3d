@@ -1,7 +1,7 @@
 #source vertex
 #version 450 core
 
-out vec2 vTexCoords;
+layout(location = 0)out vec2 vTexCoords;
 
 void main()
 {
@@ -17,53 +17,22 @@ void main()
 #source fragment
 #version 450 core
 
-out vec4 lResult;
+layout(location = 0)out vec4 lResult;
 
-in vec2 vTexCoords;
+layout(location = 0)in vec2 vTexCoords;
 
-struct GBuffer
-{
-	sampler2D Position;
-	sampler2D Normal;
-	sampler2D AlbedoS;
-	sampler2D RoughMetalAo;
-};
+layout(binding = 0)uniform sampler2D       lPosition;
+layout(binding = 1)uniform sampler2D       lNormal;
+layout(binding = 2)uniform sampler2D       lAlbedoS;
+layout(binding = 3)uniform sampler2D       lRoughMetalAo;
+layout(binding = 4)uniform sampler2DShadow lShadowMap;
+layout(binding = 5)uniform samplerCube 	   lIrradianceMap;
+layout(binding = 6)uniform samplerCube     lPreFilterMap;
+layout(binding = 7)uniform sampler2D 	   lBRDFLookup;
 
-uniform GBuffer lGBuffer;
+from Structures.glsl include struct DirectionalLight,struct PointLight;
 
-struct IBL
-{
-    samplerCube IrradianceMap;
-    samplerCube PreFilterMap;
-    sampler2D   BRDFLookup;
-};
-
-uniform IBL lIBL;
-
-struct DirectionalLight
-{
-	vec3 Direction;
-	vec3 Diffuse;
-	vec3 Specular;
-};
-
-struct PointLight
-{
-	vec3 Position;
-	vec3 Diffuse;
-	vec3 Specular;
-	
-	float Radius;
-};
-
-uniform DirectionalLight ldLights[8];
-uniform PointLight       lpLights[32];
-uniform vec3 lViewpos;
-uniform int ldLightsActive;
-uniform int lpLightsActive;
-
-uniform mat4 uLightViewProjection;
-uniform sampler2DShadow lShadowMap;
+from UniformBuffers.glsl include uniform Lights;
 
 float CalculateShadows(vec4 fragPosLightSpace)
 {
@@ -174,14 +143,12 @@ vec3 CalculateLo(vec3 L, vec3 N, vec3 V, vec3 Ra, vec3 F0, float R, float M, vec
 
 void main()
 {
-	vec3 FragPos	= texture(lGBuffer.Position, vTexCoords).rgb;
-	vec3 N			= texture(lGBuffer.Normal, vTexCoords).rgb;
-	vec3 Albedo		= texture(lGBuffer.AlbedoS, vTexCoords).rgb;
-	float Roughness = texture(lGBuffer.RoughMetalAo, vTexCoords).r;
-	float Metallic  = texture(lGBuffer.RoughMetalAo, vTexCoords).g;
-	float AO		= texture(lGBuffer.RoughMetalAo, vTexCoords).b;
-
-	vec4 FragPosLightSpace = uLightViewProjection * vec4(FragPos, 1.0);
+	vec3 FragPos	= texture(lPosition, vTexCoords).rgb;
+	vec3 N			= texture(lNormal, vTexCoords).rgb;
+	vec3 Albedo		= texture(lAlbedoS, vTexCoords).rgb;
+	float Roughness = texture(lRoughMetalAo, vTexCoords).r;
+	float Metallic  = texture(lRoughMetalAo, vTexCoords).g;
+	float AO		= texture(lRoughMetalAo, vTexCoords).b;
 
 	N = normalize(N);
 
@@ -195,7 +162,9 @@ void main()
 
 	for(int i = 0; i < ldLightsActive; i++)
 	{
-		Lo += CalculateLo(-ldLights[i].Direction, N, V, ldLights[i].Diffuse, F0, Roughness, Metallic, Albedo);
+		Lo += CalculateLo(-ldLights[i].Direction, N, V, ldLights[i].Color, F0, Roughness, Metallic, Albedo);
+		
+		vec4 FragPosLightSpace = ldLights[i].LightVP * vec4(FragPos, 1.0);
 		Lo = Lo * CalculateShadows(FragPosLightSpace);
 	}
 
@@ -204,7 +173,7 @@ void main()
 		vec3 L = normalize(lpLights[i].Position - FragPos);
 		float distance = length(lpLights[i].Position - FragPos);
 		float attenuation = 1.0/(distance * distance);
-		vec3 Ra = lpLights[i].Diffuse * attenuation;
+		vec3 Ra = lpLights[i].Color * attenuation;
 		Lo += CalculateLo(L, N, V, Ra, F0, Roughness, Metallic, Albedo);
 	}
 	
@@ -214,12 +183,12 @@ void main()
 	vec3 Kd = 1.0 - Ks;
 	Kd *= 1.0 - Metallic;
 	
-	vec3 Irradiance = texture(lIBL.IrradianceMap, N).rgb;
+	vec3 Irradiance = texture(lIrradianceMap, N).rgb;
 	vec3 Diffuse    = Irradiance * Albedo;
 
 	const float MAX_REFLECTION_LOD = 4.0;
-    vec3 PreFilteredColor = textureLod(lIBL.PreFilterMap, R, Roughness * MAX_REFLECTION_LOD).rgb;    
-    vec2 BRDF  = texture(lIBL.BRDFLookup, vec2(max(dot(N, V), 0.0), Roughness)).rg;
+    vec3 PreFilteredColor = textureLod(lPreFilterMap, R, Roughness * MAX_REFLECTION_LOD).rgb;    
+    vec2 BRDF  = texture(lBRDFLookup, vec2(max(dot(N, V), 0.0), Roughness)).rg;
     vec3 Specular = PreFilteredColor * (F * BRDF.x + BRDF.y);
 
 	vec3 Ambient = (Kd * Diffuse + Specular) * AO;

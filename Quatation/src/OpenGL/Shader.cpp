@@ -1,19 +1,66 @@
 #include "Shader.h"
 
 #include <glad/glad.h>
+#include <shaderc/shaderc.hpp>
+#include <spirv_cross.hpp>
+#include <spirv_glsl.hpp>
 
 namespace choice
 {
-	GLenum getTypeFromString(const std::string& t)
+	GLenum getTypeFromString(const std::string& t)	
 	{
 		if (t == "vertex") { return GL_VERTEX_SHADER; }
 		else if (t == "fragment") { return GL_FRAGMENT_SHADER; }
 		else choiceassert(0); return GL_NONE;
 	}
 
+	shaderc_shader_kind getshadercFromShaderStage(GLenum stage)
+	{
+		switch (stage)
+		{
+		case GL_VERTEX_SHADER: return shaderc_glsl_vertex_shader;
+		case GL_FRAGMENT_SHADER: return shaderc_glsl_fragment_shader;
+		}
+		choiceassert(0);
+		return (shaderc_shader_kind)0;
+	}
+
+	const char* CachedOpenGLShaderStageExtension(GLenum stage)
+	{
+		switch (stage)
+		{
+		case GL_VERTEX_SHADER:    return ".cached_opengl.vert";
+		case GL_FRAGMENT_SHADER:  return ".cached_opengl.frag";
+		}
+		choiceassert(0);
+		return "";
+	}
+
+	const char* GetCachedDirectory()
+	{
+		return "Choice/assets/cache/opengl";
+	}
+
+	void CreateCacheDirectory()
+	{
+		if (!ghc::filesystem::exists("Choice/assets/cache"))
+			ghc::filesystem::create_directory("Choice/assets/cache");
+
+		auto dir = GetCachedDirectory();
+
+		if (!ghc::filesystem::exists(dir))
+			ghc::filesystem::create_directory(dir);
+	} 
+
+	Shader::Shader(const std::string& shader, ReflectionData& data)
+	{
+		CreateProgram(shader);
+		Reflect(data);
+	}
+
 	Shader::Shader(const std::string& shader)
 	{
-		Load(shader);
+		CreateProgram(shader);
 	}
 
 	Shader::~Shader()
@@ -68,71 +115,200 @@ namespace choice
 		glUniformMatrix4fv(location, 1, GL_FALSE, glm::value_ptr(data));
 	}
 
-	void Shader::Load(const std::string& shaderfile)
+	std::vector<std::string> GLSLInclude(const std::string& line, const std::string& dir)
 	{
-		std::ifstream file(shaderfile, std::ios::in);
+		std::string tolocate = "include";
+		size_t tolocatesize = tolocate.size();
 
-		if (file.fail() || file.bad())
+		std::vector<std::string> result;
+
+		if (line.find(tolocate) != std::string::npos)
 		{
-			std::cout << "Cannot Open " + shaderfile.substr(0, shaderfile.find_last_of('/') + 1) << std::endl;
-			return;
+			//extract include file name from the line
+			std::string includefilename = line.substr(0, line.find(tolocate) - 1);
+
+			//Get Structs Name To Inlclude
+			std::string includes = line.substr(line.find(tolocate) + tolocatesize + 1, line.find(';'));
+			includes.erase(includes.find(';'));
+
+			std::stringstream ss(includes);
+
+			std::vector<std::string> includesname; //names of structs to include
+			while (ss.good())
+			{
+				std::string include_name;
+				getline(ss, include_name, ',');
+				includesname.push_back(include_name);
+			}
+
+			result.resize(includesname.size());
+
+			//read includes from the given file
+			std::ifstream includefile(dir + includefilename, std::ios::in);
+
+			if (includefile.is_open())
+			{
+				std::string line;
+				bool nowReading = false;
+
+				for (uint32_t i = 0; i < includesname.size(); i++)
+				{
+					while (getline(includefile, line))
+					{
+						if (line.find(includesname[i]) != std::string::npos) //read the (struct/buffer/function Name) line 
+						{
+							line += "\n";
+							result[i] += line;
+							nowReading = true;
+						}
+						else if (line.find("};") != std::string::npos || line.find("}") != std::string::npos) //break if the struct/function is completely saved
+						{
+							if (nowReading)
+							{
+								line += "\n";
+								result[i] += line;
+								nowReading = false;
+								
+								includefile.seekg(0);
+								break;
+							}
+						}
+						else //get struct data
+						{
+							if (nowReading)
+							{
+								line += "\n";
+								result[i] += line;
+							}
+						}
+					}
+				}
+
+				includefile.close();
+			}
 		}
 
-		std::map<GLenum, std::string> Data;
+		return result;
+	}
+
+
+	void Shader::Read(const std::string& shader)
+	{
+		std::ifstream file(shader, std::ios::in);
+
+		if (file.fail())
+		{
+			std::cout << "Cannot Open " + shader.substr(0, shader.find_last_of('/') + 1) << std::endl;
+			choiceassert(0);
+		}
+
 		std::string line;
 
 		std::string tolocate = "#source";
 		auto sizeoftolocate = tolocate.size();
 
+		std::string includeline = "from";
+		auto sizeofincludeline = includeline.size();
+
 		GLenum readingcurrent = GL_NONE;
+
+		std::vector<std::string> includes;
 
 		while (getline(file, line))
 		{
 			if (line.find(tolocate) != std::string::npos)
 			{
 				readingcurrent = getTypeFromString(line.substr(sizeoftolocate + 1, line.size() - 1));
-				Data.insert({ readingcurrent, "" });
+				mShaderSource.insert({ readingcurrent, "" });
+			}
+			else if (line.find(includeline) != std::string::npos)
+			{
+				includes = GLSLInclude(line.substr(sizeofincludeline + 1, line.size()),
+					shader.substr(0, shader.find_last_of('/') + 1));
+
+				auto it = mShaderSource.find(readingcurrent);
+				for (auto& include : includes)
+				{
+					it->second += include;
+				}
 			}
 			else
 			{
-				auto it = Data.find(readingcurrent);
+				auto it = mShaderSource.find(readingcurrent);
 				line += "\n";
 				it->second += line;
 			}
 		}
 
 		file.close();
+	}
+
+	void Shader::CreateProgram(const std::string& shader)
+	{
+		CreateCacheDirectory(); //Creates a SPIR-V Cache Directory If Not Exists
+
+		std::string cacheDirectory = GetCachedDirectory();
+		
+		Read(shader);
+
+		for (auto&& [stage, source] : mShaderSource)
+		{
+			auto& cachedShaderStagePath = cacheDirectory + '/' + ghc::filesystem::path(shader).filename().string() +
+				CachedOpenGLShaderStageExtension(stage);
+
+			if (ghc::filesystem::exists(cachedShaderStagePath))
+			{
+				std::ifstream spv(cachedShaderStagePath, std::ios::in | std::ios::binary);
+
+				spv.seekg(0, std::ios::end);
+				auto size = spv.tellg();
+				spv.seekg(0, std::ios::beg);
+
+				auto& data = mOpenGLSPV[stage];
+				data.resize(size / sizeof(uint32_t));
+				spv.read((char*)data.data(), size);
+
+				spv.close();
+			}
+			else
+			{
+				shaderc::Compiler compiler;
+				shaderc::CompileOptions options;
+				options.SetTargetEnvironment(shaderc_target_env_opengl, shaderc_env_version_opengl_4_5);
+
+				shaderc::SpvCompilationResult spv = compiler.CompileGlslToSpv(source,
+					getshadercFromShaderStage(stage), shader.c_str(), options);
+
+				std::cout << source << std::endl;
+
+				if (spv.GetCompilationStatus() != shaderc_compilation_status_success)
+				{
+					std::cout << spv.GetErrorMessage() << std::endl;
+					choiceassert(0);
+				}
+
+				mOpenGLSPV[stage] = std::vector<uint32_t>(spv.cbegin(), spv.cend());
+
+				std::ofstream outspv(cachedShaderStagePath, std::ios::out | std::ios::binary);
+				if (outspv.is_open())
+				{
+					auto& data = mOpenGLSPV[stage];
+					outspv.write((char*)data.data(), data.size() * sizeof(uint32_t));
+					outspv.close();
+				}
+			}
+		}
 
 		uint32_t program = glCreateProgram();
-		std::vector<uint32_t> shaders(Data.size());
-		int shadercount = 0;
-		for (auto& shader : Data)
+		std::vector<uint32_t> shadersIds;
+
+		for (auto&& [stage, spv] : mOpenGLSPV)
 		{
-			uint32_t Id = glCreateShader(shader.first);
-			const char* src = shader.second.c_str();
-			glShaderSource(Id, 1, &src, 0);
-			glCompileShader(Id);
-
-			int isCompiled;
-			glGetShaderiv(Id, GL_COMPILE_STATUS, &isCompiled);
-			if (isCompiled == GL_FALSE)
-			{
-				int maxLength = 0;
-				glGetShaderiv(Id, GL_INFO_LOG_LENGTH, &maxLength);
-
-				std::vector<char> infoLog(maxLength);
-				glGetShaderInfoLog(Id, maxLength, &maxLength, &infoLog[0]);
-
-				glDeleteShader(Id);
-
-				std::cout << "Failed To Compile Shader " + ghc::filesystem::path(shaderfile).stem().string() << std::endl;
-				std::cout << infoLog.data() << std::endl;
-				choiceassert(0);
-			}
-
-			glAttachShader(program, Id);
-
-			shaders[shadercount++] = Id;
+			uint32_t shaderId = glCreateShader(stage);
+			glShaderBinary(1, &shaderId, GL_SHADER_BINARY_FORMAT_SPIR_V, spv.data(), spv.size() * sizeof(uint32_t));
+			glSpecializeShader(shaderId, "main", 0, nullptr, nullptr);
+			glAttachShader(program, shaderId);
+			shadersIds.push_back(shaderId);
 		}
 
 		glLinkProgram(program);
@@ -147,25 +323,96 @@ namespace choice
 			std::vector<char> infoLog(maxLength);
 			glGetProgramInfoLog(program, maxLength, &maxLength, &infoLog[0]);
 
-			glDeleteProgram(program);
-
-			for (auto& shader : shaders)
+			for (auto& shaderId : shadersIds)
 			{
-				glDetachShader(program, shader);
-				glDeleteShader(shader);
+				glDetachShader(program, shaderId);
+				glDeleteShader(shaderId);
 			}
+
+			glDeleteProgram(program);
 
 			std::cout << "Program Linking Failed" << std::endl;
 			return;
 		}
 
-		for (auto& shader : shaders)
+		for (auto& shaderId : shadersIds)
 		{
-			glDetachShader(program, shader);
-			glDeleteShader(shader);
+			glDetachShader(program, shaderId);
+			glDeleteShader(shaderId);
 		}
 
 		mProgram = program;
+	}
+
+	void Shader::Reflect(ReflectionData& data)
+	{
+		for (auto&& [stage, spv] : mOpenGLSPV)
+		{
+			spirv_cross::Compiler compiler(spv);
+			spirv_cross::ShaderResources resources = compiler.get_shader_resources();
+
+			for (const auto& resource : resources.sampled_images)
+			{
+				uint32_t binding = compiler.get_decoration(resource.id, spv::DecorationBinding);
+				std::string name = resource.name;
+				if (data.Samplers.find(name) == data.Samplers.end())
+				{
+					data.Samplers.insert({ name, binding });
+				}
+			}
+
+			for (const auto& resource : resources.separate_samplers)
+			{
+				uint32_t binding = compiler.get_decoration(resource.id, spv::DecorationBinding);
+				std::string name = resource.name;
+				if (data.Samplers.find(name) == data.Samplers.end())
+				{
+					data.Samplers.insert({ name, binding });
+				}
+			}
+
+			for (const auto& resource : resources.uniform_buffers)
+			{
+				const auto& bufferType = compiler.get_type(resource.base_type_id);
+				uint32_t bufferSize = compiler.get_declared_struct_size(bufferType);
+				uint32_t binding = compiler.get_decoration(resource.id, spv::DecorationBinding);
+				int membercount = bufferType.member_types.size();
+				std::string buffername = compiler.get_name(bufferType.self);
+
+				if (data.UniformBuffers.find(buffername) == data.UniformBuffers.end())
+				{
+					std::map<std::string, UniformBufferMember*> layout;
+
+					for (int i = 0; i < membercount; i++)
+					{
+						const auto& memberType = compiler.get_type(bufferType.member_types[i]);
+
+						std::string membername = buffername + '.' + compiler.get_member_name(bufferType.self, i);
+						if (layout.find(membername) == layout.end())
+						{
+							UniformBufferMember* member = new UniformBufferMember();
+							member->size = compiler.get_declared_struct_member_size(bufferType, i);
+							member->offset = compiler.type_struct_member_offset(bufferType, i);
+							layout.insert({ membername, member });
+						}
+					}
+
+					UniformBuffer* buffer = new UniformBuffer(bufferSize, binding, layout, buffername);
+					data.UniformBuffers.insert({ buffername, buffer });
+				}
+			}
+		}
+
+		mOpenGLSPV.clear();
+	}
+
+	ReflectionData::~ReflectionData()
+	{
+		for (auto& buffer : UniformBuffers)
+		{
+			if (buffer.second) { delete buffer.second; }
+		}
+		Samplers.clear();
 	}
 
 }

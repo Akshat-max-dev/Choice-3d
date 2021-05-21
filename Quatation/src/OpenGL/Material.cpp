@@ -113,11 +113,10 @@ namespace choice
 
 	Material::~Material()
 	{
-		if (DiffuseMap) { delete DiffuseMap; }
-		if (NormalMap) { delete NormalMap; }
-		if (RoughnessMap) { delete RoughnessMap; }
-		if (MetallicMap) { delete MetallicMap; }
-		if (AOMap) { delete AOMap; }
+		for (auto& texturemap : TextureMaps)
+		{
+			if (texturemap.second) { delete texturemap.second; }
+		}
 	}
 
 	TextureMap::~TextureMap()

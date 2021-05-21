@@ -3,25 +3,24 @@
 
 layout(location = 0)in vec3 aPosition;
 
-out vec3 vWorldPos;
+layout(location = 0)out vec3 vWorldPos;
 
-uniform mat4 uProjection;
-uniform mat4 uView;
+from UniformBuffers.glsl include uniform Camera;
 
 void main()
 {
 	vWorldPos = aPosition;
-	gl_Position = (uProjection * uView * vec4(aPosition, 1.0)).xyww;
+	gl_Position = (uViewProjection * vec4(aPosition, 1.0)).xyww;
 }
 
 #source fragment
 #version 450 core
 
-out vec4 fColor;
+layout(location = 0)out vec4 fColor;
 
-in vec3 vWorldPos;
+layout(location = 0)in vec3 vWorldPos;
 
-uniform samplerCube hdrSkybox;
+layout(binding = 0)uniform samplerCube hdrSkybox;
 
 void main()
 {

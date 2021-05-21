@@ -23,9 +23,23 @@ namespace choice
 		virtual std::vector<glm::mat4> ViewProjection(BoundingBox* box) = 0;
 	};
 
+	struct DirectionalLightData
+	{
+		glm::vec3 Direction;
+		glm::vec3 Color;
+		glm::mat4 LightVP;
+	};
+
 	struct DirectionalLight :public Light
 	{
 		std::vector<glm::mat4> ViewProjection(BoundingBox* sceneaabb)override;
+	};
+
+	struct PointLightData
+	{
+		glm::vec3 Position;
+		glm::vec3 Color;
+		float Radius;
 	};
 
 	struct PointLight :public Light

@@ -21,7 +21,7 @@ namespace choice
 	protected:
 		void Destroy();
 		virtual void Invalidate() = 0;
-		uint32_t mRendererId;
+		uint32_t mRendererId = 0;
 		uint32_t mWidth, mHeight;
 	};
 }

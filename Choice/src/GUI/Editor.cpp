@@ -60,10 +60,11 @@ namespace choice
 
 	Editor::~Editor()
 	{
-		//Write down the active project And Camera Data
-		std::ofstream o(".choiceeditorconfig", std::ios::out | std::ios::binary);
 		if (mActiveProject)
 		{
+			//Write down the active project And Camera Data
+			std::ofstream o(".choiceeditorconfig", std::ios::out | std::ios::binary);
+
 			std::string cproj = mActiveProject->Directory() + "\\" + mActiveProject->Name() + "\\" + mActiveProject->Name() + ".cproj";
 			Binary::Write<std::string>(o, cproj);
 
@@ -78,8 +79,9 @@ namespace choice
 
 			t = mCamera->Right();
 			Binary::Write<glm::vec3>(o, t);
+
+			o.close();
 		}
-		o.close();
 
 		delete mCamera;
 		delete mSceneHierarchy;

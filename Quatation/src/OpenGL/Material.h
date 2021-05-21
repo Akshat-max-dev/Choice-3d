@@ -6,27 +6,27 @@
 
 namespace choice
 {
+	enum class TEXTURE_MAP_TYPE
+	{
+		ALBEDO = 0, NORMAL = 1, SPECULAR = 2, ROUGHNESS = 3, METALLIC = 4, AMBIENT_OCCLUSION = 5
+	};
+
 	struct TextureMap
 	{
-		std::string Name;
-		bool Show = true;
+		std::string name;
+		bool showMap = true;
 		Texture2D* texture;
-
 		~TextureMap();
 	};
 
 	struct Material
 	{
 		std::string Name;
-		TextureMap* DiffuseMap;
-		TextureMap* NormalMap;
-		TextureMap* RoughnessMap;
-		TextureMap* MetallicMap;
-		TextureMap* AOMap;
+		std::map<TEXTURE_MAP_TYPE, TextureMap*> TextureMaps;
+
+		glm::vec4 Diffuse = { 1.0f, 1.0f, 1.0f, 1.0f };
 		float Roughness = 0.0f;
 		float Metallic = 0.0f;
-		float Ao = 1.0f;
-		glm::vec4 Color = { 1.0f, 1.0f, 1.0f, 1.0f };
 		~Material();
 	};
 

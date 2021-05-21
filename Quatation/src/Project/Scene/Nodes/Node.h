@@ -18,8 +18,10 @@ namespace choice
 		std::vector<Node*> Children;
 		Transform* NodeTransform;
 		glm::mat4 WorldTransform;
-		
+
 		Node();
 		~Node();
 	};
+
+	void IterateNodes(Node* node, const std::function<void(Node*)>& func);
 }

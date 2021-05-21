@@ -3,10 +3,9 @@
 
 layout(location = 0)in vec3 aPosition;
 
-out vec3 vWorldPos;
+layout(location = 0)out vec3 vWorldPos;
 
-uniform mat4 uProjection;
-uniform mat4 uView;
+from UniformBuffers.glsl include uniform Capture;
 
 void main()
 {
@@ -17,11 +16,11 @@ void main()
 #source fragment
 #version 450 core
 
-out vec4 fColor;
+layout(location = 0)out vec4 fColor;
 
-in vec3 vWorldPos;
+layout(location = 0)in vec3 vWorldPos;
 
-uniform sampler2D hdrMap;
+layout(binding = 0)uniform sampler2D hdrMap;
 
 const vec2 invAtan = vec2(0.1591, 0.3183);
 vec2 SampleMap(vec3 v)

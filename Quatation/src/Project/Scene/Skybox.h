@@ -14,9 +14,9 @@ namespace choice
 		Skybox(const std::string& skybox);
 		~Skybox();
 
-		void BindIBL(glm::uvec3 slots)const;
+		void BindIBL(glm::uvec3 slots);
 
-		void Draw(Camera* camera);
+		void Draw(Camera* camera, UniformBuffer* camerabuffer);
 		const std::string& GetFilepath()const { return mFilepath; }
 	private:
 		Mesh* mCube;
@@ -28,5 +28,6 @@ namespace choice
 		TextureCubemap* mIrradianceConvolution;
 		TextureCubemap* mPreFilterCubemap;
 		Texture2D* mBRDFLookup;
+		bool mBindIBL = true;
 	};
 }

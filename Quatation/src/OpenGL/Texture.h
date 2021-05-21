@@ -17,7 +17,10 @@ namespace choice
 	{
 	public:
 		const uint32_t& GetId()const { return mRendererId; }
-		virtual void Bind(uint32_t slot)const {}
+		virtual void Bind(uint32_t slot)const 
+		{
+			glBindTextureUnit(slot, mRendererId);
+		}
 	protected:
 		void Destroy() { glDeleteTextures(1, &mRendererId); }
 		uint32_t mRendererId;
@@ -36,12 +39,6 @@ namespace choice
 	public:
 		Texture2D(uint32_t id) { mRendererId = id; }
 		~Texture2D() { Texture::Destroy(); }
-
-		void Bind(uint32_t slot)const override
-		{
-			glActiveTexture(GL_TEXTURE0 + slot);
-			glBindTexture(GL_TEXTURE_2D, mRendererId);
-		}
 	};
 
 	const std::vector<uint32_t> LoadTextureCubemap(const std::string& hdrmap);
@@ -51,11 +48,5 @@ namespace choice
 	public:
 		TextureCubemap(uint32_t id) { mRendererId = id; }
 		~TextureCubemap() { Texture::Destroy(); }
-
-		void Bind(uint32_t slot)const override
-		{
-			glActiveTexture(GL_TEXTURE0 + slot);
-			glBindTexture(GL_TEXTURE_CUBE_MAP, mRendererId);
-		}
 	};
 }

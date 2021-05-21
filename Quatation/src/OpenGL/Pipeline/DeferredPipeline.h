@@ -66,9 +66,11 @@ namespace choice
 		const uint32_t& Capture()const override;
 		void Shutdown()override;
 	private:
-		std::pair<ShadowMapCapture*, Shader*> mShadowMapPass;;
+		std::pair<ShadowMapCapture*, Shader*> mShadowMapPass;
 		std::pair<DeferredGeometryCapture*, Shader*> mGeometryPass;
-		Shader* mOutline;
+		Shader* mColor;
 		std::pair<DeferredLightingCapture*, Shader*> mLightingPass;
+
+		ReflectionData mReflectionData;
 	};
 }
