@@ -73,48 +73,6 @@ namespace choice
 		glUseProgram(mProgram);
 	}
 
-	void Shader::Int(const char* name, const int data)
-	{
-		GLint location = glGetUniformLocation(mProgram, name);
-		glUniform1i(location, data);
-	}
-
-	void Shader::UInt(const char* name, const uint32_t data)
-	{
-		GLint location = glGetUniformLocation(mProgram, name);
-		glUniform1ui(location, data);
-	}
-
-	void Shader::Float(const char* name, const float data)
-	{
-		GLint location = glGetUniformLocation(mProgram, name);
-		glUniform1f(location, data);
-	}
-
-	void Shader::Float2(const char* name, const glm::vec2& data)
-	{
-		GLint location = glGetUniformLocation(mProgram, name);
-		glUniform2f(location, data.x, data.y);
-	}
-
-	void Shader::Float3(const char* name, const glm::vec3& data)
-	{
-		GLint location = glGetUniformLocation(mProgram, name);
-		glUniform3f(location, data.x, data.y, data.z);
-	}
-
-	void Shader::Float4(const char* name, const glm::vec4& data)
-	{
-		GLint location = glGetUniformLocation(mProgram, name);
-		glUniform4f(location, data.x, data.y, data.z, data.w);
-	}
-
-	void Shader::Mat4(const char* name, const glm::mat4& data)
-	{
-		GLint location = glGetUniformLocation(mProgram, name);
-		glUniformMatrix4fv(location, 1, GL_FALSE, glm::value_ptr(data));
-	}
-
 	std::vector<std::string> GLSLInclude(const std::string& line, const std::string& dir)
 	{
 		std::string tolocate = "include";
@@ -381,23 +339,56 @@ namespace choice
 
 				if (data.UniformBuffers.find(buffername) == data.UniformBuffers.end())
 				{
-					std::map<std::string, UniformBufferMember*> layout;
+					UniformBufferLayout layout;
 
 					for (int i = 0; i < membercount; i++)
 					{
 						const auto& memberType = compiler.get_type(bufferType.member_types[i]);
-
 						std::string membername = buffername + '.' + compiler.get_member_name(bufferType.self, i);
-						if (layout.find(membername) == layout.end())
+
+						//If Member Is A Struct Store All Struct Member Data In Buffer Layout
+						if (memberType.basetype == spirv_cross::SPIRType::Struct) 
 						{
-							UniformBufferMember* member = new UniformBufferMember();
-							member->size = compiler.get_declared_struct_member_size(bufferType, i);
-							member->offset = compiler.type_struct_member_offset(bufferType, i);
-							layout.insert({ membername, member });
+							int structmembercount = memberType.member_types.size();
+							for (int m = 0; m < structmembercount; m++)
+							{
+								std::string name = membername + "." + compiler.get_member_name(memberType.self, m);
+								if (layout.find(name) == layout.end())
+								{
+									UniformBufferMember* member = new UniformBufferMember();
+									member->size = compiler.get_declared_struct_member_size(memberType, m);
+									member->offset = compiler.type_struct_member_offset(memberType, m);
+									layout.insert({ name, member });
+								}
+							}
+						}
+
+						uint32_t arraysize = 1;
+						if (memberType.array.size())
+						{
+							arraysize = memberType.array[0];
+						}
+						uint32_t size = compiler.get_declared_struct_member_size(bufferType, i) / arraysize;
+						uint32_t offset = compiler.type_struct_member_offset(bufferType, i);
+
+						for (uint32_t i = 0; i < arraysize; i++)
+						{
+							if (memberType.array.size())
+							{
+								membername += "[" + std::to_string(i) + "]";
+							}
+
+							if (layout.find(membername) == layout.end())
+							{
+								UniformBufferMember* member = new UniformBufferMember();
+								member->size = size;
+								member->offset = offset + (size * i);
+								layout.insert({ membername, member });
+							}
 						}
 					}
 
-					UniformBuffer* buffer = new UniformBuffer(bufferSize, binding, layout, buffername);
+					UniformBuffer* buffer = new UniformBuffer(buffername, binding, bufferSize, layout);;
 					data.UniformBuffers.insert({ buffername, buffer });
 				}
 			}

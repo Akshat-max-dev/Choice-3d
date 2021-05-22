@@ -70,7 +70,5 @@ namespace choice
 		std::pair<DeferredGeometryCapture*, Shader*> mGeometryPass;
 		Shader* mColor;
 		std::pair<DeferredLightingCapture*, Shader*> mLightingPass;
-
-		ReflectionData mReflectionData;
 	};
 }

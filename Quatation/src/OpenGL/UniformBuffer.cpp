@@ -6,46 +6,25 @@ namespace choice
 {
 	static std::unordered_map<uint32_t, std::string> BindingCache;
 
-	UniformBuffer::UniformBuffer(uint32_t size, uint32_t binding,
-		const std::map<std::string, UniformBufferMember*> layout, const std::string& bufferName)
-		:mBufferLayout(layout), mBinding(binding)
+	UniformBuffer::UniformBuffer(const std::string& name, uint32_t binding,
+		uint32_t size, UniformBufferLayout layout)
+		:mName(name), mBinding(binding), mSize(size), mBufferLayout(layout)
 	{
 		glCreateBuffers(1, &mRendererId);
 		glNamedBufferData(mRendererId, size, nullptr, GL_DYNAMIC_DRAW);
 		glBindBufferBase(GL_UNIFORM_BUFFER, mBinding, mRendererId);
 
 		if (BindingCache.find(mBinding) != BindingCache.end())
-		{
-			BindingCache[mBinding] = bufferName;
-		}
+			BindingCache[mBinding] = mName;
 		else
-		{
-			BindingCache.insert({ mBinding, bufferName });
-		}
+			BindingCache.insert({ mBinding, mName });
 	}
 
 	UniformBuffer::~UniformBuffer()
 	{
-		glDeleteBuffers(1, &mRendererId);
-		for (auto& bufferlayout : mBufferLayout)
+		for (auto&& [name, member] : mBufferLayout)
 		{
-			if (bufferlayout.second) { delete bufferlayout.second; }
-		}
-	}
-
-	void UniformBuffer::SetDataArray(const char* membername, const void* data, uint32_t index)
-	{
-		if (mBufferLayout.find(membername) != mBufferLayout.end())
-		{
-			const auto* member = mBufferLayout[membername];
-			if (!strstr(membername, BindingCache[mBinding].c_str()))
-			{
-				glBindBufferBase(GL_UNIFORM_BUFFER, mBinding, mRendererId);
-				std::string temp = membername;
-				BindingCache[mBinding] = temp.substr(0, temp.find_last_of('.'));
-			}
-			uint32_t offset = (member->size * index) + member->offset;
-			glNamedBufferSubData(mRendererId, offset, member->size, data);
+			if (member) { delete member; }
 		}
 	}
 
@@ -53,14 +32,24 @@ namespace choice
 	{
 		if (mBufferLayout.find(membername) != mBufferLayout.end())
 		{
+			BindBufferBase();
 			const auto* member = mBufferLayout[membername];
-			if (!strstr(membername, BindingCache[mBinding].c_str()))
-			{
-				glBindBufferBase(GL_UNIFORM_BUFFER, mBinding, mRendererId);
-				std::string temp = membername;
-				BindingCache[mBinding] = temp.substr(0, temp.find_last_of('.'));
-			}
 			glNamedBufferSubData(mRendererId, member->offset, member->size, data);
 		}
+	}
+
+	void UniformBuffer::SetData(const std::vector<char>& data)
+	{
+		if (data.size() == mSize)
+		{
+			BindBufferBase();
+			glNamedBufferSubData(mRendererId, 0, data.size(), (const void*)data.data());
+		}
+	}
+
+	void UniformBuffer::BindBufferBase()
+	{
+		if (mName != BindingCache[mBinding])
+			glBindBufferBase(GL_UNIFORM_BUFFER, mBinding, mRendererId);
 	}
 }

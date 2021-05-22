@@ -14,7 +14,6 @@ namespace choice
 	struct TextureMap
 	{
 		std::string name;
-		bool showMap = true;
 		Texture2D* texture;
 		~TextureMap();
 	};
@@ -23,21 +22,9 @@ namespace choice
 	{
 		std::string Name;
 		std::map<TEXTURE_MAP_TYPE, TextureMap*> TextureMaps;
+		std::vector<char> Data;
 
-		glm::vec4 Diffuse = { 1.0f, 1.0f, 1.0f, 1.0f };
-		float Roughness = 0.0f;
-		float Metallic = 0.0f;
+		Material();
 		~Material();
 	};
-
-	/*
-	//Load Materials From Saved Files In Engine Format
-	void LoadMaterials(std::ifstream& from, std::vector<Material*>& materials);
-
-	//Load Materials Data
-	bool LoadMaterialsData(std::ifstream& from, Texture2DData* data);
-
-	//Save Materials Data
-	void SaveMaterialsData(std::ofstream& to, Texture2DData* data);
-	*/
 }

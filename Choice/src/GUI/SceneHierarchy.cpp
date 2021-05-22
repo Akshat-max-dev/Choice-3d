@@ -36,7 +36,10 @@ namespace choice
 	{
 		if (node)
 		{
-			if (ImGui::TreeNodeEx(node->Name.c_str(), ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick))
+			std::string icon = ICON_FK_CUBE;
+			if (node->node_data_type == NODE_DATA_TYPE::LIGHT) { icon = ICON_FK_LIGHTBULB_O; }
+
+			if (ImGui::TreeNodeEx((icon + " " + node->Name).c_str(), ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick))
 			{
 				if (ImGui::IsItemClicked())
 				{
@@ -45,10 +48,20 @@ namespace choice
 
 				if (ImGui::BeginPopupContextItem())
 				{
-					if (ImGui::MenuItem("Sphere"))
+					if (ImGui::BeginMenu("Add Child"))
 					{
-						node->Children.push_back(Sphere());
-						node->Children[node->Children.size() - 1]->Parent = node;
+						if (ImGui::MenuItem("Cube"))
+						{
+							node->Children.push_back(Cube());
+							node->Children[node->Children.size() - 1]->Parent = node;
+						}
+
+						if (ImGui::MenuItem("Sphere"))
+						{
+							node->Children.push_back(Sphere());
+							node->Children[node->Children.size() - 1]->Parent = node;
+						}
+						ImGui::EndMenu();
 					}
 					ImGui::EndPopup();
 				}

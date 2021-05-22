@@ -200,19 +200,25 @@ namespace choice
 					}
 					mReflectionData.UniformBuffers["Transform"]->SetData("Transform.uTransform", &mesh->WorldTransform);
 					
-					for (auto& primitive : mesh->primitives)
-					{					
-						DrawPrimitive(primitive, mesh->mesh_type);
-					}
-
 					auto* materialBuffer = mReflectionData.UniformBuffers["Material"];
 
-					glm::vec4 c = { 1.0f, 0.2f, 0.3f, 1.0f };
-					float r = 1.0f;
-					float m = 0.0f;
-					materialBuffer->SetData("Material.Color", &c);
-					materialBuffer->SetData("Material.Roughness", &r);
-					materialBuffer->SetData("Material.Metallic", &m);
+					for (auto& primitive : mesh->primitives)
+					{	
+						//Set Material Data Size If 0
+						if (!primitive->material->Data.size())
+						{
+							primitive->material->Data.resize(materialBuffer->GetBufferSize());
+
+							//Set Mesh Default Color As White
+							auto* colordata = materialBuffer->MemberData<glm::vec4>("Material.Color", primitive->material->Data);
+							glm::vec4 color = glm::vec4(1.0f);
+							*colordata = color;
+						}
+
+						materialBuffer->SetData(primitive->material->Data);
+
+						DrawPrimitive(primitive, mesh->mesh_type);
+					}
 
 					//Calculating Scene AABB
 					glm::vec4 min = mesh->NodeTransform->GetTransform() *
@@ -285,6 +291,15 @@ namespace choice
 		glStencilMask(0x00);
 		glDisable(GL_DEPTH_TEST);
 
+		//Bind All Textures To Be Used In Lighting Pass
+		auto& samplers = mReflectionData.Samplers;
+
+		uint32_t slots[] = { samplers["lPosition"], samplers["lNormal"],
+										 samplers["lAlbedoS"], samplers["lRoughMetalAo"] };
+		mGeometryPass.first->BindGBuffer(slots);
+		scene->GetSkybox()->BindIBL({ samplers["lIrradianceMap"], samplers["lPreFilterMap"], samplers["lBRDFLookup"] });
+		mShadowMapPass.first->BindShadowMap(samplers["lShadowMap"]);
+
 		//Lighting Pass
 		mLightingPass.first->Bind();
 		glClear(GL_COLOR_BUFFER_BIT);
@@ -298,38 +313,52 @@ namespace choice
 					Light* light = static_cast<Light*>(node);
 					mLightingPass.second->Use();
 
-					auto& samplers = mReflectionData.Samplers;
-					auto* lightsBuffer = mReflectionData.UniformBuffers["Lights"];
+					auto* lightBuffer = mReflectionData.UniformBuffers["Lights"];
 
-					uint32_t slots[] = { samplers["lPosition"], samplers["lNormal"], 
-										 samplers["lAlbedoS"], samplers["lRoughMetalAo"] };
-					mGeometryPass.first->BindGBuffer(slots);
-					scene->GetSkybox()->BindIBL({ samplers["lIrradianceMap"], samplers["lPreFilterMap"], samplers["lBRDFLookup"] });
-					mShadowMapPass.first->BindShadowMap(samplers["lShadowMap"]);
+					auto datasizefunc = [&light, &lightBuffer](const char* name) {
+						if (!light->Data.size())
+						{
+							auto& it = lightBuffer->GetBufferLayout().find(name);
+							light->Data.resize(it->second->size);
 
-					DirectionalLightData dirlightdata = {};
-					PointLightData pointlightdata = {};
+							//Set Light Default Color As White
+							glm::vec3 color = glm::vec3(1.0f);
+
+							std::string getName = name;
+							getName = getName.substr(0, getName.find_last_of('[')) + ".Color";
+
+							auto* data = lightBuffer->MemberData<glm::vec3>(getName.c_str(), light->Data);
+							*data = color;
+						}
+					};
 
 					switch (light->Type)
 					{
 					case LIGHT_TYPE::DIRECTIONAL:
 						directinalLightCount++;
-						dirlightdata.Direction = glm::normalize(node->NodeTransform->GetTransform()[2]);
-						dirlightdata.Color = light->Color;
-						dirlightdata.LightVP = light->ViewProjection(&scene->GetBoundingBox())[0];
-						lightsBuffer->SetDataArray("Lights.ldLights", &dirlightdata, directinalLightCount - 1);
+						datasizefunc("Lights.ldLights[0]"); //Set Light Data Size If 0
+						{
+							auto* direction = lightBuffer->MemberData<glm::vec3>("Lights.ldLights.Direction", light->Data);
+							*direction = glm::vec3(node->NodeTransform->GetTransform()[2]);
+
+							auto* lightVP = lightBuffer->MemberData<glm::mat4>("Lights.ldLights.LightVP", light->Data);
+							*lightVP = light->ViewProjection(&scene->GetBoundingBox())[0];
+						}
+						lightBuffer->SetData(("Lights.ldLights[" + std::to_string(directinalLightCount - 1) + "]").c_str(), (const void*)light->Data.data());
 						break;
 					case LIGHT_TYPE::POINT:
 						pointLightCount++;
-						pointlightdata.Position = node->NodeTransform->Position;
-						pointlightdata.Color = light->Color;
-						pointlightdata.Radius = light->Radius;
-						lightsBuffer->SetDataArray("Lights.lpLights", &pointlightdata, pointLightCount - 1);
+						datasizefunc("Lights.lpLights[0]"); //Set Light Data Size If 0
+						{
+							auto* position = lightBuffer->MemberData<glm::vec3>("Lights.lpLights.Position", light->Data);
+							*position = node->NodeTransform->Position;
+						}
+						lightBuffer->SetData(("Lights.lpLights[" + std::to_string(pointLightCount - 1) + "]").c_str(), (const void*)light->Data.data());
 						break;
 					}
-					lightsBuffer->SetData("Lights.lViewpos", &camera->Position());
-					lightsBuffer->SetData("Lights.ldLightsActive", &directinalLightCount);
-					lightsBuffer->SetData("Lights.lpLightsActive", &pointLightCount);
+					lightBuffer->SetData("Lights.lViewpos", &camera->Position());
+					lightBuffer->SetData("Lights.ldLightsActive", &directinalLightCount);
+					lightBuffer->SetData("Lights.lpLightsActive", &pointLightCount);
 				}
 			};
 			IterateNodes(node, func);
