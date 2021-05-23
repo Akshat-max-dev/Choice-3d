@@ -70,7 +70,11 @@ project "Quatation"
         "%{Dependency.SPIRV_Cross}/spirv_reflect.cpp",
 		"%{Dependency.SPIRV_Cross}/spirv_reflect.hpp",
         "%{Dependency.SPIRV_Cross}/spirv_cross_util.cpp",
-		"%{Dependency.SPIRV_Cross}/spirv_cross_util.hpp"
+		"%{Dependency.SPIRV_Cross}/spirv_cross_util.hpp",
+
+        --tinyxml2
+        "%{Dependency.tinyxml2}/tinyxml2.h",
+        "%{Dependency.tinyxml2}/tinyxml2.cpp"
     }
 
     includedirs
@@ -90,7 +94,8 @@ project "Quatation"
         "%{Dependency.filesystem}",
         "%{Dependency.ImGuizmo}",
         "%{Dependency.SPIRV_Cross}",
-        "%{Dependency.shaderc}/include"
+        "%{Dependency.shaderc}/include",
+        "%{Dependency.tinyxml2}"
     }
 
     libdirs

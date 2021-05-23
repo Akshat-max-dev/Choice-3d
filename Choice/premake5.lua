@@ -59,7 +59,8 @@ project "Choice"
         "%{Dependency.filesystem}",
         "%{Dependency.ImGuizmo}",
         "%{Dependency.SPIRV_Cross}",
-        "%{Dependency.shaderc}/include"
+        "%{Dependency.shaderc}/include",
+        "%{Dependency.tinyxml2}"
     }
 
     links
