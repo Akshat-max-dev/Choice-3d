@@ -74,7 +74,11 @@ project "Quatation"
 
         --tinyxml2
         "%{Dependency.tinyxml2}/tinyxml2.h",
-        "%{Dependency.tinyxml2}/tinyxml2.cpp"
+        "%{Dependency.tinyxml2}/tinyxml2.cpp",
+
+        --cpp-base64
+        "%{Dependency.base64}/base64.h",
+        "%{Dependency.base64}/base64.cpp"
     }
 
     includedirs
@@ -95,7 +99,8 @@ project "Quatation"
         "%{Dependency.ImGuizmo}",
         "%{Dependency.SPIRV_Cross}",
         "%{Dependency.shaderc}/include",
-        "%{Dependency.tinyxml2}"
+        "%{Dependency.tinyxml2}",
+        "%{Dependency.base64}"
     }
 
     libdirs

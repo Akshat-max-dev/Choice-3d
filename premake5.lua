@@ -27,6 +27,7 @@ Dependency["ImGuizmo"] = "%{wks.location}/vendor/ImGuizmo"
 Dependency["SPIRV_Cross"] = "%{wks.location}/vendor/SPIRV-Cross"
 Dependency["shaderc"] = "%{wks.location}/vendor/shaderc"
 Dependency["tinyxml2"] = "%{wks.location}/vendor/tinyxml2"
+Dependency["base64"] = "%{wks.location}/vendor/cpp-base64"
 
 include "Choice"
 include "Quatation"
