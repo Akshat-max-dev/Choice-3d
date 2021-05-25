@@ -13,7 +13,7 @@ namespace choice
 
 	struct TextureMap
 	{
-		std::string name;
+		std::string filepath;
 		Texture2D* texture;
 		~TextureMap();
 	};

@@ -48,4 +48,24 @@ namespace choice
 		return viewprojection;
 	}
 
+	Light* CreateDiretionalLight(const std::string& name /*= "Directional Light"*/)
+	{
+		Light* directionallight = new DirectionalLight();
+		directionallight->Name = name;
+		directionallight->Type = LIGHT_TYPE::DIRECTIONAL;
+		directionallight->node_data_type = NODE_DATA_TYPE::LIGHT;
+
+		return directionallight;
+	}
+
+	Light* CreatePointLight(const std::string& name /*= "Point Light"*/)
+	{
+		Light* pointlight = new PointLight();
+		pointlight->Name = name;
+		pointlight->Type = LIGHT_TYPE::POINT;
+		pointlight->node_data_type = NODE_DATA_TYPE::LIGHT;
+
+		return pointlight;
+	}
+
 }

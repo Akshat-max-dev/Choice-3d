@@ -26,13 +26,7 @@ namespace choice
 		uint32_t mRendererId;
 	};
 
-	struct Texture2DData
-	{
-		std::string Source;
-		uint32_t magFilter, minFilter, wrapS, wrapT;
-	};
-
-	const uint32_t LoadTexture2D(Texture2DData data);
+	const uint32_t LoadTexture2D(const std::string& ddsFile);
 
 	class Texture2D :public Texture
 	{

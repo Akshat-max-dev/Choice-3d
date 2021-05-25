@@ -18,28 +18,54 @@ namespace choice
 		//Scene Hierarchy
 		ImGui::Begin(ICON_FK_LIST_UL" Hierarchy");
 
-		std::string icon = ICON_FK_PICTURE_O;
+		std::string icon = ICON_FK_GLOBE;
+
+		ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImGui::GetStyle().Colors[ImGuiCol_WindowBg]);
+		ImGui::PushStyleColor(ImGuiCol_Header, ImGui::GetStyle().Colors[ImGuiCol_WindowBg]);
+		ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImGui::GetStyle().Colors[ImGuiCol_WindowBg]);
+
 		if (ImGui::CollapsingHeader((icon + " " + scene->Name()).c_str(), ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_DefaultOpen))
 		{
-			for (uint32_t i = 0; i < scene->GetNodes().size(); i++)
+			ImGui::PopStyleColor(3);
+
+			if (ImGui::BeginTable("##Hierarchy", 1, ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY))
 			{
-				IterateNode(scene->GetNodes()[i]); //Iterate Each Scene Node
+				ImGui::TableSetupColumn("##Column1", ImGuiTableColumnFlags_NoHide);
+
+				for (uint32_t i = 0; i < scene->GetNodes().size(); i++)
+				{
+					IterateNode(scene->GetNodes()[i]); //Iterate Each Scene Node
+				}
+
+				ShowAddingMenu(scene);
+
+				ImGui::EndTable();
 			}
 		}
-
-		ShowAddingMenu(scene);
 
 		ImGui::End();//Scene Hierarchy
 	}
 
 	void SceneHierarchy::IterateNode(Node* node)
 	{
+		ImGui::PushID(node->Id);
 		if (node)
 		{
+			ImGui::TableNextRow();
+			ImGui::TableNextColumn();
+
 			std::string icon = ICON_FK_CUBE;
 			if (node->node_data_type == NODE_DATA_TYPE::LIGHT) { icon = ICON_FK_LIGHTBULB_O; }
 
-			if (ImGui::TreeNodeEx((icon + " " + node->Name).c_str(), ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick))
+			ImGuiTreeNodeFlags flags = (mSelectedNode == node) ? ImGuiTreeNodeFlags_Selected : 0;
+			flags |= ImGuiTreeNodeFlags_SpanFullWidth;
+
+			if (!node->Children.size())
+			{
+				flags |= ImGuiTreeNodeFlags_Leaf;
+			}
+
+			if (ImGui::TreeNodeEx((icon + " " + node->Name).c_str(), flags))
 			{
 				if (ImGui::IsItemClicked())
 				{
@@ -54,12 +80,18 @@ namespace choice
 						{
 							node->Children.push_back(Cube());
 							node->Children[node->Children.size() - 1]->Parent = node;
+
+							NodeCounter++;
+							node->Children[node->Children.size() - 1]->Id = NodeCounter;
 						}
 
 						if (ImGui::MenuItem("Sphere"))
 						{
 							node->Children.push_back(Sphere());
 							node->Children[node->Children.size() - 1]->Parent = node;
+
+							NodeCounter++;
+							node->Children[node->Children.size() - 1]->Id = NodeCounter;
 						}
 						ImGui::EndMenu();
 					}
@@ -73,6 +105,8 @@ namespace choice
 				ImGui::TreePop();
 			}
 		}
+
+		ImGui::PopID();
 	}
 
 	void ShowAddingMenu(Scene* scene)
@@ -118,19 +152,11 @@ namespace choice
 			{
 				if (ImGui::MenuItem("Directional Light"))
 				{
-					DirectionalLight* directionallight = new DirectionalLight();
-					directionallight->Name = "Directional Light";
-					directionallight->Type = LIGHT_TYPE::DIRECTIONAL;
-					directionallight->node_data_type = NODE_DATA_TYPE::LIGHT;
-					scene->AddNode(directionallight);
+					scene->AddNode(CreateDiretionalLight());
 				}
 				if (ImGui::MenuItem("Point Light"))
 				{
-					PointLight* pointlight = new PointLight();
-					pointlight->Name = "Point Light";
-					pointlight->Type = LIGHT_TYPE::POINT;
-					pointlight->node_data_type = NODE_DATA_TYPE::LIGHT;
-					scene->AddNode(pointlight);
+					scene->AddNode(CreatePointLight());
 				}
 				ImGui::EndMenu();
 			}

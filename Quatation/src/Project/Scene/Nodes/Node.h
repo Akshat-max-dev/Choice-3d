@@ -18,6 +18,7 @@ namespace choice
 		std::vector<Node*> Children;
 		Transform* NodeTransform;
 		glm::mat4 WorldTransform;
+		uint32_t Id;
 
 		Node();
 		~Node();

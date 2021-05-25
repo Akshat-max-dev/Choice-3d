@@ -91,9 +91,9 @@ namespace choice
 		TextureMap* map, const std::function<void(TextureMap*)>& func)
 	{
 		std::string name = label;
-		if (!map->name.empty())
+		if (!map->filepath.empty())
 		{
-			name += "-" + map->name;
+			name += "-" + ghc::filesystem::path(map->filepath).stem().string();
 		}
 
 		if (ImGui::TreeNodeEx(name.c_str(), ImGuiTreeNodeFlags_OpenOnArrow))
@@ -148,7 +148,6 @@ namespace choice
 
 						ImGui::TableSetColumnIndex(1);
 						ImGui::SetNextItemWidth(225.0f);
-
 						ImGui::Combo("##Materials", &currentitem, comboItems.data(), comboItems.size());
 
 						ImGui::TableSetColumnIndex(2);

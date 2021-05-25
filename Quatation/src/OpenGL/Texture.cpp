@@ -57,9 +57,9 @@ namespace choice
 		return dstFile;
 	}
 
-	const uint32_t LoadTexture2D(Texture2DData data)
+	const uint32_t LoadTexture2D(const std::string& ddsFile)
 	{
-		gli::texture _texture = gli::load(data.Source);
+		gli::texture _texture = gli::load(ddsFile);
 		if (_texture.empty())
 		{
 			std::cout << "Failed To Load Compressed Texture" << std::endl;
@@ -85,10 +85,10 @@ namespace choice
 		uint32_t Id;
 		glCreateTextures(_target, 1, &Id);
 		glBindTexture(_target, Id);
-		glTexParameteri(_target, GL_TEXTURE_MIN_FILTER, data.minFilter);
-		glTexParameteri(_target, GL_TEXTURE_MAG_FILTER, data.magFilter);
-		glTexParameteri(_target, GL_TEXTURE_WRAP_S, data.wrapS);
-		glTexParameteri(_target, GL_TEXTURE_WRAP_T, data.wrapT);
+		glTexParameteri(_target, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(_target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(_target, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(_target, GL_TEXTURE_WRAP_T, GL_REPEAT);
 		glTexParameteri(_target, GL_TEXTURE_BASE_LEVEL, 0);
 		glTexParameteri(_target, GL_TEXTURE_MAX_LEVEL, static_cast<GLint>(_texture.levels() - 1));
 		glTexParameteriv(_target, GL_TEXTURE_SWIZZLE_RGBA, &_format.Swizzles[0]);

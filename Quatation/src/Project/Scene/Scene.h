@@ -8,6 +8,8 @@
 
 namespace choice
 {
+	inline uint32_t NodeCounter = 0;
+
 	class Scene
 	{
 	public:
@@ -15,7 +17,7 @@ namespace choice
 		Scene(const std::string& cscene);
 		~Scene();
 
-		void AddNode(Node* node) { mNodes.push_back(node); }
+		void AddNode(Node* node) { mNodes.push_back(node); NodeCounter++; node->Id = NodeCounter; }
 		void SetSkybox(Skybox* skybox) { mSkybox = skybox; }
 
 		std::vector<Node*>& GetNodes() { return mNodes; }

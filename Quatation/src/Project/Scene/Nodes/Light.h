@@ -29,4 +29,7 @@ namespace choice
 	{
 		std::vector<glm::mat4> ViewProjection(BoundingBox* sceneaabb)override;
 	};
+
+	Light* CreateDiretionalLight(const std::string& name = "Directional Light");
+	Light* CreatePointLight(const std::string& name = "Point Light");
 }
