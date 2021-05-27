@@ -8,6 +8,11 @@ namespace choice
 		if (material) { delete material; }
 	}
 
+	Mesh::Mesh()
+	{
+		node_data_type = NODE_DATA_TYPE::MESH;
+	}
+
 	Mesh::~Mesh()
 	{
 		for (auto& primitive : primitives) { if (primitive) { delete primitive; } }
@@ -63,7 +68,6 @@ namespace choice
 
 		cube->Name = name;
 		cube->mesh_type = MESH_TYPE::CUBE;
-		cube->node_data_type = NODE_DATA_TYPE::MESH;
 		cube->primitives.push_back(new Primitive());
 		cube->primitives[0]->vertexarray = new VertexArray();
 		cube->primitives[0]->vertexarray->VertexBuffer(vertices, sizeof(vertices), "332");
@@ -147,7 +151,6 @@ namespace choice
 
 		sphere->Name = name;
 		sphere->mesh_type = MESH_TYPE::SPHERE;
-		sphere->node_data_type = NODE_DATA_TYPE::MESH;
 		sphere->primitives.push_back(new Primitive());
 		sphere->primitives[0]->vertexarray = new VertexArray();
 		sphere->primitives[0]->vertexarray->VertexBuffer(vertices.data(), vertices.size() * sizeof(float), "332");

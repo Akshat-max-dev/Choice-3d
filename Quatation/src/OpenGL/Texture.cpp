@@ -194,9 +194,9 @@ namespace choice
 		delete cube->NodeTransform; cube->NodeTransform = {};
 		delete cube->primitives[0]->material; cube->primitives[0]->material = {};
 
-		ReflectionData reflectiondata;
+		ReflectionData& reflectiondata = global::GlobalReflectionData;
 
-		std::unique_ptr<Shader> shader = std::make_unique<Shader>("Choice/assets/shaders/HDRToCubemap.glsl", reflectiondata);
+		std::unique_ptr<Shader> shader = std::make_unique<Shader>("Choice/assets/shaders/HDRToCubemap.glsl");
 
 		glBindTextureUnit(reflectiondata.Samplers["hdrMap"], hdr);
 
@@ -225,7 +225,7 @@ namespace choice
 
 		//Irradiance Convolution
 		shader.reset();
-		shader = std::make_unique<Shader>("Choice/assets/shaders/IrradianceConvolution.glsl", reflectiondata);
+		shader = std::make_unique<Shader>("Choice/assets/shaders/IrradianceConvolution.glsl");
 
 		//Create Convolution Cubemap Texture
 		uint32_t irradianceConvolution;
@@ -260,7 +260,7 @@ namespace choice
 
 		//Pre-Filter Cubemap
 		shader.reset();
-		shader = std::make_unique<Shader>("Choice/assets/shaders/Pre-FilterCubemap.glsl", reflectiondata);
+		shader = std::make_unique<Shader>("Choice/assets/shaders/Pre-FilterCubemap.glsl");
 
 		uint32_t prefilterCubemap;
 		glCreateTextures(GL_TEXTURE_CUBE_MAP, 1, &prefilterCubemap);
@@ -328,6 +328,12 @@ namespace choice
 
 		glDeleteFramebuffers(1, &framebuffer);
 
+		global::GlobalReflectionData.Samplers.erase("hdrMap");
+		global::GlobalReflectionData.Samplers.erase("pfHDRSkybox");
+		global::GlobalReflectionData.Samplers.erase("icHDRSkybox");
+		global::GlobalReflectionData.UniformBuffers.erase("Capture");
+		global::GlobalReflectionData.UniformBuffers.erase("Roughness");
+
 		Ids.push_back(hdrcubemap); Ids.push_back(irradianceConvolution);
 		Ids.push_back(prefilterCubemap); Ids.push_back(brdfLookup);
 
@@ -372,6 +378,9 @@ namespace choice
 		const auto* buffer = texture->image->buffer_view->buffer;
 		if (buffer)
 		{
+			std::string dstFile = dstDirectory + "\\" + name + ".dds";
+			if (ghc::filesystem::exists(dstFile)) { return dstFile; }
+
 			stbi_set_flip_vertically_on_load(0);
 			int x, y, channels;
 			auto* data = stbi_load_from_memory((stbi_uc*)buffer->data + texture->image->buffer_view->offset,
@@ -413,8 +422,6 @@ namespace choice
 				std::cout << "Failed To Process Texture" << std::endl;
 				return {};
 			}
-
-			std::string dstFile = dstDirectory + "\\" + name + ".dds";
 
 			CMP_SaveTexture(dstFile.c_str(), &dstMipSet);
 

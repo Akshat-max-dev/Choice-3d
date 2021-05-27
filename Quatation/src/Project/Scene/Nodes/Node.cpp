@@ -5,6 +5,9 @@ namespace choice
 	Node::Node()
 	{
 		NodeTransform = new Transform();
+		WorldTransform = NodeTransform->GetTransform();
+		Id = 0;
+		Parent = {};
 	}
 
 	Node::~Node()

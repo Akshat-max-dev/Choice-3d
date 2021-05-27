@@ -22,11 +22,13 @@ namespace choice
 
 	struct DirectionalLight :public Light
 	{
+		DirectionalLight();
 		std::vector<glm::mat4> ViewProjection(BoundingBox* sceneaabb)override;
 	};
 
 	struct PointLight :public Light
 	{
+		PointLight();
 		std::vector<glm::mat4> ViewProjection(BoundingBox* sceneaabb)override;
 	};
 

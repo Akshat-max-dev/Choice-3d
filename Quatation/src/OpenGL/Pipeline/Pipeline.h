@@ -4,8 +4,6 @@
 #include "Project/Scene/Scene.h"
 #include "Camera/EditorCamera.h"
 
-#include "OpenGL/Shader.h"
-
 namespace choice
 {
 	class Pipeline
@@ -17,12 +15,10 @@ namespace choice
 		virtual const uint32_t& Capture()const { return 0; }
 		virtual void Shutdown() {}
 
-		ReflectionData& GetReflectionData() { return mReflectionData; }
 		void PickedObject(int pickedobject) { mPickedObjectId = pickedobject; }
 		void MousePicking(bool value) { mMousePicking = value; }
 	protected:
 		int mPickedObjectId = -1;
 		bool mMousePicking = true;
-		ReflectionData mReflectionData;
 	};
 }

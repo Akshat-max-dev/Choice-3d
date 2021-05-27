@@ -17,7 +17,7 @@ namespace choice
 
 	enum class MESH_TYPE
 	{
-		NONE = -1, CUBE = 0, SPHERE = 1
+		NONE = -1, CUBE = 0, SPHERE = 1, IMPORTED = 2
 	};
 
 	struct Mesh :public Node
@@ -25,6 +25,8 @@ namespace choice
 		std::vector<Primitive*> primitives;
 		BoundingBox boundingbox;
 		MESH_TYPE mesh_type;
+
+		Mesh();
 		~Mesh();
 	};
 

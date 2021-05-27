@@ -2,6 +2,8 @@
 
 #include <glad/glad.h>
 
+#include "ReflectionData.h"
+
 namespace choice
 {
 	Skybox::Skybox(const std::string& skybox) :mFilepath(skybox)
@@ -43,12 +45,12 @@ namespace choice
 		}
 	}
 
-	void Skybox::Draw(Camera* camera, UniformBuffer* camerabuffer)
+	void Skybox::Draw(Camera* camera)
 	{
-		mCubemap->Bind(0);
+		mCubemap->Bind(global::GlobalReflectionData.Samplers["hdrSkybox"]);
 		mShader->Use();
 		glm::mat4 vp = camera->Projection() * glm::mat4(glm::mat3(camera->View()));
-		camerabuffer->SetData("Camera.uViewProjection", &vp);
+		global::GlobalReflectionData.UniformBuffers["Camera"]->SetData("Camera.uViewProjection", &vp);
 		//Draw Cube
 		mCube->primitives[0]->vertexarray->Bind();
 		glDrawArrays(GL_TRIANGLES, 0, 36);

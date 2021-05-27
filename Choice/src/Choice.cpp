@@ -56,10 +56,12 @@ namespace choice
 
 		mWindow = std::make_unique<Window>();
 		InputCallbacks(mWindow->GetWindow());
-		mGUI = std::make_unique<GUI>();
-		mEditor = std::make_unique<Editor>(mWindow->GetWidth(), mWindow->GetHeight());
+
 		mPipeline = std::make_unique<DeferredPipeline>();
 		mPipeline->Init(mWindow->GetWidth(), mWindow->GetHeight());
+
+		mGUI = std::make_unique<GUI>();
+		mEditor = std::make_unique<Editor>(mWindow->GetWidth(), mWindow->GetHeight());
 	}
 
 	Choice::~Choice()

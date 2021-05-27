@@ -27,4 +27,6 @@ namespace choice
 		Material();
 		~Material();
 	};
+
+	const uint32_t GetBinding(TEXTURE_MAP_TYPE type);
 }

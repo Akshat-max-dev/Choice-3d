@@ -134,18 +134,18 @@ namespace choice
 	{
 		//Configure Geometry Pass
 		mGeometryPass.first = new DeferredGeometryCapture(w, h);
-		mGeometryPass.second = new Shader("Choice/assets/shaders/DeferredGeometryPass.glsl", mReflectionData);
+		mGeometryPass.second = new Shader("Choice/assets/shaders/DeferredGeometryPass.glsl");
 
 		//Configure Shadow Map Pass
 		mShadowMapPass.first = new ShadowMapCapture(1024, 1024);
-		mShadowMapPass.second = new Shader("Choice/assets/shaders/ShadowMap.glsl", mReflectionData);
+		mShadowMapPass.second = new Shader("Choice/assets/shaders/ShadowMap.glsl");
 
 		//Configure Outline Pass
-		mColor = new Shader("Choice/assets/shaders/Color.glsl", mReflectionData);
+		mColor = new Shader("Choice/assets/shaders/Color.glsl");
 
 		//Configure Lighting Pass
 		mLightingPass.first = new DeferredLightingCapture(w, h);
-		mLightingPass.second = new Shader("Choice/assets/shaders/DeferredLightingPass.glsl", mReflectionData);
+		mLightingPass.second = new Shader("Choice/assets/shaders/DeferredLightingPass.glsl");
 	}
 
 	void DeferredPipeline::Visible(uint32_t w, uint32_t h)
@@ -176,7 +176,9 @@ namespace choice
 	{
 		glEnable(GL_DEPTH_TEST);
 
-		UniformBuffer* cameraBuffer = mReflectionData.UniformBuffers["Camera"];
+		ReflectionData& reflectiondata = global::GlobalReflectionData;
+
+		UniformBuffer* cameraBuffer = reflectiondata.UniformBuffers["Camera"];
 		cameraBuffer->SetData("Camera.uViewProjection", &camera->ViewProjection());
 
 		//Geometry Pass
@@ -198,24 +200,19 @@ namespace choice
 					{
 						mesh->WorldTransform = mesh->NodeTransform->GetTransform();
 					}
-					mReflectionData.UniformBuffers["Transform"]->SetData("Transform.uTransform", &mesh->WorldTransform);
+					reflectiondata.UniformBuffers["Transform"]->SetData("Transform.uTransform", &mesh->WorldTransform);
 					
-					auto* materialBuffer = mReflectionData.UniformBuffers["Material"];
+					auto* materialBuffer = reflectiondata.UniformBuffers["Material"];
 
 					for (auto& primitive : mesh->primitives)
 					{	
-						//Set Material Data Size If 0
-						if (!primitive->material->Data.size())
-						{
-							primitive->material->Data.resize(materialBuffer->GetBufferSize());
-
-							//Set Mesh Default Color As White
-							auto* colordata = materialBuffer->MemberData<glm::vec4>("Material.Color", primitive->material->Data);
-							glm::vec4 color = glm::vec4(1.0f);
-							*colordata = color;
-						}
-
 						materialBuffer->SetData(primitive->material->Data);
+
+						for (auto&& [type, texturemap] : primitive->material->TextureMaps)
+						{
+							if (texturemap->texture)
+								texturemap->texture->Bind(GetBinding(type));
+						}
 
 						DrawPrimitive(primitive, mesh->mesh_type);
 					}
@@ -255,7 +252,7 @@ namespace choice
 						cameraBuffer->SetData("Camera.uViewProjection", &light->ViewProjection(&scene->GetBoundingBox())[0]);
 						for (auto& mesh_node : scene->GetNodes())
 						{
-							auto mesh_func = [=](Node* node) {
+							auto mesh_func = [&](Node* node) {
 								if (node->node_data_type == NODE_DATA_TYPE::MESH)
 								{
 									Mesh* mesh = static_cast<Mesh*>(node);
@@ -267,7 +264,7 @@ namespace choice
 									{
 										mesh->WorldTransform = mesh->NodeTransform->GetTransform();
 									}
-									mReflectionData.UniformBuffers["Transform"]->SetData("Transform.uTransform", &mesh->WorldTransform);
+									reflectiondata.UniformBuffers["Transform"]->SetData("Transform.uTransform", &mesh->WorldTransform);
 									for (auto& primitive : mesh->primitives)
 									{
 										DrawPrimitive(primitive, mesh->mesh_type);
@@ -292,7 +289,7 @@ namespace choice
 		glDisable(GL_DEPTH_TEST);
 
 		//Bind All Textures To Be Used In Lighting Pass
-		auto& samplers = mReflectionData.Samplers;
+		auto& samplers = reflectiondata.Samplers;
 
 		uint32_t slots[] = { samplers["lPosition"], samplers["lNormal"],
 										 samplers["lAlbedoS"], samplers["lRoughMetalAo"] };
@@ -313,42 +310,24 @@ namespace choice
 					Light* light = static_cast<Light*>(node);
 					mLightingPass.second->Use();
 
-					auto* lightBuffer = mReflectionData.UniformBuffers["Lights"];
-
-					auto datasizefunc = [&light, &lightBuffer](const char* name) {
-						if (!light->Data.size())
-						{
-							auto& it = lightBuffer->GetBufferLayout().find(name);
-							light->Data.resize(it->second->size);
-
-							//Set Light Default Color As White
-							glm::vec3 color = glm::vec3(1.0f);
-
-							std::string getName = name;
-							getName = getName.substr(0, getName.find_last_of('[')) + ".Color";
-
-							auto* data = lightBuffer->MemberData<glm::vec3>(getName.c_str(), light->Data);
-							*data = color;
-						}
-					};
+					auto* lightBuffer = reflectiondata.UniformBuffers["Lights"];
 
 					switch (light->Type)
 					{
 					case LIGHT_TYPE::DIRECTIONAL:
 						directinalLightCount++;
-						datasizefunc("Lights.ldLights[0]"); //Set Light Data Size If 0
 						{
 							auto* direction = lightBuffer->MemberData<glm::vec3>("Lights.ldLights.Direction", light->Data);
-							*direction = glm::vec3(node->NodeTransform->GetTransform()[2]);
+							*direction = glm::normalize(glm::vec3(node->NodeTransform->GetTransform()[2]));
 
 							auto* lightVP = lightBuffer->MemberData<glm::mat4>("Lights.ldLights.LightVP", light->Data);
 							*lightVP = light->ViewProjection(&scene->GetBoundingBox())[0];
+
+							lightBuffer->SetData(("Lights.ldLights[" + std::to_string(directinalLightCount - 1) + "]").c_str(), (const void*)light->Data.data());
 						}
-						lightBuffer->SetData(("Lights.ldLights[" + std::to_string(directinalLightCount - 1) + "]").c_str(), (const void*)light->Data.data());
 						break;
 					case LIGHT_TYPE::POINT:
 						pointLightCount++;
-						datasizefunc("Lights.lpLights[0]"); //Set Light Data Size If 0
 						{
 							auto* position = lightBuffer->MemberData<glm::vec3>("Lights.lpLights.Position", light->Data);
 							*position = node->NodeTransform->Position;
@@ -368,7 +347,7 @@ namespace choice
 		//Draw Skybox
 		glEnable(GL_DEPTH_TEST);
 		glDepthFunc(GL_LEQUAL);
-		scene->GetSkybox()->Draw(camera, cameraBuffer);
+		scene->GetSkybox()->Draw(camera);
 		glDepthFunc(GL_LESS);
 
 		mLightingPass.first->UnBind();

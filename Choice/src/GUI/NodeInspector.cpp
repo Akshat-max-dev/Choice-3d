@@ -3,7 +3,7 @@
 #include <imgui.h>
 #include "FontAwesome.h"
 
-#include "Choice.h"
+#include "ReflectionData.h"
 
 namespace choice
 {
@@ -222,7 +222,7 @@ namespace choice
 					}
 				}
 
-				ReflectionData& reflectiondata = Choice::Instance()->GetPipeline()->GetReflectionData();
+				ReflectionData& reflectiondata = global::GlobalReflectionData;
 
 				UniformBuffer* materialBuffer = reflectiondata.UniformBuffers["Material"];
 				auto& samplers = reflectiondata.Samplers;
@@ -301,7 +301,7 @@ namespace choice
 			ImGui::SetNextItemWidth(ImGui::GetContentRegionAvailWidth());
 			ImGui::Combo("##LightType", &currentItem, comboItems, IM_ARRAYSIZE(comboItems));
 
-			ReflectionData& reflectiondata = Choice::Instance()->GetPipeline()->GetReflectionData();
+			ReflectionData& reflectiondata = global::GlobalReflectionData;
 			auto* lightBuffer = reflectiondata.UniformBuffers["Lights"];
 
 			auto colorfunc = [&light, &lightBuffer](const char* name) {

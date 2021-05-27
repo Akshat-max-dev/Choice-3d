@@ -65,7 +65,7 @@ namespace choice
 			//Write down the active project And Camera Data
 			std::ofstream o(".choiceeditorconfig", std::ios::out | std::ios::binary);
 
-			std::string cproj = mActiveProject->Directory() + "\\" + mActiveProject->Name() + "\\" + mActiveProject->Name() + ".cproj";
+			std::string cproj = global::ActiveProjectDir + global::ActiveProjectName + ".cproj";
 			Binary::Write<std::string>(o, cproj);
 
 			glm::vec3 t = mCamera->Focus();
@@ -91,6 +91,14 @@ namespace choice
 
 	void Editor::Execute()
 	{
+		if (mActiveProject && global::ActiveProjectDir.empty())
+		{
+			global::ActiveProjectDir = mActiveProject->Directory() + "\\" + mActiveProject->Name() + "\\";
+			global::ActiveSceneDir = mActiveProject->ActiveScene()->Directory() + "\\" + mActiveProject->ActiveScene()->Name() + "\\";
+			global::ActiveProjectName = mActiveProject->Name();
+			global::ActiveSceneName = mActiveProject->ActiveScene()->Name();
+		}
+
 		auto dockspace_id = ImGui::GetID("Root_Dockspace");
 
 		auto* viewport = ImGui::GetMainViewport();

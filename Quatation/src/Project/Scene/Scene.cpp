@@ -12,8 +12,6 @@ namespace choice
 	Scene::Scene(const std::string& name, const std::string& directory)
 		:mName(name), mDirectory(directory)
 	{
-		NodeCounter = 0;
-
 		ghc::filesystem::create_directory(mDirectory + "\\" + mName);
 		ghc::filesystem::create_directory(mDirectory + "\\" + mName + "\\" + "Assets");
 
@@ -41,9 +39,10 @@ namespace choice
 		cscene->Load(srcFile);
 
 		//Create Skybox
-		mSkybox = new Skybox(cscene->AttributeElement<const char*>("Skybox"));
+		mSkybox = new Skybox(cscene->GetFile()->FirstChildElement("Skybox")->FirstChildElement("Path")->GetText());
 
-		const uint32_t nodecount = cscene->AttributeElement<uint32_t>("NodeCount");
+		uint32_t nodecount;
+		cscene->GetFile()->FirstChildElement("NodeCount")->FirstChildElement("Value")->QueryUnsignedText(&nodecount);
 
 		std::vector<Node*> nodes;
 		nodes.resize(nodecount);
@@ -67,7 +66,7 @@ namespace choice
 			}
 		}
 
-		NodeCounter = nodecount;
+		global::NodeCounter = nodecount;
 
 		for (auto& node : nodes)
 		{
@@ -91,11 +90,27 @@ namespace choice
 		delete mSkybox;
 	}
 
+	void Scene::AddNode(Node* node)
+	{
+		mNodes.push_back(node);
+		if (!node->Id)
+		{
+			global::NodeCounter++;
+			node->Id = global::NodeCounter;
+		}
+	}
+
 	void Scene::Save()
 	{
 		XMLFile* cscene = new XMLFile();
 
-		cscene->AttributeElement<const char*>("Skybox", mSkybox->GetFilepath().c_str());
+		auto* skyboxelement = cscene->GetFile()->NewElement("Skybox");
+		cscene->GetFile()->InsertEndChild(skyboxelement);
+
+		auto* pathelement = cscene->GetFile()->NewElement("Path");
+		pathelement->SetText(mSkybox->GetFilepath().c_str());
+		skyboxelement->InsertEndChild(pathelement);
+
 		for (auto& node : mNodes)
 		{
 			IterateNodes(node, [&cscene](Node* node) {
@@ -103,7 +118,12 @@ namespace choice
 			});
 		}
 
-		cscene->AttributeElement<uint32_t>("NodeCount", NodeCounter);
+		auto* nodecountelement = cscene->GetFile()->NewElement("NodeCount");
+		cscene->GetFile()->InsertEndChild(nodecountelement);
+
+		auto* valuelement = cscene->GetFile()->NewElement("Value");
+		valuelement->SetText(global::NodeCounter);
+		nodecountelement->InsertEndChild(valuelement);
 
 		cscene->Save(mDirectory + "\\" + mName + "\\" + mName + ".cscene");
 

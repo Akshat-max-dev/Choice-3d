@@ -12,6 +12,14 @@
 
 namespace choice
 {
+	namespace global
+	{
+		inline std::string ActiveSceneDir;
+		inline std::string ActiveProjectDir;
+		inline std::string ActiveProjectName;
+		inline std::string ActiveSceneName;
+	}
+
 	class Editor
 	{
 	public:
@@ -20,8 +28,6 @@ namespace choice
 
 		void Execute();
 		void Update();
-
-		void SetSelectedObjectIndex(int index) { mSelectedObjectIndex = index; }
 
 		Camera* GetCamera() { return mCamera; }
 		Project* GetActiveProject() { return mActiveProject; }
@@ -43,7 +49,6 @@ namespace choice
 		bool mShowModal = false;
 		bool mIsBlenderLinked = false;
 	private:
-		int mSelectedObjectIndex = -1;
 		int mGizmoType = -1;
 		glm::vec2 mVisibleRegion;
 	};

@@ -1,5 +1,7 @@
 #include "XMLFile.h"
 
+#include "Choice.h"
+
 namespace choice
 {
 	XMLFile::XMLFile()
@@ -15,7 +17,6 @@ namespace choice
 	tinyxml2::XMLElement* WriteBinaryData(tinyxml2::XMLDocument* file, const char* name, std::vector<char>& data)
 	{
 		tinyxml2::XMLElement* binaryelement = file->NewElement(name);
-		binaryelement->SetAttribute("Size", data.size());
 
 		//Encode Binary To Base64
 		std::string encodeddata = base64_encode(reinterpret_cast<const uint8_t*>(data.data()), data.size());
@@ -73,6 +74,30 @@ namespace choice
 				case MESH_TYPE::SPHERE:
 					rootelement->InsertEndChild(WriteMaterial(mFile, mesh->primitives[0]->material));
 					break;
+				case MESH_TYPE::IMPORTED:
+					tinyxml2::XMLElement* primcountelement = mFile->NewElement("PrimitivesCount");
+					primcountelement->SetText(mesh->primitives.size());
+					rootelement->InsertEndChild(primcountelement);
+
+					std::string path = global::ActiveSceneDir + "Assets\\" + node->Parent->Name + std::to_string(node->Id) + ".cmesh";
+
+					for (uint32_t i = 0; i < mesh->primitives.size(); i++)
+					{
+						rootelement->InsertEndChild(WriteMaterial(mFile, mesh->primitives[i]->material));
+
+						tinyxml2::XMLElement* meshdataelement = mFile->NewElement("MeshData");
+						rootelement->InsertEndChild(meshdataelement);
+
+						tinyxml2::XMLElement* pathelement = mFile->NewElement("Path");
+						pathelement->SetText(path.c_str());
+						meshdataelement->InsertEndChild(pathelement);
+
+						tinyxml2::XMLElement* primitvenameelement = mFile->NewElement("PrimitiveName");
+						std::string temp = mesh->Name + std::to_string(i);
+						primitvenameelement->SetText(temp.c_str());
+						meshdataelement->InsertEndChild(primitvenameelement);
+					}
+					break;
 				}
 
 				break;
@@ -112,13 +137,10 @@ namespace choice
 
 	void ReadBinaryData(const tinyxml2::XMLElement* element, std::vector<char>& data)
 	{
-		uint32_t size;
-		element->QueryUnsignedAttribute("Size", &size);
-
 		std::string decodeddata = base64_decode(element->GetText());
 
-		data.resize(size);
-		memcpy(data.data(), decodeddata.data(), size);
+		data.resize(decodeddata.size());
+		memcpy(data.data(), decodeddata.data(), decodeddata.size());
 	}
 
 	void ReadMaterial(const tinyxml2::XMLElement* element, Material* material)
@@ -165,7 +187,10 @@ namespace choice
 
 		int internaltype;
 		const tinyxml2::XMLElement* internaltypeelement = rootelement->FirstChildElement("InternalType");
-		internaltypeelement->QueryIntText(&internaltype);
+		if (internaltypeelement)
+		{
+			internaltypeelement->QueryIntText(&internaltype);
+		}
 
 		Node* node = {};
 
@@ -186,6 +211,79 @@ namespace choice
 				case MESH_TYPE::SPHERE: 
 					mesh = Sphere(nodename);
 					ReadMaterial(rootelement->FirstChildElement("Material"), mesh->primitives[0]->material);
+					break;
+				case MESH_TYPE::IMPORTED:
+					mesh = new Mesh();
+					mesh->Name = nodename;
+					mesh->mesh_type = mesh_type;
+
+					uint32_t primitvescount;
+					rootelement->FirstChildElement("PrimitivesCount")->QueryUnsignedText(&primitvescount);
+
+					const tinyxml2::XMLElement* materialelement = rootelement->FirstChildElement("Material");
+					const tinyxml2::XMLElement* meshdataelement = rootelement->FirstChildElement("MeshData");
+
+					std::vector<BoundingBox> primitvebb;
+
+					mesh->primitives.resize(primitvescount);
+					for (auto& primitive : mesh->primitives)
+					{
+						primitive = new Primitive();
+
+						if (materialelement)
+						{
+							primitive->material = new Material();
+							ReadMaterial(materialelement, primitive->material);
+							materialelement = materialelement->NextSiblingElement("Material");
+						}
+
+						if (meshdataelement)
+						{
+							const char* path = meshdataelement->FirstChildElement("Path")->GetText();
+							const char* primitivename = meshdataelement->FirstChildElement("PrimitiveName")->GetText();
+
+							//Open cmesh File
+							XMLFile* cmesh = new XMLFile();
+							cmesh->Load(path);
+						
+							std::vector<char> buffer;
+
+							std::vector<float> vertices;
+							ReadBinaryData(cmesh->GetFile()->FirstChildElement(primitivename)->FirstChildElement("Vertices"), buffer);
+
+							vertices.resize(buffer.size() / sizeof(float));
+							memcpy(vertices.data(), buffer.data(), buffer.size());
+
+							buffer.clear();
+
+							std::vector<uint32_t> indices;
+							ReadBinaryData(cmesh->GetFile()->FirstChildElement(primitivename)->FirstChildElement("Indices"), buffer);
+
+							indices.resize(buffer.size() / sizeof(uint32_t));
+							memcpy(indices.data(), buffer.data(), buffer.size());
+
+							primitive->vertexarray = new VertexArray();
+							primitive->vertexarray->VertexBuffer(vertices.data(), vertices.size() * sizeof(float), "332");
+							primitive->vertexarray->IndexBuffer(indices.data(), (uint32_t)indices.size());
+
+							primitvebb.push_back(CalculateBoundingBox(vertices.data(), vertices.size(), 8));
+
+							delete cmesh;
+						}
+					}
+
+					mesh->boundingbox = CalculateBoundingBox(nullptr, 0, 0);
+
+					for (auto& bb : primitvebb)
+					{
+						mesh->boundingbox.Min.x = bb.Min.x < mesh->boundingbox.Min.x ? bb.Min.x : mesh->boundingbox.Min.x;
+						mesh->boundingbox.Min.y = bb.Min.y < mesh->boundingbox.Min.y ? bb.Min.y : mesh->boundingbox.Min.y;
+						mesh->boundingbox.Min.z = bb.Min.z < mesh->boundingbox.Min.z ? bb.Min.z : mesh->boundingbox.Min.z;
+
+						mesh->boundingbox.Max.x = bb.Max.x > mesh->boundingbox.Max.x ? bb.Max.x : mesh->boundingbox.Max.x;
+						mesh->boundingbox.Max.y = bb.Max.y > mesh->boundingbox.Max.y ? bb.Max.y : mesh->boundingbox.Max.y;
+						mesh->boundingbox.Max.z = bb.Max.z > mesh->boundingbox.Max.z ? bb.Max.z : mesh->boundingbox.Max.z;
+					}
 					break;
 				}
 
@@ -209,6 +307,12 @@ namespace choice
 				node = light;
 				break;
 			}
+		default:
+			{
+				node = new Node();
+				node->Name = nodename;
+				node->node_data_type = node_data_type;
+			}
 		}
 
 		const tinyxml2::XMLElement* transform = rootelement->FirstChildElement("Transform");
@@ -223,7 +327,7 @@ namespace choice
 		vec3attribute("Position", node->NodeTransform->Position);
 		glm::vec3 rotation;
 		vec3attribute("Rotation", rotation);
-		node->NodeTransform->Rotation = rotation;
+		node->NodeTransform->Rotation = glm::radians(rotation);
 		vec3attribute("Scale", node->NodeTransform->Scale);
 
 		const tinyxml2::XMLElement* childelement = rootelement->FirstChildElement("Child");

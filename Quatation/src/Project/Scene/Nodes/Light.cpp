@@ -1,7 +1,22 @@
 #include "Light.h"
 
+#include "ReflectionData.h"
+
 namespace choice
 {
+
+	DirectionalLight::DirectionalLight()
+	{
+		auto& layout = global::GlobalReflectionData.UniformBuffers["Lights"]->GetBufferLayout();
+		Data.resize(layout.find("Lights.ldLights[0]")->second->size);
+		Type = LIGHT_TYPE::DIRECTIONAL;
+		node_data_type = NODE_DATA_TYPE::LIGHT;
+
+		//Set Default Light Color As White
+		glm::vec3* color = global::GlobalReflectionData.UniformBuffers["Lights"]->MemberData<glm::vec3>("Lights.ldLights.Color", Data);
+		*color = { 1.0f, 1.0f, 1.0f };
+	}
+
 	//View Projection Directional Light
 	std::vector<glm::mat4> DirectionalLight::ViewProjection(BoundingBox* sceneaabb)
 	{
@@ -40,6 +55,18 @@ namespace choice
 		return viewprojection;
 	}
 
+	PointLight::PointLight()
+	{
+		auto& layout = global::GlobalReflectionData.UniformBuffers["Lights"]->GetBufferLayout();
+		Data.resize(layout.find("Lights.lpLights[0]")->second->size);
+		Type = LIGHT_TYPE::POINT;
+		node_data_type = NODE_DATA_TYPE::LIGHT;
+
+		//Set Default Light Color As White
+		glm::vec3* color = global::GlobalReflectionData.UniformBuffers["Lights"]->MemberData<glm::vec3>("Lights.lpLights.Color", Data);
+		*color = { 1.0f, 1.0f, 1.0f };
+	}
+
 	//View Projection Point Light
 	std::vector<glm::mat4> PointLight::ViewProjection(BoundingBox* sceneaabb)
 	{
@@ -52,8 +79,6 @@ namespace choice
 	{
 		Light* directionallight = new DirectionalLight();
 		directionallight->Name = name;
-		directionallight->Type = LIGHT_TYPE::DIRECTIONAL;
-		directionallight->node_data_type = NODE_DATA_TYPE::LIGHT;
 
 		return directionallight;
 	}
@@ -62,8 +87,6 @@ namespace choice
 	{
 		Light* pointlight = new PointLight();
 		pointlight->Name = name;
-		pointlight->Type = LIGHT_TYPE::POINT;
-		pointlight->node_data_type = NODE_DATA_TYPE::LIGHT;
 
 		return pointlight;
 	}

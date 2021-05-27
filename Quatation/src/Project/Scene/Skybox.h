@@ -16,7 +16,7 @@ namespace choice
 
 		void BindIBL(glm::uvec3 slots);
 
-		void Draw(Camera* camera, UniformBuffer* camerabuffer);
+		void Draw(Camera* camera);
 		const std::string& GetFilepath()const { return mFilepath; }
 	private:
 		Mesh* mCube;

@@ -10,6 +10,11 @@ namespace choice
 		NONE = 0, MESH = 1, LIGHT = 2
 	};
 
+	namespace global
+	{
+		inline uint32_t NodeCounter = 0;
+	}
+
 	struct Node
 	{
 		std::string Name;

@@ -3,6 +3,7 @@
 #include "FontAwesome.h"
 #include <imgui.h>
 #include "FileDialog.h"
+#include "Project/Scene/Nodes/gltfImport.h"
 
 namespace choice
 {
@@ -81,8 +82,8 @@ namespace choice
 							node->Children.push_back(Cube());
 							node->Children[node->Children.size() - 1]->Parent = node;
 
-							NodeCounter++;
-							node->Children[node->Children.size() - 1]->Id = NodeCounter;
+							global::NodeCounter++;
+							node->Children[node->Children.size() - 1]->Id = global::NodeCounter;
 						}
 
 						if (ImGui::MenuItem("Sphere"))
@@ -90,8 +91,8 @@ namespace choice
 							node->Children.push_back(Sphere());
 							node->Children[node->Children.size() - 1]->Parent = node;
 
-							NodeCounter++;
-							node->Children[node->Children.size() - 1]->Id = NodeCounter;
+							global::NodeCounter++;
+							node->Children[node->Children.size() - 1]->Id = global::NodeCounter;
 						}
 						ImGui::EndMenu();
 					}
@@ -128,6 +129,45 @@ namespace choice
 				}
 
 				ImGui::EndMenu();
+			}
+
+			if (ImGui::MenuItem("Import Model"))
+			{
+				std::string filepath = FileDialog::OpenFile("3D Model (*.obj)\0*.obj");
+				if (!filepath.empty())
+				{
+					if (!ghc::filesystem::exists("gltf.bat"))
+					{
+						choiceassert(0);
+					}
+
+					std::string ext = ghc::filesystem::path(filepath).extension().string();
+
+					if (!(ext == ".glb" || ext == ".gltf"))
+					{
+						std::ofstream temporary("Temporary", std::ios::out);
+						temporary << filepath;
+						temporary.close();
+
+						std::system("gltf.bat");
+						ghc::filesystem::remove("Temporary");
+					}
+
+					std::string directory = scene->Directory() + "\\" + scene->Name() + "\\" + "Assets";
+					
+					Node* root = new Node();
+					root->Id = ++global::NodeCounter;
+
+					if (ImportGLTF(filepath.substr(0, filepath.find_last_of('.')) + ".glb", root, directory))
+					{
+						scene->AddNode(root);
+						ghc::filesystem::remove(filepath.substr(0, filepath.find_last_of('.')) + ".glb");
+					}
+					else
+					{
+						delete root;
+					}
+				}
 			}
 
 			if (ImGui::MenuItem("Change Skybox"))

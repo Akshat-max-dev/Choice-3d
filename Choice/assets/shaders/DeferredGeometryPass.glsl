@@ -15,7 +15,7 @@ layout(location = 0)out GPVertexOutput vOutput;
 void main()
 {
 	vOutput.FragPos = (uTransform * vec4(aPosition, 1.0)).xyz;
-	vOutput.Normal = aNormal;
+	vOutput.Normal = (uTransform * vec4(aNormal, 0.0)).xyz;;
 	vOutput.TexCoords = aTexCoords;
 	gl_Position = uViewProjection * uTransform * vec4(aPosition, 1.0);
 }

@@ -6,21 +6,13 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#include "UniformBuffer.h"
+#include "ReflectionData.h"
 
 namespace choice
 {
-	struct ReflectionData
-	{
-		std::map<std::string, uint32_t> Samplers;
-		std::map<std::string, UniformBuffer*> UniformBuffers;
-		~ReflectionData();
-	};
-
 	class Shader
 	{
 	public:
-		Shader(const std::string& shader, ReflectionData& data);
 		Shader(const std::string& shader);
 		~Shader();
 
@@ -28,7 +20,7 @@ namespace choice
 	private:
 		void Read(const std::string& shader);
 		void CreateProgram(const std::string& shader);
-		void Reflect(ReflectionData& data);
+		void Reflect();
 	private:
 		uint32_t mProgram;
 

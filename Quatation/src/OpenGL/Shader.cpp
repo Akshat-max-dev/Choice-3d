@@ -52,15 +52,10 @@ namespace choice
 			ghc::filesystem::create_directory(dir);
 	} 
 
-	Shader::Shader(const std::string& shader, ReflectionData& data)
-	{
-		CreateProgram(shader);
-		Reflect(data);
-	}
-
 	Shader::Shader(const std::string& shader)
 	{
 		CreateProgram(shader);
+		Reflect();
 	}
 
 	Shader::~Shader()
@@ -237,8 +232,6 @@ namespace choice
 				shaderc::SpvCompilationResult spv = compiler.CompileGlslToSpv(source,
 					getshadercFromShaderStage(stage), shader.c_str(), options);
 
-				std::cout << source << std::endl;
-
 				if (spv.GetCompilationStatus() != shaderc_compilation_status_success)
 				{
 					std::cout << spv.GetErrorMessage() << std::endl;
@@ -302,8 +295,10 @@ namespace choice
 		mProgram = program;
 	}
 
-	void Shader::Reflect(ReflectionData& data)
+	void Shader::Reflect()
 	{
+		ReflectionData& data = global::GlobalReflectionData;
+
 		for (auto&& [stage, spv] : mOpenGLSPV)
 		{
 			spirv_cross::Compiler compiler(spv);
@@ -347,7 +342,7 @@ namespace choice
 						std::string membername = buffername + '.' + compiler.get_member_name(bufferType.self, i);
 
 						//If Member Is A Struct Store All Struct Member Data In Buffer Layout
-						if (memberType.basetype == spirv_cross::SPIRType::Struct) 
+						if (memberType.basetype == spirv_cross::SPIRType::Struct)
 						{
 							int structmembercount = memberType.member_types.size();
 							for (int m = 0; m < structmembercount; m++)
@@ -371,20 +366,24 @@ namespace choice
 						uint32_t size = compiler.get_declared_struct_member_size(bufferType, i) / arraysize;
 						uint32_t offset = compiler.type_struct_member_offset(bufferType, i);
 
+						std::string temp = membername;
+
 						for (uint32_t i = 0; i < arraysize; i++)
 						{
 							if (memberType.array.size())
 							{
-								membername += "[" + std::to_string(i) + "]";
+								temp += "[" + std::to_string(i) + "]";
 							}
 
-							if (layout.find(membername) == layout.end())
+							if (layout.find(temp) == layout.end())
 							{
 								UniformBufferMember* member = new UniformBufferMember();
 								member->size = size;
 								member->offset = offset + (size * i);
-								layout.insert({ membername, member });
+								layout.insert({ temp, member });
 							}
+
+							temp = membername;
 						}
 					}
 
@@ -396,14 +395,4 @@ namespace choice
 
 		mOpenGLSPV.clear();
 	}
-
-	ReflectionData::~ReflectionData()
-	{
-		for (auto& buffer : UniformBuffers)
-		{
-			if (buffer.second) { delete buffer.second; }
-		}
-		Samplers.clear();
-	}
-
 }
