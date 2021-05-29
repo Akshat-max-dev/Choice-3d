@@ -256,7 +256,7 @@ namespace choice
 		for (auto&& [stage, spv] : mOpenGLSPV)
 		{
 			uint32_t shaderId = glCreateShader(stage);
-			glShaderBinary(1, &shaderId, GL_SHADER_BINARY_FORMAT_SPIR_V, spv.data(), spv.size() * sizeof(uint32_t));
+			glShaderBinary(1, &shaderId, GL_SHADER_BINARY_FORMAT_SPIR_V, spv.data(), static_cast<GLsizei>(spv.size() * sizeof(uint32_t)));
 			glSpecializeShader(shaderId, "main", 0, nullptr, nullptr);
 			glAttachShader(program, shaderId);
 			shadersIds.push_back(shaderId);
@@ -283,7 +283,7 @@ namespace choice
 			glDeleteProgram(program);
 
 			std::cout << "Program Linking Failed" << std::endl;
-			return;
+			choiceassert(0);
 		}
 
 		for (auto& shaderId : shadersIds)
@@ -327,16 +327,16 @@ namespace choice
 			for (const auto& resource : resources.uniform_buffers)
 			{
 				const auto& bufferType = compiler.get_type(resource.base_type_id);
-				uint32_t bufferSize = compiler.get_declared_struct_size(bufferType);
+				uint32_t bufferSize = static_cast<uint32_t>(compiler.get_declared_struct_size(bufferType));
 				uint32_t binding = compiler.get_decoration(resource.id, spv::DecorationBinding);
-				int membercount = bufferType.member_types.size();
+				uint32_t membercount = static_cast<uint32_t>(bufferType.member_types.size());
 				std::string buffername = compiler.get_name(bufferType.self);
 
 				if (data.UniformBuffers.find(buffername) == data.UniformBuffers.end())
 				{
 					UniformBufferLayout layout;
 
-					for (int i = 0; i < membercount; i++)
+					for (uint32_t i = 0; i < membercount; i++)
 					{
 						const auto& memberType = compiler.get_type(bufferType.member_types[i]);
 						std::string membername = buffername + '.' + compiler.get_member_name(bufferType.self, i);
@@ -344,14 +344,14 @@ namespace choice
 						//If Member Is A Struct Store All Struct Member Data In Buffer Layout
 						if (memberType.basetype == spirv_cross::SPIRType::Struct)
 						{
-							int structmembercount = memberType.member_types.size();
-							for (int m = 0; m < structmembercount; m++)
+							uint32_t structmembercount = static_cast<uint32_t>(memberType.member_types.size());
+							for (uint32_t m = 0; m < structmembercount; m++)
 							{
 								std::string name = membername + "." + compiler.get_member_name(memberType.self, m);
 								if (layout.find(name) == layout.end())
 								{
 									UniformBufferMember* member = new UniformBufferMember();
-									member->size = compiler.get_declared_struct_member_size(memberType, m);
+									member->size = static_cast<uint32_t>(compiler.get_declared_struct_member_size(memberType, m));
 									member->offset = compiler.type_struct_member_offset(memberType, m);
 									layout.insert({ name, member });
 								}
@@ -363,7 +363,7 @@ namespace choice
 						{
 							arraysize = memberType.array[0];
 						}
-						uint32_t size = compiler.get_declared_struct_member_size(bufferType, i) / arraysize;
+						uint32_t size = static_cast<uint32_t>(compiler.get_declared_struct_member_size(bufferType, i) / arraysize);
 						uint32_t offset = compiler.type_struct_member_offset(bufferType, i);
 
 						std::string temp = membername;

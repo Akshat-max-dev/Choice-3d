@@ -11,25 +11,16 @@
 
 namespace choice
 {
-	struct PixelInfo
-	{
-		float ObjectId = 0.0f;
-		float DrawId = 0.0f;
-		float PrimitiveId = 0.0f;
-	};
-
 	class DeferredGeometryCapture :public Framebuffer
 	{
 	public:
 		DeferredGeometryCapture(uint32_t w, uint32_t h);
 		~DeferredGeometryCapture();
 
-		void BindGBuffer(uint32_t slots[]);
-		PixelInfo* ReadPixels(uint32_t xpos, uint32_t ypos);
+		void BindGBuffer(uint32_t slots[])const;
 	private:
 		void Invalidate()override;
-		uint32_t mAlbedoSId, mPositionId, mNormalId, mRoughMetalAo, mPickingId, mDepthStencilId;
-		PixelInfo* mPixelInfo;
+		uint32_t mAlbedoSId, mNormalId, mRoughMetalAo, mDepthId;
 	};
 
 	class DeferredLightingCapture :public Framebuffer
@@ -41,7 +32,7 @@ namespace choice
 		const uint32_t& GetCapture()const;
 	private:
 		void Invalidate()override;
-		uint32_t mCapture, mDepthStencilId;
+		uint32_t mCapture, mDepthId;
 	};
 
 	class ShadowMapCapture :public Framebuffer

@@ -11,8 +11,8 @@ namespace choice
 		Data.resize(global::GlobalReflectionData.UniformBuffers["Material"]->GetBufferSize());
 
 		//Set Default Material Color As White
-		glm::vec4* color = global::GlobalReflectionData.UniformBuffers["Material"]->MemberData<glm::vec4>("Material.Color", Data);
-		*color = { 1.0f, 1.0f, 1.0f, 1.0f };
+		glm::vec3* color = global::GlobalReflectionData.UniformBuffers["Material"]->MemberData<glm::vec3>("Material.Color", Data);
+		*color = { 1.0f, 1.0f, 1.0f };
 	}
 
 	Material::~Material()
@@ -32,14 +32,18 @@ namespace choice
 	{
 		ReflectionData& reflectiondata = global::GlobalReflectionData;
 
+		uint32_t binding;
+
 		switch (type)
 		{
-		case TEXTURE_MAP_TYPE::ALBEDO:			  return reflectiondata.Samplers["gAlbedoMap"];
-		case TEXTURE_MAP_TYPE::NORMAL:			  return reflectiondata.Samplers["gNormalMap"];
-		case TEXTURE_MAP_TYPE::ROUGHNESS:		  return reflectiondata.Samplers["gRoughnessMap"];
-		case TEXTURE_MAP_TYPE::METALLIC:		  return reflectiondata.Samplers["gMetallicMap"];
-		case TEXTURE_MAP_TYPE::AMBIENT_OCCLUSION: return reflectiondata.Samplers["gAoMap"];
+		case TEXTURE_MAP_TYPE::ALBEDO:			  binding = reflectiondata.Samplers["gAlbedoMap"]; break;
+		case TEXTURE_MAP_TYPE::NORMAL:			  binding = reflectiondata.Samplers["gNormalMap"]; break;
+		case TEXTURE_MAP_TYPE::ROUGHNESS:		  binding = reflectiondata.Samplers["gRoughnessMap"]; break;
+		case TEXTURE_MAP_TYPE::METALLIC:		  binding = reflectiondata.Samplers["gMetallicMap"]; break;
+		case TEXTURE_MAP_TYPE::AMBIENT_OCCLUSION: binding = reflectiondata.Samplers["gAoMap"]; break;
 		}
+
+		return binding;
 	}
 
 }

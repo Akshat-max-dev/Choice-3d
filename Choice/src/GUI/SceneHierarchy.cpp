@@ -4,6 +4,7 @@
 #include <imgui.h>
 #include "FileDialog.h"
 #include "Project/Scene/Nodes/gltfImport.h"
+#include "Choice.h"
 
 namespace choice
 {
@@ -19,6 +20,11 @@ namespace choice
 		//Scene Hierarchy
 		ImGui::Begin(ICON_FK_LIST_UL" Hierarchy");
 
+		if (ImGui::IsWindowFocused() || ImGui::IsWindowHovered())
+		{
+			Choice::Instance()->GetEditor()->GetCamera()->AcceptInput(false);
+		}
+
 		std::string icon = ICON_FK_GLOBE;
 
 		ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImGui::GetStyle().Colors[ImGuiCol_WindowBg]);
@@ -33,9 +39,9 @@ namespace choice
 			{
 				ImGui::TableSetupColumn("##Column1", ImGuiTableColumnFlags_NoHide);
 
-				for (uint32_t i = 0; i < scene->GetNodes().size(); i++)
+				for (auto& node : scene->GetNodes())
 				{
-					IterateNode(scene->GetNodes()[i]); //Iterate Each Scene Node
+					IterateNode(node); //Iterate Each Scene Node
 				}
 
 				ShowAddingMenu(scene);
@@ -49,9 +55,10 @@ namespace choice
 
 	void SceneHierarchy::IterateNode(Node* node)
 	{
-		ImGui::PushID(node->Id);
 		if (node)
 		{
+			ImGui::PushID(node->Id);
+
 			ImGui::TableNextRow();
 			ImGui::TableNextColumn();
 
@@ -81,18 +88,14 @@ namespace choice
 						{
 							node->Children.push_back(Cube());
 							node->Children[node->Children.size() - 1]->Parent = node;
-
-							global::NodeCounter++;
-							node->Children[node->Children.size() - 1]->Id = global::NodeCounter;
+							node->Children[node->Children.size() - 1]->Id = ++global::NodeCounter;
 						}
 
 						if (ImGui::MenuItem("Sphere"))
 						{
 							node->Children.push_back(Sphere());
 							node->Children[node->Children.size() - 1]->Parent = node;
-
-							global::NodeCounter++;
-							node->Children[node->Children.size() - 1]->Id = global::NodeCounter;
+							node->Children[node->Children.size() - 1]->Id = ++global::NodeCounter;
 						}
 						ImGui::EndMenu();
 					}
@@ -105,15 +108,23 @@ namespace choice
 				}
 				ImGui::TreePop();
 			}
-		}
 
-		ImGui::PopID();
+			ImGui::PopID();
+		}
 	}
 
 	void ShowAddingMenu(Scene* scene)
 	{
 		if (ImGui::BeginPopupContextWindow(0, 1, false))
 		{
+			if (ImGui::MenuItem("Empty"))
+			{
+				Node* node = new Node();
+				node->node_data_type = NODE_DATA_TYPE::NONE;
+				node->Name = "Empty";
+				scene->AddNode(node);
+			}
+
 			if (ImGui::BeginMenu("Add Mesh"))
 			{
 				//Add Cube
@@ -133,7 +144,7 @@ namespace choice
 
 			if (ImGui::MenuItem("Import Model"))
 			{
-				std::string filepath = FileDialog::OpenFile("3D Model (*.obj)\0*.obj");
+				std::string filepath = FileDialog::OpenFile("All Files");
 				if (!filepath.empty())
 				{
 					if (!ghc::filesystem::exists("gltf.bat"))
@@ -152,13 +163,11 @@ namespace choice
 						std::system("gltf.bat");
 						ghc::filesystem::remove("Temporary");
 					}
-
-					std::string directory = scene->Directory() + "\\" + scene->Name() + "\\" + "Assets";
 					
 					Node* root = new Node();
 					root->Id = ++global::NodeCounter;
 
-					if (ImportGLTF(filepath.substr(0, filepath.find_last_of('.')) + ".glb", root, directory))
+					if (ImportGLTF(filepath.substr(0, filepath.find_last_of('.')) + ".glb", root))
 					{
 						scene->AddNode(root);
 						ghc::filesystem::remove(filepath.substr(0, filepath.find_last_of('.')) + ".glb");
@@ -180,7 +189,11 @@ namespace choice
 					std::string dsthdri = scene->Directory() + "\\" +
 						scene->Name() + "\\Assets\\" + hdriname;
 
-					ghc::filesystem::copy_file(hdri, dsthdri);
+					if (!ghc::filesystem::exists(dsthdri))
+					{
+						ghc::filesystem::copy_file(hdri, dsthdri);
+					}
+
 					ghc::filesystem::remove(scene->GetSkybox()->GetFilepath());
 					delete scene->GetSkybox();
 

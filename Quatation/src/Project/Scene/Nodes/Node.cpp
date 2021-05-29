@@ -29,4 +29,17 @@ namespace choice
 			}
 		}
 	}
+
+	void UpdateWorldTransform(Node* node)
+	{
+		if (node->Parent)
+		{
+			node->WorldTransform = node->Parent->WorldTransform * node->NodeTransform->GetTransform();
+		}
+		else
+		{
+			node->WorldTransform = node->NodeTransform->GetTransform();
+		}
+	}
+
 }

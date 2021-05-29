@@ -9,34 +9,22 @@ namespace choice
 	DeferredGeometryCapture::DeferredGeometryCapture(uint32_t w, uint32_t h)
 		:Framebuffer(w, h)
 	{
-		mPixelInfo = new PixelInfo();
 		Invalidate();
 	}
 
 	DeferredGeometryCapture::~DeferredGeometryCapture()
 	{
-		delete mPixelInfo;
 		Framebuffer::Destroy();
-		uint32_t tex[6] = { mPositionId, mNormalId, mAlbedoSId, mRoughMetalAo, mPickingId, mDepthStencilId };
-		glDeleteTextures(6, tex);
+		uint32_t tex[4] = { mNormalId, mAlbedoSId, mRoughMetalAo, mDepthId };
+		glDeleteTextures(4, tex);
 	}
 
-	void DeferredGeometryCapture::BindGBuffer(uint32_t slots[])
+	void DeferredGeometryCapture::BindGBuffer(uint32_t slots[])const
 	{
-		glBindTextureUnit(slots[0], mPositionId);
-		glBindTextureUnit(slots[1], mNormalId);
-		glBindTextureUnit(slots[2], mAlbedoSId);
-		glBindTextureUnit(slots[3], mRoughMetalAo);
-	}
-
-	PixelInfo* DeferredGeometryCapture::ReadPixels(uint32_t xpos, uint32_t ypos)
-	{
-		glBindFramebuffer(GL_FRAMEBUFFER, mRendererId);
-		glReadBuffer(GL_COLOR_ATTACHMENT4);
-		glReadPixels(static_cast<GLint>(xpos), static_cast<GLint>(ypos), 1, 1, GL_RGB, GL_FLOAT, mPixelInfo);
-		glReadBuffer(GL_NONE);
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-		return mPixelInfo;
+		glBindTextureUnit(slots[0], mNormalId);
+		glBindTextureUnit(slots[1], mAlbedoSId);
+		glBindTextureUnit(slots[2], mRoughMetalAo);
+		glBindTextureUnit(slots[3], mDepthId);
 	}
 
 	void DeferredGeometryCapture::Invalidate()
@@ -44,23 +32,12 @@ namespace choice
 		if (mRendererId)
 		{
 			Framebuffer::Destroy();
-			uint32_t tex[6] = { mPositionId, mNormalId, mAlbedoSId, mRoughMetalAo, mPickingId, mDepthStencilId };
-			glDeleteTextures(6, tex);
+			uint32_t tex[4] = { mNormalId, mAlbedoSId, mRoughMetalAo, mDepthId };
+			glDeleteTextures(4, tex);
 		}
 
 		glCreateFramebuffers(1, &mRendererId);
 		glBindFramebuffer(GL_FRAMEBUFFER, mRendererId);
-
-		glCreateTextures(GL_TEXTURE_2D, 1, &mPositionId);
-		glBindTexture(GL_TEXTURE_2D, mPositionId);
-
-		glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA32F, mWidth, mHeight);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, mPositionId, 0);
 
 		glCreateTextures(GL_TEXTURE_2D, 1, &mNormalId);
 		glBindTexture(GL_TEXTURE_2D, mNormalId);
@@ -71,7 +48,7 @@ namespace choice
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, mNormalId, 0);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, mNormalId, 0);
 
 		glCreateTextures(GL_TEXTURE_2D, 1, &mAlbedoSId);
 		glBindTexture(GL_TEXTURE_2D, mAlbedoSId);
@@ -82,7 +59,7 @@ namespace choice
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, mAlbedoSId, 0);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, mAlbedoSId, 0);
 
 		glCreateTextures(GL_TEXTURE_2D, 1, &mRoughMetalAo);
 		glBindTexture(GL_TEXTURE_2D, mRoughMetalAo);
@@ -93,32 +70,23 @@ namespace choice
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_2D, mRoughMetalAo, 0);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, mRoughMetalAo, 0);
 
-		glCreateTextures(GL_TEXTURE_2D, 1, &mPickingId);
-		glBindTexture(GL_TEXTURE_2D, mPickingId);
+		glCreateTextures(GL_TEXTURE_2D, 1, &mDepthId);
+		glBindTexture(GL_TEXTURE_2D, mDepthId);
 
-		glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGB32F, mWidth, mHeight);
-
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT4, GL_TEXTURE_2D, mPickingId, 0);
-
-		glCreateTextures(GL_TEXTURE_2D, 1, &mDepthStencilId);
-		glBindTexture(GL_TEXTURE_2D, mDepthStencilId);
-
-		glTexStorage2D(GL_TEXTURE_2D, 1, GL_DEPTH24_STENCIL8, mWidth, mHeight);
+		glTexStorage2D(GL_TEXTURE_2D, 1, GL_DEPTH_COMPONENT32F, mWidth, mHeight);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, mDepthStencilId, 0);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, mDepthId, 0);
 
-		uint32_t Attachments[5] = { GL_COLOR_ATTACHMENT0,
+		uint32_t Attachments[3] = { GL_COLOR_ATTACHMENT0,
 									GL_COLOR_ATTACHMENT1,
-									GL_COLOR_ATTACHMENT2,
-									GL_COLOR_ATTACHMENT3,
-									GL_COLOR_ATTACHMENT4 };
-		glDrawBuffers(5, Attachments);
+									GL_COLOR_ATTACHMENT2 };
+		glDrawBuffers(3, Attachments);
 
 		if (!(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE))
 		{
@@ -146,6 +114,9 @@ namespace choice
 		//Configure Lighting Pass
 		mLightingPass.first = new DeferredLightingCapture(w, h);
 		mLightingPass.second = new Shader("Choice/assets/shaders/DeferredLightingPass.glsl");
+
+		global::CaptureBuffer.resize(global::GlobalReflectionData.UniformBuffers["Capture"]->GetBufferSize());
+		global::LightsBuffer.resize(global::GlobalReflectionData.UniformBuffers["Lights"]->GetBufferSize());
 	}
 
 	void DeferredPipeline::Visible(uint32_t w, uint32_t h)
@@ -178,60 +149,53 @@ namespace choice
 
 		ReflectionData& reflectiondata = global::GlobalReflectionData;
 
-		UniformBuffer* cameraBuffer = reflectiondata.UniformBuffers["Camera"];
-		cameraBuffer->SetData("Camera.uViewProjection", &camera->ViewProjection());
+		reflectiondata.UniformBuffers["Camera"]->SetData("Camera.uViewProjection", &camera->ViewProjection());
 
 		//Geometry Pass
 		mGeometryPass.first->Bind();
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		mGeometryPass.second->Use();
 
+		static auto geometrypassfunc = [&](Node* node) {
+			if (node->node_data_type == NODE_DATA_TYPE::MESH)
+			{
+				Mesh* mesh = static_cast<Mesh*>(node);
+				UpdateWorldTransform(mesh);
+				reflectiondata.UniformBuffers["Transform"]->SetData("Transform.uTransform", &mesh->WorldTransform);
+
+				auto* materialBuffer = reflectiondata.UniformBuffers["Material"];
+
+				for (auto& primitive : mesh->primitives)
+				{
+					materialBuffer->SetData(primitive->material->Data);
+
+					for (auto&& [type, texturemap] : primitive->material->TextureMaps)
+					{
+						if (texturemap->texture)
+							texturemap->texture->Bind(GetBinding(type));
+					}
+
+					DrawPrimitive(primitive, mesh->mesh_type);
+				}
+
+				//Calculating Scene AABB
+				glm::vec4 min = mesh->NodeTransform->GetTransform() *
+					glm::vec4(mesh->boundingbox.Min, 1.0f);
+				scene->GetBoundingBox().Min.x = min.x < scene->GetBoundingBox().Min.x ? min.x : scene->GetBoundingBox().Min.x;
+				scene->GetBoundingBox().Min.y = min.y < scene->GetBoundingBox().Min.y ? min.y : scene->GetBoundingBox().Min.y;
+				scene->GetBoundingBox().Min.z = min.z < scene->GetBoundingBox().Min.z ? min.z : scene->GetBoundingBox().Min.z;
+
+				glm::vec4 max = mesh->NodeTransform->GetTransform() *
+					glm::vec4(mesh->boundingbox.Max, 1.0f);
+				scene->GetBoundingBox().Max.x = max.x > scene->GetBoundingBox().Max.x ? max.x : scene->GetBoundingBox().Max.x;
+				scene->GetBoundingBox().Max.y = max.y > scene->GetBoundingBox().Max.y ? max.y : scene->GetBoundingBox().Max.y;
+				scene->GetBoundingBox().Max.z = max.z > scene->GetBoundingBox().Max.z ? max.z : scene->GetBoundingBox().Max.z;
+			}
+		};
+
 		for (auto& node : scene->GetNodes())
 		{
-			auto func = [&](Node* node) {
-				if (node->node_data_type == NODE_DATA_TYPE::MESH)
-				{
-					Mesh* mesh = static_cast<Mesh*>(node);
-					if (mesh->Parent)
-					{
-						mesh->WorldTransform = mesh->Parent->WorldTransform * mesh->NodeTransform->GetTransform();
-					}
-					else
-					{
-						mesh->WorldTransform = mesh->NodeTransform->GetTransform();
-					}
-					reflectiondata.UniformBuffers["Transform"]->SetData("Transform.uTransform", &mesh->WorldTransform);
-					
-					auto* materialBuffer = reflectiondata.UniformBuffers["Material"];
-
-					for (auto& primitive : mesh->primitives)
-					{	
-						materialBuffer->SetData(primitive->material->Data);
-
-						for (auto&& [type, texturemap] : primitive->material->TextureMaps)
-						{
-							if (texturemap->texture)
-								texturemap->texture->Bind(GetBinding(type));
-						}
-
-						DrawPrimitive(primitive, mesh->mesh_type);
-					}
-
-					//Calculating Scene AABB
-					glm::vec4 min = mesh->NodeTransform->GetTransform() *
-						glm::vec4(mesh->boundingbox.Min, 1.0f);
-					scene->GetBoundingBox().Min.x = min.x < scene->GetBoundingBox().Min.x ? min.x : scene->GetBoundingBox().Min.x;
-					scene->GetBoundingBox().Min.y = min.y < scene->GetBoundingBox().Min.y ? min.y : scene->GetBoundingBox().Min.y;
-					scene->GetBoundingBox().Min.z = min.z < scene->GetBoundingBox().Min.z ? min.z : scene->GetBoundingBox().Min.z;
-
-					glm::vec4 max = mesh->NodeTransform->GetTransform() *
-						glm::vec4(mesh->boundingbox.Max, 1.0f);
-					scene->GetBoundingBox().Max.x = max.x > scene->GetBoundingBox().Max.x ? max.x : scene->GetBoundingBox().Max.x;
-					scene->GetBoundingBox().Max.y = max.y > scene->GetBoundingBox().Max.y ? max.y : scene->GetBoundingBox().Max.y;
-					scene->GetBoundingBox().Max.z = max.z > scene->GetBoundingBox().Max.z ? max.z : scene->GetBoundingBox().Max.z;
-				}
-			};
-			IterateNodes(node, func);
+			IterateNodes(node, geometrypassfunc);
 		}
 		mGeometryPass.first->UnBind();
 
@@ -240,44 +204,38 @@ namespace choice
 		glClear(GL_DEPTH_BUFFER_BIT);
 		mShadowMapPass.second->Use();
 
+		static auto shadowmappassfunc = [&](Node* node) {
+			if (node->node_data_type == NODE_DATA_TYPE::LIGHT)
+			{
+				Light* light = static_cast<Light*>(node);
+				switch (light->Type)
+				{
+				case LIGHT_TYPE::DIRECTIONAL:
+					reflectiondata.UniformBuffers["Camera"]->SetData("Camera.uViewProjection", &light->ViewProjection(&scene->GetBoundingBox())[0]);
+					for (auto& mesh_node : scene->GetNodes())
+					{
+						auto mesh_func = [&](Node* node) {
+							if (node->node_data_type == NODE_DATA_TYPE::MESH)
+							{
+								Mesh* mesh = static_cast<Mesh*>(node);
+								UpdateWorldTransform(mesh);
+								reflectiondata.UniformBuffers["Transform"]->SetData("Transform.uTransform", &mesh->WorldTransform);
+								for (auto& primitive : mesh->primitives)
+								{
+									DrawPrimitive(primitive, mesh->mesh_type);
+								}
+							}
+						};
+						IterateNodes(mesh_node, mesh_func);
+					}
+					break;
+				}
+			}
+		};
+
 		for (auto& node : scene->GetNodes())
 		{
-			auto func = [&](Node* node) {
-				if (node->node_data_type == NODE_DATA_TYPE::LIGHT)
-				{
-					Light* light = static_cast<Light*>(node);
-					switch (light->Type)
-					{
-					case LIGHT_TYPE::DIRECTIONAL:
-						cameraBuffer->SetData("Camera.uViewProjection", &light->ViewProjection(&scene->GetBoundingBox())[0]);
-						for (auto& mesh_node : scene->GetNodes())
-						{
-							auto mesh_func = [&](Node* node) {
-								if (node->node_data_type == NODE_DATA_TYPE::MESH)
-								{
-									Mesh* mesh = static_cast<Mesh*>(node);
-									if (mesh->Parent)
-									{
-										mesh->WorldTransform = mesh->Parent->WorldTransform * mesh->NodeTransform->GetTransform();
-									}
-									else
-									{
-										mesh->WorldTransform = mesh->NodeTransform->GetTransform();
-									}
-									reflectiondata.UniformBuffers["Transform"]->SetData("Transform.uTransform", &mesh->WorldTransform);
-									for (auto& primitive : mesh->primitives)
-									{
-										DrawPrimitive(primitive, mesh->mesh_type);
-									}
-								}
-							};
-							IterateNodes(mesh_node, mesh_func);
-						}
-						break;
-					}
-				}
-			};
-			IterateNodes(node, func);
+			IterateNodes(node, shadowmappassfunc);
 		}
 
 		mShadowMapPass.first->UnBind();
@@ -291,56 +249,76 @@ namespace choice
 		//Bind All Textures To Be Used In Lighting Pass
 		auto& samplers = reflectiondata.Samplers;
 
-		uint32_t slots[] = { samplers["lPosition"], samplers["lNormal"],
-										 samplers["lAlbedoS"], samplers["lRoughMetalAo"] };
+		uint32_t slots[] = { samplers["lNormal"], samplers["lAlbedoS"], 
+							 samplers["lRoughMetalAo"], samplers["lDepthMap"] };
+
 		mGeometryPass.first->BindGBuffer(slots);
 		scene->GetSkybox()->BindIBL({ samplers["lIrradianceMap"], samplers["lPreFilterMap"], samplers["lBRDFLookup"] });
 		mShadowMapPass.first->BindShadowMap(samplers["lShadowMap"]);
+
+		glm::mat4* projinv = reflectiondata.UniformBuffers["Capture"]->MemberData<glm::mat4>("Capture.uProjection", global::CaptureBuffer);
+		*projinv = glm::inverse(camera->Projection());
+		glm::mat4* viewinv = reflectiondata.UniformBuffers["Capture"]->MemberData<glm::mat4>("Capture.uView", global::CaptureBuffer);
+		*viewinv = glm::inverse(camera->View());
+
+		reflectiondata.UniformBuffers["Capture"]->SetData(global::CaptureBuffer);
 
 		//Lighting Pass
 		mLightingPass.first->Bind();
 		glClear(GL_COLOR_BUFFER_BIT);
 		int directinalLightCount = 0;
 		int pointLightCount = 0;
+
+		static auto lightingpassfunc = [&](Node* node) {
+			if (node->node_data_type == NODE_DATA_TYPE::LIGHT)
+			{
+				Light* light = static_cast<Light*>(node);
+				mLightingPass.second->Use();
+
+				auto* lightBuffer = reflectiondata.UniformBuffers["Lights"];
+
+				int* directionallightactive = lightBuffer->MemberData<int>("Lights.ldLightsActive", global::LightsBuffer);
+				int* pointlightactive = lightBuffer->MemberData<int>("Lights.lpLightsActive", global::LightsBuffer);
+				glm::vec3* viewpos = lightBuffer->MemberData<glm::vec3>("Lights.lViewpos", global::LightsBuffer);
+
+				switch (light->Type)
+				{
+				case LIGHT_TYPE::DIRECTIONAL:
+					directinalLightCount++;
+					{
+						glm::vec3* direction = lightBuffer->MemberData<glm::vec3>("Lights.ldLights.Direction", light->Data);
+						glm::mat4* lightVP = lightBuffer->MemberData<glm::mat4>("Lights.ldLights.LightVP", light->Data);
+
+						*direction = glm::normalize(glm::vec3(node->NodeTransform->GetTransform()[2]));
+						*lightVP = light->ViewProjection(&scene->GetBoundingBox())[0];
+
+						auto* lightdata = lightBuffer->MemberData<char*>(("Lights.ldLights[" + std::to_string(directinalLightCount - 1) + "]").c_str(), global::LightsBuffer);
+						memcpy(lightdata, light->Data.data(), light->Data.size());
+					}
+					break;
+				case LIGHT_TYPE::POINT:
+					pointLightCount++;
+					{
+						auto* position = lightBuffer->MemberData<glm::vec3>("Lights.lpLights.Position", light->Data);
+						*position = node->NodeTransform->Position;
+
+						auto* lightdata = lightBuffer->MemberData<char*>(("Lights.lpLights[" + std::to_string(directinalLightCount - 1) + "]").c_str(), global::LightsBuffer);
+						memcpy(lightdata, light->Data.data(), light->Data.size());
+					}
+					break;
+				}
+
+				*directionallightactive = directinalLightCount;
+				*pointlightactive = pointLightCount;
+				*viewpos = camera->Position();
+
+				lightBuffer->SetData(global::LightsBuffer);
+			}
+		};
+
 		for (auto& node : scene->GetNodes())
 		{
-			auto func = [&](Node* node) {
-				if (node->node_data_type == NODE_DATA_TYPE::LIGHT)
-				{
-					Light* light = static_cast<Light*>(node);
-					mLightingPass.second->Use();
-
-					auto* lightBuffer = reflectiondata.UniformBuffers["Lights"];
-
-					switch (light->Type)
-					{
-					case LIGHT_TYPE::DIRECTIONAL:
-						directinalLightCount++;
-						{
-							auto* direction = lightBuffer->MemberData<glm::vec3>("Lights.ldLights.Direction", light->Data);
-							*direction = glm::normalize(glm::vec3(node->NodeTransform->GetTransform()[2]));
-
-							auto* lightVP = lightBuffer->MemberData<glm::mat4>("Lights.ldLights.LightVP", light->Data);
-							*lightVP = light->ViewProjection(&scene->GetBoundingBox())[0];
-
-							lightBuffer->SetData(("Lights.ldLights[" + std::to_string(directinalLightCount - 1) + "]").c_str(), (const void*)light->Data.data());
-						}
-						break;
-					case LIGHT_TYPE::POINT:
-						pointLightCount++;
-						{
-							auto* position = lightBuffer->MemberData<glm::vec3>("Lights.lpLights.Position", light->Data);
-							*position = node->NodeTransform->Position;
-						}
-						lightBuffer->SetData(("Lights.lpLights[" + std::to_string(pointLightCount - 1) + "]").c_str(), (const void*)light->Data.data());
-						break;
-					}
-					lightBuffer->SetData("Lights.lViewpos", &camera->Position());
-					lightBuffer->SetData("Lights.ldLightsActive", &directinalLightCount);
-					lightBuffer->SetData("Lights.lpLightsActive", &pointLightCount);
-				}
-			};
-			IterateNodes(node, func);
+			IterateNodes(node, lightingpassfunc);
 		}
 		glDrawArrays(GL_TRIANGLES, 0, 3);
 
@@ -364,7 +342,7 @@ namespace choice
 		mLightingPass.first->BindDraw();
 		glBlitFramebuffer(0, 0, mGeometryPass.first->GetWidth(), mGeometryPass.first->GetHeight(),
 			0, 0, mLightingPass.first->GetWidth(), mLightingPass.first->GetHeight(),
-			GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT, GL_NEAREST);
+			GL_DEPTH_BUFFER_BIT, GL_NEAREST);
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
 
@@ -394,7 +372,7 @@ namespace choice
 	{
 		Framebuffer::Destroy();
 		glDeleteTextures(1, &mCapture);
-		glDeleteTextures(1, &mDepthStencilId);
+		glDeleteTextures(1, &mDepthId);
 	}
 
 	const uint32_t& DeferredLightingCapture::GetCapture() const
@@ -408,7 +386,7 @@ namespace choice
 		{
 			Framebuffer::Destroy();
 			glDeleteTextures(1, &mCapture);
-			glDeleteTextures(1, &mDepthStencilId);
+			glDeleteTextures(1, &mDepthId);
 		}
 
 		glCreateFramebuffers(1, &mRendererId);
@@ -423,16 +401,16 @@ namespace choice
 
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, mCapture, 0);
 
-		glCreateTextures(GL_TEXTURE_2D, 1, &mDepthStencilId);
-		glBindTexture(GL_TEXTURE_2D, mDepthStencilId);
+		glCreateTextures(GL_TEXTURE_2D, 1, &mDepthId);
+		glBindTexture(GL_TEXTURE_2D, mDepthId);
 
-		glTexStorage2D(GL_TEXTURE_2D, 1, GL_DEPTH24_STENCIL8, mWidth, mHeight);
+		glTexStorage2D(GL_TEXTURE_2D, 1, GL_DEPTH_COMPONENT32F, mWidth, mHeight);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, mDepthStencilId, 0);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, mDepthId, 0);
 
 		if (!(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE))
 		{

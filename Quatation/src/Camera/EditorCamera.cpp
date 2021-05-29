@@ -55,20 +55,24 @@ namespace choice
 
 	void EditorCamera::OnMove(double xpos, double ypos)
 	{
-		mDeltaX = (float)xpos - mLastX;
-		mDeltaY = mLastY - (float)ypos;
-		mLastX = (float)xpos;
-		mLastY = (float)ypos;
+		if (mAcceptInput)
+		{
+			mDeltaX = (float)xpos - mLastX;
+			mDeltaY = mLastY - (float)ypos;
+			mLastX = (float)xpos;
+			mLastY = (float)ypos;
+		}
 	}
 
 	void EditorCamera::OnScroll(double yoffset)
 	{
-		mOffset -= (float)yoffset * mOffset * 0.05f;
+		if(mAcceptInput)
+			mOffset -= (float)yoffset * mOffset * 0.05f;
 	}
 
 	void EditorCamera::OnButtonDown(int button)
 	{
-		if (button == Mouse::BUTTON1)
+		if (button == Mouse::BUTTON1 && mAcceptInput)
 		{
 			mLastX = Input::GetMouseX();
 			mLastY = Input::GetMouseY();
@@ -80,6 +84,6 @@ namespace choice
 
 	void EditorCamera::OnButtonUp(int button)
 	{
-		if (button == Mouse::BUTTON1) { mMovementType = Camera::MovementType::NONE; }
+		if (button == Mouse::BUTTON1 && mAcceptInput) { mMovementType = Camera::MovementType::NONE; }
 	}
 }

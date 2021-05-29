@@ -50,6 +50,9 @@ namespace choice
 	void UniformBuffer::BindBufferBase()
 	{
 		if (mName != BindingCache[mBinding])
+		{
 			glBindBufferBase(GL_UNIFORM_BUFFER, mBinding, mRendererId);
+			BindingCache[mBinding] = mName;
+		}
 	}
 }

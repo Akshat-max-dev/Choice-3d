@@ -12,7 +12,8 @@ layout(std140, binding = 1)uniform Transform
 
 layout(std140, binding = 2)uniform Material
 {
-	vec4 Color;
+	vec3 Color;
+	float _padding1;
 	float Roughness;
 	float Metallic;
 	int HasAlbedoMap;
@@ -36,13 +37,13 @@ layout(std140, binding = 0)uniform Lights
 	vec3 lViewpos;
 };
 
-layout(std140, binding = 0)uniform Capture
+layout(std140, binding = 1)uniform Capture
 {
     mat4 uProjection;
     mat4 uView;
 };
 
-layout(std140, binding = 1)uniform Roughness
+layout(std140, binding = 2)uniform Roughness
 {
     float pfRoughness;
 };

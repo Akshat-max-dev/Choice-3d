@@ -1,7 +1,6 @@
 #include "Scene.h"
 
 #include <glad/glad.h>
-#include "BinaryHelper.h"
 
 #include "XML/XMLFile.h"
 
@@ -15,10 +14,10 @@ namespace choice
 		ghc::filesystem::create_directory(mDirectory + "\\" + mName);
 		ghc::filesystem::create_directory(mDirectory + "\\" + mName + "\\" + "Assets");
 
-		ghc::filesystem::copy("Choice/assets/hdri_skybox/Road_to_MonumentValley_Ref.hdr", 
-			mDirectory + "\\" + mName + "\\" + "Assets\\Road_to_MonumentValley_Ref.hdr");
-
 		std::string dstHDRI = mDirectory + "\\" + mName + "\\" + "Assets\\Road_to_MonumentValley_Ref.hdr";
+
+		ghc::filesystem::copy("Choice/assets/hdri_skybox/Road_to_MonumentValley_Ref.hdr", dstHDRI);
+		
 		mSkybox = new Skybox(dstHDRI);
 
 		AddNode(CreateDiretionalLight());
@@ -95,8 +94,7 @@ namespace choice
 		mNodes.push_back(node);
 		if (!node->Id)
 		{
-			global::NodeCounter++;
-			node->Id = global::NodeCounter;
+			node->Id = ++global::NodeCounter;
 		}
 	}
 
@@ -128,53 +126,5 @@ namespace choice
 		cscene->Save(mDirectory + "\\" + mName + "\\" + mName + ".cscene");
 
 		delete cscene;
-	}
-
-	void Scene::Clean()
-	{
-		/*//TODO : Fix For CUBE And SPHERE
-		std::string cscenefile = mDirectory + "\\" + mName + "\\" + mName + ".cscene";
-		std::ifstream cscene(cscenefile, std::ios::in | std::ios::binary);
-		
-		uint32_t sceneobjectssize;
-		cscene.read((char*)&sceneobjectssize, sizeof(sceneobjectssize));
-
-		for (uint32_t i = sceneobjectssize; i < mSceneObjects.size(); i++)
-		{
-			Skybox* skybox = mSceneObjects[i]->GetProperty<Skybox>();
-			if (skybox)
-			{
-				ghc::filesystem::remove(skybox->GetFilepath());
-			}
-
-			Drawable* drawable = mSceneObjects[i]->GetProperty<Drawable>();
-			if (drawable)
-			{
-				if (drawable->GetDrawableType() == DrawableType::MODEL)
-				{
-					ghc::filesystem::remove(mDirectory + "\\" + mName + "\\" + "Assets\\" + drawable->GetName() + ".cmodel");
-					ghc::filesystem::remove(mDirectory + "\\" + mName + "\\" + "Assets\\" + drawable->GetName() + ".cmaterial");
-				}
-				for (auto& material : drawable->GetMaterials())
-				{
-					if (material->DiffuseMap.second.second)
-					{
-						if (!material->DiffuseMap.second.second->Source.empty())
-						{
-							ghc::filesystem::remove(material->DiffuseMap.second.second->Source);
-						}
-					}
-					if (material->NormalMap.second.second)
-					{
-						if (!material->NormalMap.second.second->Source.empty())
-						{
-							ghc::filesystem::remove(material->NormalMap.second.second->Source);
-						}
-					}
-				}
-			}
-		}
-
-		cscene.close();*/
 	}
 }

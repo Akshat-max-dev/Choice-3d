@@ -1,7 +1,7 @@
 //Geometry Pass Vertex Output
 struct GPVertexOutput 
 {
-    vec3 FragPos;
+	vec3 FragPos;
     vec2 TexCoords;
     vec3 Normal;
 };

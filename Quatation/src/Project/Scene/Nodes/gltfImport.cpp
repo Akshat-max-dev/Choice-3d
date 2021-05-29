@@ -8,6 +8,7 @@
 
 #include "ReflectionData.h"
 #include "XML/XMLFile.h"
+#include "Choice.h"
 
 namespace choice
 {
@@ -60,12 +61,6 @@ namespace choice
 		transform[0][3] = data[3];  transform[1][3] = data[7];	transform[2][3] = data[11];	transform[3][3] = data[15];
 	}
 
-	glm::mat4 toTranform(const glm::vec3 position, const glm::quat rotation, const glm::vec3 scale)
-	{
-		return glm::translate(glm::mat4(1.0f), position) *
-			glm::toMat4(rotation) * glm::scale(glm::mat4(1.0f), scale);
-	}
-
 	enum MESH_ATTRIBUTE_TYPE
 	{
 		POSITION = 0, NORMAL = 1, TEXCOORDS = 2, COUNT = 3
@@ -96,7 +91,7 @@ namespace choice
 		}
 	}
 
-	void loadcgltfNode(const cgltf_node* cgltfnode, Node*& node, Node* parent, const std::string& dstDirectory, XMLFile* cmesh)
+	void loadcgltfNode(const cgltf_node* cgltfnode, Node*& node, Node* parent, XMLFile* cmesh)
 	{
 		if (!cgltfnode->mesh)
 		{
@@ -141,21 +136,20 @@ namespace choice
 					int* hasaomap = materialBuffer->MemberData<int>("Material.HasAoMap", material->Data);
 					float* roughness = materialBuffer->MemberData<float>("Material.Roughness", material->Data);
 					float* metallic = materialBuffer->MemberData<float>("Material.Metallic", material->Data);
-					glm::vec4* color = materialBuffer->MemberData<glm::vec4>("Material.Color", material->Data);
+					glm::vec3* color = materialBuffer->MemberData<glm::vec3>("Material.Color", material->Data);
 
 					*color = { cgltfmaterial->pbr_metallic_roughness.base_color_factor[0],
 							   cgltfmaterial->pbr_metallic_roughness.base_color_factor[1],
-							   cgltfmaterial->pbr_metallic_roughness.base_color_factor[2],
-							   cgltfmaterial->pbr_metallic_roughness.base_color_factor[3] };
+							   cgltfmaterial->pbr_metallic_roughness.base_color_factor[2] };
 
 					*roughness = cgltfmaterial->pbr_metallic_roughness.roughness_factor;
 					*metallic = cgltfmaterial->pbr_metallic_roughness.metallic_factor;
-
+					
 					const auto* albedomap = cgltfmaterial->pbr_metallic_roughness.base_color_texture.texture;
 					if (albedomap)
 					{
 						*hasalbedoemap = 1;
-						std::string filepath = CompressTexture((void*)albedomap, dstDirectory,
+						std::string filepath = CompressTexture((void*)albedomap, 
 							BlockCompressionFormat::BC1, true);
 
 						material->TextureMaps[TEXTURE_MAP_TYPE::ALBEDO]->filepath = filepath;
@@ -166,7 +160,7 @@ namespace choice
 					if (normalmap)
 					{
 						*hasnormalmap = 1;
-						std::string filepath = CompressTexture((void*)normalmap, dstDirectory,
+						std::string filepath = CompressTexture((void*)normalmap,
 							BlockCompressionFormat::BC5, true);
 
 						material->TextureMaps.insert({ TEXTURE_MAP_TYPE::NORMAL, new TextureMap() });
@@ -179,23 +173,13 @@ namespace choice
 					if (occlusionmap)
 					{
 						*hasaomap = 1;
-						std::string filepath = CompressTexture((void*)occlusionmap, dstDirectory,
+						std::string filepath = CompressTexture((void*)occlusionmap,
 							BlockCompressionFormat::BC4, true);
 
 						material->TextureMaps.insert({ TEXTURE_MAP_TYPE::AMBIENT_OCCLUSION, new TextureMap() });
 
 						material->TextureMaps[TEXTURE_MAP_TYPE::AMBIENT_OCCLUSION]->filepath = filepath;
 						material->TextureMaps[TEXTURE_MAP_TYPE::AMBIENT_OCCLUSION]->texture = new Texture2D(LoadTexture2D(filepath));
-					}
-
-					if (*roughness)
-					{
-						material->TextureMaps.insert({ TEXTURE_MAP_TYPE::ROUGHNESS, new TextureMap() });
-					}
-
-					if (*metallic)
-					{
-						material->TextureMaps.insert({ TEXTURE_MAP_TYPE::METALLIC, new TextureMap() });
 					}
 				}
 
@@ -359,11 +343,11 @@ namespace choice
 		for (auto i = 0; i < cgltfnode->children_count; i++)
 		{
 			const auto* cgltfchild = cgltfnode->children[i];
-			loadcgltfNode(cgltfchild, node->Children[i], node, dstDirectory, cmesh);
+			loadcgltfNode(cgltfchild, node->Children[i], node, cmesh);
 		}
 	}
 
-	bool ImportGLTF(const std::string& srcFile, Node* root, const std::string& dstDirectory)
+	bool ImportGLTF(const std::string& srcFile, Node* root)
 	{
 		cgltf_options options = {};
 		cgltf_data* data = nullptr;
@@ -386,7 +370,7 @@ namespace choice
 
 		std::string name = ghc::filesystem::path(srcFile).stem().string();
 
-		std::string dstMeshFile = dstDirectory + "\\" + name + std::to_string(root->Id) + ".cmesh";
+		std::string dstMeshFile = global::ActiveSceneDir + "Assets\\" + name + std::to_string(root->Id) + ".cmesh";
 
 		root->Name = name;
 		root->node_data_type = NODE_DATA_TYPE::NONE;
@@ -399,7 +383,7 @@ namespace choice
 		for (auto i = 0; i < nodescount; i++)
 		{
 			const auto* node = scene->nodes[i];
-			loadcgltfNode(node, root->Children[i], root, dstDirectory, cmesh);
+			loadcgltfNode(node, root->Children[i], root, cmesh);
 		}
 
 		cmesh->Save(dstMeshFile);

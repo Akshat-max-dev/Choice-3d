@@ -23,7 +23,6 @@ namespace choice
 		Skybox* GetSkybox() { return mSkybox; }
 
 		void Save();
-		void Clean();
 
 		std::string& Name() { return mName; }
 		const std::string& Directory()const { return mDirectory; }

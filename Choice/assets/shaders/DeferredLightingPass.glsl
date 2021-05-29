@@ -21,18 +21,18 @@ layout(location = 0)out vec4 lResult;
 
 layout(location = 0)in vec2 vTexCoords;
 
-layout(binding = 0)uniform sampler2D       lPosition;
-layout(binding = 1)uniform sampler2D       lNormal;
-layout(binding = 2)uniform sampler2D       lAlbedoS;
-layout(binding = 3)uniform sampler2D       lRoughMetalAo;
-layout(binding = 4)uniform sampler2DShadow lShadowMap;
+layout(binding = 0)uniform sampler2D       lNormal;
+layout(binding = 1)uniform sampler2D       lAlbedoS;
+layout(binding = 2)uniform sampler2D       lRoughMetalAo;
+layout(binding = 3)uniform sampler2DShadow lShadowMap;
+layout(binding = 4)uniform sampler2D	   lDepthMap;
 layout(binding = 5)uniform samplerCube 	   lIrradianceMap;
 layout(binding = 6)uniform samplerCube     lPreFilterMap;
 layout(binding = 7)uniform sampler2D 	   lBRDFLookup;
 
 from Structures.glsl include struct DirectionalLight,struct PointLight;
 
-from UniformBuffers.glsl include uniform Lights;
+from UniformBuffers.glsl include uniform Lights,uniform Capture;
 
 float CalculateShadows(vec4 fragPosLightSpace)
 {
@@ -141,9 +141,22 @@ vec3 CalculateLo(vec3 L, vec3 N, vec3 V, vec3 Ra, vec3 F0, float R, float M, vec
 
 // ----------------------------------------------------------------------------
 
+vec3 FragPosFromDepth(float depth)
+{
+	float z = depth * 2.0 - 1.0;
+
+	vec4 clipspaceposition = vec4(vTexCoords * 2.0 - 1.0, z, 1.0);
+	vec4 viewspaceposition = uProjection * clipspaceposition; //uProjection Inverse of Camera projection
+
+	viewspaceposition /= viewspaceposition.w;
+
+	vec4 worldspaceposition = uView * viewspaceposition; //uView Inverse of Camera view
+	return worldspaceposition.xyz;
+}
+
 void main()
 {
-	vec3 FragPos	= texture(lPosition, vTexCoords).rgb;
+	vec3 FragPos	= FragPosFromDepth(texture(lDepthMap, vTexCoords).r);
 	vec3 N			= texture(lNormal, vTexCoords).rgb;
 	vec3 Albedo		= texture(lAlbedoS, vTexCoords).rgb;
 	float Roughness = texture(lRoughMetalAo, vTexCoords).r;

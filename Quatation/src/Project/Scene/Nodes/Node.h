@@ -30,4 +30,5 @@ namespace choice
 	};
 
 	void IterateNodes(Node* node, const std::function<void(Node*)>& func);
+	void UpdateWorldTransform(Node* node);
 }

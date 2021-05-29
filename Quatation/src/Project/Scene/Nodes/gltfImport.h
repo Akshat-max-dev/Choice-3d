@@ -6,5 +6,5 @@
 
 namespace choice
 {
-	bool ImportGLTF(const std::string& srcFile, Node* root, const std::string& dstDirectory);
+	bool ImportGLTF(const std::string& srcFile, Node* root);
 }

@@ -23,5 +23,7 @@ namespace choice
 	namespace global
 	{
 		inline ReflectionData GlobalReflectionData;
+		inline std::vector<char> CaptureBuffer;
+		inline std::vector<char> LightsBuffer;
 	}
 }

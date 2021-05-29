@@ -10,12 +10,16 @@
 
 #include "Shader.h"
 #include "Project/Scene/Nodes/Mesh.h"
+#include "Choice.h"
 
 namespace choice
 {
-	const std::string CompressTexture(const std::string& srcFile, const std::string& dstDirectory,
+	const std::string CompressTexture(const std::string& srcFile,
 		BlockCompressionFormat format, bool generateMips)
 	{
+		std::string dstFile = global::ActiveSceneDir + "Assets\\" + srcFile.substr(srcFile.find_last_of('\\'), srcFile.size()) + ".dds";
+		if (ghc::filesystem::exists(dstFile)) { return dstFile; }
+
 		CMP_MipSet srcMipSet = {};
 		int cmp_status = CMP_LoadTexture(srcFile.c_str(), &srcMipSet);
 		if (cmp_status != CMP_OK)
@@ -46,8 +50,6 @@ namespace choice
 			std::cout << "Failed To Process Texture" << std::endl;
 			return {};
 		}
-
-		std::string dstFile = dstDirectory + srcFile.substr(srcFile.find_last_of('\\'), srcFile.size()) + ".dds";
 
 		CMP_SaveTexture(dstFile.c_str(), &dstMipSet);
 
@@ -85,7 +87,7 @@ namespace choice
 		uint32_t Id;
 		glCreateTextures(_target, 1, &Id);
 		glBindTexture(_target, Id);
-		glTexParameteri(_target, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(_target, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 		glTexParameteri(_target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(_target, GL_TEXTURE_WRAP_S, GL_REPEAT);
 		glTexParameteri(_target, GL_TEXTURE_WRAP_T, GL_REPEAT);
@@ -285,8 +287,8 @@ namespace choice
 		const uint32_t maxMipLevels = 5;
 		for (uint32_t mip = 0; mip < maxMipLevels; mip++)
 		{
-			const uint32_t mipWidth = 128 * pow(0.5, mip);
-			const uint32_t mipHeight = 128 * pow(0.5, mip);
+			uint32_t mipWidth = static_cast<uint32_t>(128 * pow(0.5, mip));
+			uint32_t mipHeight = static_cast<uint32_t>(128 * pow(0.5, mip));
 			glViewport(0, 0, mipWidth, mipHeight);
 			float roughness = (float)mip / (float)(maxMipLevels - 1);
 			reflectiondata.UniformBuffers["Roughness"]->SetData("Roughness.pfRoughness", &roughness);
@@ -328,12 +330,6 @@ namespace choice
 
 		glDeleteFramebuffers(1, &framebuffer);
 
-		global::GlobalReflectionData.Samplers.erase("hdrMap");
-		global::GlobalReflectionData.Samplers.erase("pfHDRSkybox");
-		global::GlobalReflectionData.Samplers.erase("icHDRSkybox");
-		global::GlobalReflectionData.UniformBuffers.erase("Capture");
-		global::GlobalReflectionData.UniformBuffers.erase("Roughness");
-
 		Ids.push_back(hdrcubemap); Ids.push_back(irradianceConvolution);
 		Ids.push_back(prefilterCubemap); Ids.push_back(brdfLookup);
 
@@ -370,7 +366,7 @@ namespace choice
 		return CMP_OK;
 	}
 
-	const std::string CompressTexture(void* data, const std::string& dstDirectory, BlockCompressionFormat format, bool generateMips)
+	const std::string CompressTexture(void* data, BlockCompressionFormat format, bool generateMips)
 	{
 		const auto* texture = reinterpret_cast<const cgltf_texture*>(data);
 		std::string name = texture->image->name;
@@ -378,13 +374,13 @@ namespace choice
 		const auto* buffer = texture->image->buffer_view->buffer;
 		if (buffer)
 		{
-			std::string dstFile = dstDirectory + "\\" + name + ".dds";
+			std::string dstFile = global::ActiveSceneDir + "Assets\\" + "\\" + name + ".dds";
 			if (ghc::filesystem::exists(dstFile)) { return dstFile; }
 
 			stbi_set_flip_vertically_on_load(0);
 			int x, y, channels;
 			auto* data = stbi_load_from_memory((stbi_uc*)buffer->data + texture->image->buffer_view->offset,
-				buffer->size, &x, &y, &channels, STBI_rgb_alpha);
+				static_cast<int>(buffer->size), &x, &y, &channels, 4);
 			if (!data)
 			{
 				std::cout << "Failed To Load Texture" << std::endl;

@@ -15,7 +15,7 @@ layout(location = 0)out GPVertexOutput vOutput;
 void main()
 {
 	vOutput.FragPos = (uTransform * vec4(aPosition, 1.0)).xyz;
-	vOutput.Normal = (uTransform * vec4(aNormal, 0.0)).xyz;;
+	vOutput.Normal = (uTransform * vec4(aNormal, 0.0)).xyz;
 	vOutput.TexCoords = aTexCoords;
 	gl_Position = uViewProjection * uTransform * vec4(aPosition, 1.0);
 }
@@ -23,11 +23,9 @@ void main()
 #source fragment
 #version 450 core
 
-layout(location = 0)out vec3 gPosition;
-layout(location = 1)out vec3 gNormal;
-layout(location = 2)out vec4 gAlbedoS;
-layout(location = 3)out vec3 gRoughMetalAo; 
-layout(location = 4)out vec3 gPixelInfo;
+layout(location = 0)out vec3 gNormal;
+layout(location = 1)out vec4 gAlbedoS;
+layout(location = 2)out vec3 gRoughMetalAo; 
 
 from Structures.glsl include struct GPVertexOutput;
 
@@ -43,11 +41,13 @@ layout(binding = 4)uniform sampler2D gAoMap;
 
 void main()
 {
-	gPosition = gInput.FragPos; //Fragment Position
-
 	if(HasNormalMap == 1)
 	{
-		vec3 tangentNormal = texture(gNormalMap, gInput.TexCoords).xyz * 2.0 - 1.0;
+		vec3 normal = vec3(0.0);
+		normal.xy = texture(gNormalMap, gInput.TexCoords).xy;
+		normal.z = sqrt(1.0 - (normal.x * normal.x) - (normal.y * normal.y));
+
+		vec3 tangentNormal = normal * 2.0 - 1.0;
 
 		vec3 Q1  = dFdx(gInput.FragPos);
 		vec3 Q2  = dFdy(gInput.FragPos);
@@ -73,7 +73,8 @@ void main()
 	}
 	else
 	{
-		gAlbedoS = Color;
+		gAlbedoS.rgb = Color;
+		gAlbedoS.a = 1.0;
 	}
 	
 	float roughness;
@@ -107,6 +108,4 @@ void main()
 	}
 
 	gRoughMetalAo = vec3(roughness, metallic, ao);
-
-	gPixelInfo = vec3(0.0, 0.0, 0.0);
 }

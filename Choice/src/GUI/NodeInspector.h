@@ -1,7 +1,7 @@
 #pragma once
 #include "cpch.h"
 
-#include "project/Scene/Scene.h"
+#include "project/Scene/Nodes/Node.h"
 
 namespace choice
 {

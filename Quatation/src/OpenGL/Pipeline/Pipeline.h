@@ -14,11 +14,5 @@ namespace choice
 		virtual void Update(Scene* scene, Camera* camera) {}
 		virtual const uint32_t& Capture()const { return 0; }
 		virtual void Shutdown() {}
-
-		void PickedObject(int pickedobject) { mPickedObjectId = pickedobject; }
-		void MousePicking(bool value) { mMousePicking = value; }
-	protected:
-		int mPickedObjectId = -1;
-		bool mMousePicking = true;
 	};
 }

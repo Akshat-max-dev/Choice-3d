@@ -9,7 +9,6 @@
 
 #include "Input.h"
 #include "Choice.h"
-#include "BinaryHelper.h"
 #include "Project/Scene/Nodes/Mesh.h"
 #include "FileDialog.h"
 
@@ -26,24 +25,32 @@ namespace choice
 			std::ifstream file(".choiceeditorconfig", std::ios::in | std::ios::binary);
 
 			std::string cproj;
-			Binary::Read<std::string>(file, cproj);
+			file >> cproj;
+
+			auto func = [&](glm::vec3& data) {
+				file >> data.x >> data.y >> data.z;
+			};
 
 			glm::vec3 focus;
-			Binary::Read<glm::vec3>(file, focus);
+			func(focus);
 
 			glm::vec3 offset;
-			Binary::Read<glm::vec3>(file, offset);
+			func(offset);
 
 			glm::vec3 up;
-			Binary::Read<glm::vec3>(file, up);
+			func(up);
 
 			glm::vec3 right;
-			Binary::Read<glm::vec3>(file, right);
+			func(right);
 
 			mCamera = new EditorCamera((float)w / (float)h, focus, offset, up, right);
 
 			if (!ghc::filesystem::exists(cproj)) { mActiveProject = {}; }
-			else { mActiveProject = new Project(cproj); }
+			else 
+			{ 
+				mActiveProject = new Project(cproj);
+				Choice::Instance()->GetWindow()->UpdateTitle(("Choice | " + mActiveProject->Name() + " |").c_str());
+			}
 
 			file.close();
 		}
@@ -66,19 +73,16 @@ namespace choice
 			std::ofstream o(".choiceeditorconfig", std::ios::out | std::ios::binary);
 
 			std::string cproj = global::ActiveProjectDir + global::ActiveProjectName + ".cproj";
-			Binary::Write<std::string>(o, cproj);
+			o << cproj << std::endl;
 
-			glm::vec3 t = mCamera->Focus();
-			Binary::Write<glm::vec3>(o, t);
+			auto func = [&](const glm::vec3 data) {
+				o << data.x << " " << data.y << " " << data.z << std::endl;
+			};
 
-			t = mCamera->Offset();
-			Binary::Write<glm::vec3>(o, t);
-
-			t = mCamera->Up();
-			Binary::Write<glm::vec3>(o, t);
-
-			t = mCamera->Right();
-			Binary::Write<glm::vec3>(o, t);
+			func(mCamera->Focus());
+			func(mCamera->Offset());
+			func(mCamera->Up());
+			func(mCamera->Right());
 
 			o.close();
 		}
@@ -241,13 +245,19 @@ namespace choice
 			}
 		}//New Project
 
+		if (mActiveProject)
+		{
+			mSceneHierarchy->Execute(mActiveProject->ActiveScene());
+			mNodeInspector->Execute(mSceneHierarchy->SelectedNode());
+		}
+
 		//Viewport
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0.0f, 0.0f });
 		ImGui::Begin(ICON_FK_GAMEPAD" Viewport");
 
-		if (ImGui::IsWindowFocused() && ImGui::IsWindowHovered())
+		if (ImGui::IsWindowFocused() || ImGui::IsWindowHovered())
 		{
-			Choice::Instance()->GetPipeline()->MousePicking(true);
+			mCamera->AcceptInput(true);
 		}
 
 		ImGui::PopStyleVar();
@@ -273,8 +283,10 @@ namespace choice
 		if (Input::IsKeyPressed(Key::NUM2)) { mGizmoType = ImGuizmo::OPERATION::ROTATE; }
 		if (Input::IsKeyPressed(Key::NUM3)) { mGizmoType = ImGuizmo::OPERATION::SCALE; }
 
-		/*if (mSelectedObjectIndex != -1 && mGizmoType != -1)
+		if (mSceneHierarchy->SelectedNode() && mGizmoType != -1)
 		{
+			Node* selectednode = mSceneHierarchy->SelectedNode();
+
 			ImGuizmo::SetOrthographic(false);
 			ImGuizmo::SetDrawlist();
 
@@ -286,33 +298,29 @@ namespace choice
 
 			float snapValues[3] = { snapValue, snapValue, snapValue };
 
-			Transform* transform = mActiveProject->ActiveScene()->GetSceneObjects()[mSelectedObjectIndex]->GetProperty<Transform>();
+			Transform* transform = selectednode->NodeTransform;
 			glm::mat4 _transform = transform->GetTransform();
 
 			ImGuizmo::Manipulate(glm::value_ptr(mCamera->View()), glm::value_ptr(mCamera->Projection()),
 				(ImGuizmo::OPERATION)mGizmoType, ImGuizmo::LOCAL, glm::value_ptr(_transform), nullptr,
 				snap ? snapValues : nullptr);
-			if (ImGuizmo::IsOver())
-			{
-				Choice::Instance()->GetPipeline()->MousePicking(false);
-			}
+
 			if (ImGuizmo::IsUsing())
 			{
-				Choice::Instance()->GetPipeline()->MousePicking(false);
 				glm::vec3 rotation;
 				DecomposeTransform(_transform, transform->Position, rotation, transform->Scale);
 				glm::vec3 deltaRotation = rotation - transform->Rotation;
 				transform->Rotation += deltaRotation;
+
+				//If Node Data Type Is None Update Its World Transform
+				if (selectednode->node_data_type == NODE_DATA_TYPE::NONE)
+				{
+					UpdateWorldTransform(selectednode);
+				}
 			}
-		}//Gizmo*/
+		}//Gizmo
 
 		ImGui::End();//Viewport
-
-		if (mActiveProject)
-		{
-			mSceneHierarchy->Execute(mActiveProject->ActiveScene());
-			mNodeInspector->Execute(mSceneHierarchy->SelectedNode());
-		}
 
 		ImGui::End();//Dockspace
 	}

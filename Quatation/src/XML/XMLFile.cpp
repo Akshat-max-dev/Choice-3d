@@ -79,7 +79,7 @@ namespace choice
 					primcountelement->SetText(mesh->primitives.size());
 					rootelement->InsertEndChild(primcountelement);
 
-					std::string path = global::ActiveSceneDir + "Assets\\" + node->Parent->Name + std::to_string(node->Id) + ".cmesh";
+					std::string path = global::ActiveSceneDir + "Assets\\" + node->Parent->Name + std::to_string(node->Parent->Id) + ".cmesh";
 
 					for (uint32_t i = 0; i < mesh->primitives.size(); i++)
 					{
@@ -266,7 +266,7 @@ namespace choice
 							primitive->vertexarray->VertexBuffer(vertices.data(), vertices.size() * sizeof(float), "332");
 							primitive->vertexarray->IndexBuffer(indices.data(), (uint32_t)indices.size());
 
-							primitvebb.push_back(CalculateBoundingBox(vertices.data(), vertices.size(), 8));
+							primitvebb.push_back(CalculateBoundingBox(vertices.data(), (uint32_t)vertices.size(), 8));
 
 							delete cmesh;
 						}
