@@ -28,6 +28,5 @@ namespace choice
 		TextureCubemap* mIrradianceConvolution;
 		TextureCubemap* mPreFilterCubemap;
 		Texture2D* mBRDFLookup;
-		bool mBindIBL = true;
 	};
 }

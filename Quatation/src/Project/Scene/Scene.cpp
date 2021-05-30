@@ -35,42 +35,45 @@ namespace choice
 		mBoundingBox = CalculateBoundingBox(nullptr, 0, 0);
 
 		XMLFile* cscene = new XMLFile();
-		cscene->Load(srcFile);
 
-		//Create Skybox
-		mSkybox = new Skybox(cscene->GetFile()->FirstChildElement("Skybox")->FirstChildElement("Path")->GetText());
-
-		uint32_t nodecount;
-		cscene->GetFile()->FirstChildElement("NodeCount")->FirstChildElement("Value")->QueryUnsignedText(&nodecount);
-
-		std::vector<Node*> nodes;
-		nodes.resize(nodecount);
-
-		//Start From Last So As To Set Children Correctly
-		for (uint32_t i = nodecount; i >= 1; i--)
+		if (cscene->Load(srcFile))
 		{
-			uint32_t nodeIndex = i - 1;
+			//Create Skybox
+			mSkybox = new Skybox(cscene->GetFile()->FirstChildElement("Skybox")->FirstChildElement("Path")->GetText());
 
-			std::vector<uint32_t> childrenid;
-			nodes[nodeIndex] = cscene->ReadNode(i, childrenid);
-			if (nodes[nodeIndex])
-			{	
-				nodes[nodeIndex]->Id = i;
-				for (auto& id : childrenid)
+			uint32_t nodecount;
+			cscene->GetFile()->FirstChildElement("NodeCount")->FirstChildElement("Value")->QueryUnsignedText(&nodecount);
+
+			std::vector<Node*> nodes;
+			nodes.resize(nodecount);
+
+			//Start From Last So As To Set Children Correctly
+			for (uint32_t i = nodecount; i >= 1; i--)
+			{
+				uint32_t nodeIndex = i - 1;
+
+				std::vector<uint32_t> childrenid;
+				nodes[nodeIndex] = cscene->ReadNode(i, childrenid);
+				if (nodes[nodeIndex])
 				{
-					uint32_t childnodeindex = id - 1;
-					nodes[nodeIndex]->Children.push_back(nodes[childnodeindex]);
-					nodes[nodeIndex]->Children[nodes[nodeIndex]->Children.size() - 1]->Parent = nodes[nodeIndex];
+					nodes[nodeIndex]->Id = i;
+					for (auto& id : childrenid)
+					{
+						uint32_t childnodeindex = id - 1;
+						nodes[nodeIndex]->Children.push_back(nodes[childnodeindex]);
+						nodes[nodeIndex]->Children[nodes[nodeIndex]->Children.size() - 1]->Parent = nodes[nodeIndex];
+					}
 				}
 			}
-		}
 
-		global::NodeCounter = nodecount;
+			global::NodeCounter = nodecount;
 
-		for (auto& node : nodes)
-		{
-			if (!node->Parent)
-				mNodes.push_back(node);
+			for (auto& node : nodes)
+			{
+				if (!node->Parent)
+					mNodes.push_back(node);
+			}
+
 		}
 
 		delete cscene;

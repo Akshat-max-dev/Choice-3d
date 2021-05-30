@@ -41,6 +41,7 @@ namespace choice
 		case TEXTURE_MAP_TYPE::ROUGHNESS:		  binding = reflectiondata.Samplers["gRoughnessMap"]; break;
 		case TEXTURE_MAP_TYPE::METALLIC:		  binding = reflectiondata.Samplers["gMetallicMap"]; break;
 		case TEXTURE_MAP_TYPE::AMBIENT_OCCLUSION: binding = reflectiondata.Samplers["gAoMap"]; break;
+		case TEXTURE_MAP_TYPE::DISPLACEMENT:	  binding = reflectiondata.Samplers["gDisplacementMap"]; break;
 		}
 
 		return binding;

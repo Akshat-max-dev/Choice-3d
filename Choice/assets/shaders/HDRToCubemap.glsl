@@ -5,12 +5,12 @@ layout(location = 0)in vec3 aPosition;
 
 layout(location = 0)out vec3 vWorldPos;
 
-from UniformBuffers.glsl include uniform Capture;
+from UniformBuffers.glsl include uniform Camera;
 
 void main()
 {
 	vWorldPos = aPosition;
-	gl_Position = uProjection * uView * vec4(aPosition, 1.0);
+	gl_Position = camera.Projection * camera.View * vec4(aPosition, 1.0);
 }
 
 #source fragment

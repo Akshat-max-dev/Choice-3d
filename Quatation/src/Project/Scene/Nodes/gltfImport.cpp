@@ -8,7 +8,7 @@
 
 #include "ReflectionData.h"
 #include "XML/XMLFile.h"
-#include "Choice.h"
+#include "Error.h"
 
 namespace choice
 {
@@ -90,6 +90,8 @@ namespace choice
 				transform->Scale = { node->scale[0], node->scale[1], node->scale[2] };
 		}
 	}
+
+	//TODO : If Positions Empty Than Frame The Mesh Accordingly
 
 	void loadcgltfNode(const cgltf_node* cgltfnode, Node*& node, Node* parent, XMLFile* cmesh)
 	{
@@ -354,16 +356,14 @@ namespace choice
 		cgltf_result result = cgltf_parse_file(&options, srcFile.c_str(), &data);
 		if (result != cgltf_result_success)
 		{
-			std::cout << "Error Loading Model" << std::endl;
-			return false;
+			return Message<WARNING>("Failed To Load Model", MESSAGE_ORIGIN::PIPELINE);
 		}
 
 		result = cgltf_load_buffers(&options, data, srcFile.c_str());
 		if (result != cgltf_result_success)
 		{
 			cgltf_free(data);
-			std::cout << "Error Loading Buffers" << std::endl;
-			return false;
+			return Message<WARNING>("Failed To Load GLTF Buffers", MESSAGE_ORIGIN::PIPELINE);
 		}
 
 		XMLFile* cmesh = new XMLFile();

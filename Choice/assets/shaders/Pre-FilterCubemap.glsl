@@ -5,12 +5,12 @@ layout(location = 0)in vec3 aPosition;
 
 layout(location = 0)out vec3 vWorldPos;
 
-from UniformBuffers.glsl include uniform Capture;
+from UniformBuffers.glsl include uniform Camera;
 
 void main()
 {
 	vWorldPos = aPosition;
-	gl_Position = uProjection * uView * vec4(aPosition, 1.0);
+	gl_Position = camera.Projection * camera.View * vec4(aPosition, 1.0);
 }
 
 #source fragment
@@ -20,7 +20,7 @@ layout(location = 0)out vec4 pfResult;
 
 layout(location = 0)in vec3 vWorldPos;
 
-layout(binding = 0)uniform samplerCube pfHDRSkybox;
+layout(binding = 0)uniform samplerCube hdrSkybox;
 
 from UniformBuffers.glsl include uniform Roughness;
 
@@ -77,7 +77,7 @@ void main()
 
             float mipLevel = pfRoughness == 0.0 ? 0.0 : 0.5 * log2(saSample / saTexel); 
             
-            prefilteredColor += textureLod(pfHDRSkybox, L, mipLevel).rgb * NdotL;
+            prefilteredColor += textureLod(hdrSkybox, L, mipLevel).rgb * NdotL;
             totalWeight      += NdotL;
         }
     }

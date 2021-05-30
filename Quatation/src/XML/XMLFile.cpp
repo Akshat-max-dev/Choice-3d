@@ -1,6 +1,6 @@
 #include "XMLFile.h"
 
-#include "Choice.h"
+#include "Error.h"
 
 namespace choice
 {
@@ -349,13 +349,15 @@ namespace choice
 		mFile->SaveFile(dstFile.c_str());
 	}
 
-	void XMLFile::Load(const std::string& srcFile)
+	bool XMLFile::Load(const std::string& srcFile)
 	{
 		auto result = mFile->LoadFile(srcFile.c_str());
 		if (result != tinyxml2::XML_SUCCESS)
 		{
-			choiceassert(0);
+			std::string msg = "Failed To Open " + srcFile;
+			return Message<ERROR_MSG>(msg.c_str(), MESSAGE_ORIGIN::FILESYSTEM);
 		}
+		return true;
 	}
 
 }

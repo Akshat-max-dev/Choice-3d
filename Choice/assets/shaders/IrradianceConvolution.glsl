@@ -5,12 +5,12 @@ layout(location = 0)in vec3 aPosition;
 
 layout(location = 0)out vec3 vWorldPos;
 
-from UniformBuffers.glsl include uniform Capture;
+from UniformBuffers.glsl include uniform Camera;
 
 void main()
 {
 	vWorldPos = aPosition;
-	gl_Position = uProjection * uView * vec4(aPosition, 1.0);
+	gl_Position = camera.Projection * camera.View * vec4(aPosition, 1.0);
 }
 
 #source fragment
@@ -20,7 +20,7 @@ layout(location = 0)out vec4 icResult;
 
 layout(location = 0)in vec3 vWorldPos;
 
-layout(binding = 0)uniform samplerCube icHDRSkybox;
+layout(binding = 0)uniform samplerCube hdrSkybox;
 
 const float PI = 3.14159265359;
 
@@ -46,7 +46,7 @@ void main()
             // tangent space to world
             vec3 sampleVec = tangentSample.x * right + tangentSample.y * up + tangentSample.z * N; 
 
-            irradiance += texture(icHDRSkybox, sampleVec).rgb * cos(theta) * sin(theta);
+            irradiance += texture(hdrSkybox, sampleVec).rgb * cos(theta) * sin(theta);
             nrSamples++;
         }
     }

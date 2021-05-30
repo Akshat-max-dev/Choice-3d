@@ -22,7 +22,7 @@ namespace choice
 		void CreateProgram(const std::string& shader);
 		void Reflect();
 	private:
-		uint32_t mProgram;
+		uint32_t mProgram = 0;
 
 		std::map<GLenum, std::vector<uint32_t>> mOpenGLSPV;
 		std::map<GLenum, std::string> mShaderSource;

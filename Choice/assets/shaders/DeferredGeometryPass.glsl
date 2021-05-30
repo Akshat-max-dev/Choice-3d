@@ -6,7 +6,9 @@ layout(location = 1)in vec3 aNormal;
 layout(location = 2)in vec2 aTexCoords;
 layout(location = 3)in vec3 aTangent;
 
-from UniformBuffers.glsl include uniform Camera,uniform Transform;
+from UniformBuffers.glsl include uniform Camera,uniform Transform,uniform DisplacementMap;
+
+layout(binding = 5)uniform sampler2D gDisplacementMap;
 
 from Structures.glsl include struct GPVertexOutput;
 
@@ -14,16 +16,24 @@ layout(location = 0)out GPVertexOutput vOutput;
 
 void main()
 {
-	vOutput.FragPos = (uTransform * vec4(aPosition, 1.0)).xyz;
+	vec3 displacedPosition = aPosition;
+	if(HasDisplacementMap == 1)
+	{
+		float displacementFactor = textureLod(gDisplacementMap, aTexCoords, 0).r;
+		displacedPosition = (aNormal * displacementFactor) + displacedPosition;
+	}
+
+	vOutput.FragPos = (uTransform * vec4(displacedPosition, 1.0)).xyz;
 	vOutput.Normal = (uTransform * vec4(aNormal, 0.0)).xyz;
 	vOutput.TexCoords = aTexCoords;
-	gl_Position = uViewProjection * uTransform * vec4(aPosition, 1.0);
+	vOutput.ViewPos = camera.Position;
+	gl_Position = camera.Projection * camera.View * uTransform * vec4(displacedPosition, 1.0);
 }
 
 #source fragment
 #version 450 core
 
-layout(location = 0)out vec3 gNormal;
+layout(location = 0)out vec4 gNormal;
 layout(location = 1)out vec4 gAlbedoS;
 layout(location = 2)out vec3 gRoughMetalAo; 
 
@@ -59,11 +69,13 @@ void main()
 		vec3 B  = -normalize(cross(N, T));
 		mat3 TBN = mat3(T, B, N);
 
-		gNormal = normalize(TBN * tangentNormal); //Normals From NormalMap
+		gNormal.rgb = normalize(TBN * tangentNormal); //Normals From NormalMap
+		gNormal.a = float(IsPBR);
 	}
 	else
 	{
-		gNormal = gInput.Normal; //Normals From Vertex Attributes
+		gNormal.rgb = gInput.Normal; //Normals From Vertex Attributes
+		gNormal.a = float(IsPBR);
 	}
 
 	if(HasAlbedoMap == 1)

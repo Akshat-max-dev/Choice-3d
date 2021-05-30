@@ -26,7 +26,7 @@ namespace choice
 		uint32_t mRendererId;
 	};
 
-	const uint32_t LoadTexture2D(const std::string& ddsFile);
+	const uint32_t LoadTexture2D(const std::string& ddsFile, bool usetrilinearfiltering = true);
 
 	class Texture2D :public Texture
 	{

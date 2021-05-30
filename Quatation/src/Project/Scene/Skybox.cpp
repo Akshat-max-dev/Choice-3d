@@ -36,21 +36,21 @@ namespace choice
 
 	void Skybox::BindIBL(glm::uvec3 slots)
 	{
-		if (mBindIBL)
-		{
-			mIrradianceConvolution->Bind(slots.x);
-			mPreFilterCubemap->Bind(slots.y);
-			mBRDFLookup->Bind(slots.z);
-			mBindIBL = false;
-		}
+		mIrradianceConvolution->Bind(slots.x);
+		mPreFilterCubemap->Bind(slots.y);
+		mBRDFLookup->Bind(slots.z);
 	}
 
 	void Skybox::Draw(Camera* camera)
 	{
 		mCubemap->Bind(global::GlobalReflectionData.Samplers["hdrSkybox"]);
 		mShader->Use();
-		glm::mat4 vp = camera->Projection() * glm::mat4(glm::mat3(camera->View()));
-		global::GlobalReflectionData.UniformBuffers["Camera"]->SetData("Camera.uViewProjection", &vp);
+
+		glm::mat4* view = global::GlobalReflectionData.UniformBuffers["Camera"]->MemberData<glm::mat4>("Camera.View", global::CameraBuffer);
+		*view = glm::mat4(glm::mat3(camera->View()));
+
+		global::GlobalReflectionData.UniformBuffers["Camera"]->SetData(global::CameraBuffer);
+
 		//Draw Cube
 		mCube->primitives[0]->vertexarray->Bind();
 		glDrawArrays(GL_TRIANGLES, 0, 36);

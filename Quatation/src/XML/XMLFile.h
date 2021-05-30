@@ -21,7 +21,7 @@ namespace choice
 		Node* ReadNode(uint32_t id, std::vector<uint32_t>& childrenid);
 		
 		void Save(const std::string& dstFile);
-		void Load(const std::string& srcFile);
+		bool Load(const std::string& srcFile);
 	private:
 		tinyxml2::XMLDocument* mFile;
 	};

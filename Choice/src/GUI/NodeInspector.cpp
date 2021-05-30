@@ -19,7 +19,7 @@ namespace choice
 	{
 	}
 
-	static void TransformUI(const std::string& label, glm::vec3& value, float resetValue, bool* ischanged)
+	static void TransformUI(const std::string& label, glm::vec3& value, float resetValue)
 	{
 		ImGui::PushID(label.c_str());
 		ImGui::TableSetColumnIndex(0);
@@ -32,16 +32,12 @@ namespace choice
 		if (ImGui::Button("X"))
 		{
 			value.x = resetValue;
-			*ischanged = true;
 		}
 		ImGui::PopStyleColor(3);
 
 		ImGui::TableSetColumnIndex(2);
 		ImGui::SetNextItemWidth(53.0f);
-		if (ImGui::DragFloat("##X", &value.x, 0.2f, 0.0f, 0.0f, "%.2f"))
-		{
-			*ischanged = true;
-		}
+		ImGui::DragFloat("##X", &value.x, 0.2f, 0.0f, 0.0f, "%.2f");
 
 		ImGui::TableSetColumnIndex(3);
 		ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.1f, 0.8f, 0.1f, 1.0f });
@@ -50,16 +46,12 @@ namespace choice
 		if (ImGui::Button("Y"))
 		{
 			value.y = resetValue;
-			*ischanged = true;
 		}
 		ImGui::PopStyleColor(3);
 
 		ImGui::TableSetColumnIndex(4);
 		ImGui::SetNextItemWidth(53.0f);
-		if (ImGui::DragFloat("##Y", &value.y, 0.2f, 0.0f, 0.0f, "%.2f"))
-		{
-			*ischanged = true;
-		}
+		ImGui::DragFloat("##Y", &value.y, 0.2f, 0.0f, 0.0f, "%.2f");
 
 		ImGui::TableSetColumnIndex(5);
 		ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.1f, 0.1f, 0.8f, 1.0f });
@@ -68,38 +60,33 @@ namespace choice
 		if (ImGui::Button("Z"))
 		{
 			value.z = resetValue;
-			*ischanged = true;
 		}
 		ImGui::PopStyleColor(3);
 
 		ImGui::TableSetColumnIndex(6);
 		ImGui::SetNextItemWidth(53.0f);
-		if (ImGui::DragFloat("##Z", &value.z, 0.2f, 0.0f, 0.0f, "%.2f"))
-		{
-			*ischanged = true;
-		}
+		ImGui::DragFloat("##Z", &value.z, 0.2f, 0.0f, 0.0f, "%.2f");
+
 		ImGui::PopID();
 	}
 
-	static bool DrawNodeTransform(Transform* transform) //Returns True If Something Changed In TransformUI
+	static void DrawNodeTransform(Transform* transform) //Returns True If Something Changed In TransformUI
 	{
-		bool ischanged = false;
 		if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnArrow))
 		{
 			if (ImGui::BeginTable("##Transform", 7, ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingFixedFit))
 			{
 				ImGui::TableNextRow();
-				TransformUI("Position ", transform->Position, 0.0f, &ischanged);
+				TransformUI("Position ", transform->Position, 0.0f);
 				ImGui::TableNextRow();
 				glm::vec3 rotation = glm::degrees(transform->Rotation);
-				TransformUI("Rotation ", rotation, 0.0f, &ischanged);
+				TransformUI("Rotation ", rotation, 0.0f);
 				transform->Rotation = glm::radians(rotation);
 				ImGui::TableNextRow();
-				TransformUI("Scale    ", transform->Scale, 1.0f, &ischanged);
+				TransformUI("Scale    ", transform->Scale, 1.0f);
 				ImGui::EndTable();
 			}
 		}
-		return ischanged;
 	}
 	
 	template<typename T>
@@ -122,6 +109,7 @@ namespace choice
 				if (!imagefilapath.empty())
 				{
 					BlockCompressionFormat format;
+					bool usetrilinearfiltering = true;
 
 					switch (type)
 					{
@@ -132,11 +120,15 @@ namespace choice
 					case TEXTURE_MAP_TYPE::AMBIENT_OCCLUSION:
 						format = BlockCompressionFormat::BC4; 
 						break;
+					case TEXTURE_MAP_TYPE::DISPLACEMENT:
+						format = BlockCompressionFormat::BC4;
+						usetrilinearfiltering = false;
+						break;
 					}
 
 					map->filepath = CompressTexture(imagefilapath, format, true);
 					if (map->texture) { delete map->texture; }
-					map->texture = new Texture2D(LoadTexture2D(map->filepath));
+					map->texture = new Texture2D(LoadTexture2D(map->filepath, usetrilinearfiltering));
 				}
 			}
 
@@ -196,16 +188,25 @@ namespace choice
 					ImGui::EndTable();
 				}
 
-				Material* material = mesh->primitives[currentitem]->material;
+				auto& material = mesh->primitives[currentitem]->material;
 
-				auto mapexistfunc = [&material](TEXTURE_MAP_TYPE map_type) {
-					if (material->TextureMaps.find(map_type) != material->TextureMaps.end())
-						return true;
-					return false;
-				};
+				ReflectionData& reflectiondata = global::GlobalReflectionData;
+
+				auto& materialBuffer = reflectiondata.UniformBuffers["Material"];
+
+				ImGui::Text("PBR ");
+				ImGui::SameLine();
+				int* ispbr = materialBuffer->MemberData<int>("Material.IsPBR", material->Data);
+				ImGui::Checkbox("##ISPBR", (bool*)ispbr);
 
 				if (showAddMapMenu)
 				{
+					auto mapexistfunc = [&material](TEXTURE_MAP_TYPE map_type) {
+						if (material->TextureMaps.find(map_type) != material->TextureMaps.end())
+							return true;
+						return false;
+					};
+
 					ImGui::OpenPopup("AddTextureMap");
 
 					if (ImGui::BeginPopup("AddTextureMap"))
@@ -233,40 +234,48 @@ namespace choice
 							showAddMapMenu = false;
 						}
 
-						if (ImGui::MenuItem("Roughness"))
+						if (ImGui::MenuItem("Displacement"))
 						{
-							if (!mapexistfunc(TEXTURE_MAP_TYPE::ROUGHNESS))
+							if (!mapexistfunc(TEXTURE_MAP_TYPE::DISPLACEMENT))
 							{
-								material->TextureMaps.insert({ TEXTURE_MAP_TYPE::ROUGHNESS, new TextureMap() });
+								material->TextureMaps.insert({ TEXTURE_MAP_TYPE::DISPLACEMENT, new TextureMap() });
 							}
 							showAddMapMenu = false;
 						}
 
-						if (ImGui::MenuItem("Metallic"))
+						if (*ispbr)
 						{
-							if (!mapexistfunc(TEXTURE_MAP_TYPE::METALLIC))
+							if (ImGui::MenuItem("Roughness"))
 							{
-								material->TextureMaps.insert({ TEXTURE_MAP_TYPE::METALLIC, new TextureMap() });
+								if (!mapexistfunc(TEXTURE_MAP_TYPE::ROUGHNESS))
+								{
+									material->TextureMaps.insert({ TEXTURE_MAP_TYPE::ROUGHNESS, new TextureMap() });
+								}
+								showAddMapMenu = false;
 							}
-							showAddMapMenu = false;
-						}
 
-						if (ImGui::MenuItem("Ambient Occlusion"))
-						{
-							if (!mapexistfunc(TEXTURE_MAP_TYPE::AMBIENT_OCCLUSION))
+							if (ImGui::MenuItem("Metallic"))
 							{
-								material->TextureMaps.insert({ TEXTURE_MAP_TYPE::AMBIENT_OCCLUSION, new TextureMap() });
+								if (!mapexistfunc(TEXTURE_MAP_TYPE::METALLIC))
+								{
+									material->TextureMaps.insert({ TEXTURE_MAP_TYPE::METALLIC, new TextureMap() });
+								}
+								showAddMapMenu = false;
 							}
-							showAddMapMenu = false;
+
+							if (ImGui::MenuItem("Ambient Occlusion"))
+							{
+								if (!mapexistfunc(TEXTURE_MAP_TYPE::AMBIENT_OCCLUSION))
+								{
+									material->TextureMaps.insert({ TEXTURE_MAP_TYPE::AMBIENT_OCCLUSION, new TextureMap() });
+								}
+								showAddMapMenu = false;
+							}
 						}
 
 						ImGui::EndPopup();
 					}
 				}
-
-				ReflectionData& reflectiondata = global::GlobalReflectionData;
-
-				UniformBuffer* materialBuffer = reflectiondata.UniformBuffers["Material"];
 
 				auto hasmapfunc = [&material, &materialBuffer](const char* name) {
 
@@ -283,19 +292,22 @@ namespace choice
 					ImGuiColorEditFlags_PickerHueWheel
 					| ImGuiColorEditFlags_NoLabel | ImGuiColorEditFlags_NoBorder);
 
-				//Roughness Factor
-				ImGui::Text("Roughness ");
-				ImGui::SameLine();
-				auto* roughnessdata = materialBuffer->MemberData<float>("Material.Roughness", material->Data);
-				ImGui::SetNextItemWidth(ImGui::GetContentRegionAvailWidth());
-				ImGui::SliderFloat("##Roughness", roughnessdata, 0.0f, 1.0f);
+				if (*ispbr)
+				{
+					//Roughness Factor
+					ImGui::Text("Roughness ");
+					ImGui::SameLine();
+					auto* roughnessdata = materialBuffer->MemberData<float>("Material.Roughness", material->Data);
+					ImGui::SetNextItemWidth(ImGui::GetContentRegionAvailWidth());
+					ImGui::SliderFloat("##Roughness", roughnessdata, 0.0f, 1.0f);
 
-				//Metallic Factor
-				ImGui::Text("Metallic       ");
-				ImGui::SameLine();
-				auto* metallicdata = materialBuffer->MemberData<float>("Material.Metallic", material->Data);
-				ImGui::SetNextItemWidth(ImGui::GetContentRegionAvailWidth());
-				ImGui::SliderFloat("##Metallic", metallicdata, 0.0f, 1.0f);
+					//Metallic Factor
+					ImGui::Text("Metallic       ");
+					ImGui::SameLine();
+					auto* metallicdata = materialBuffer->MemberData<float>("Material.Metallic", material->Data);
+					ImGui::SetNextItemWidth(ImGui::GetContentRegionAvailWidth());
+					ImGui::SliderFloat("##Metallic", metallicdata, 0.0f, 1.0f);
+				}
 
 				ImGui::Separator();
 
@@ -311,6 +323,11 @@ namespace choice
 					case TEXTURE_MAP_TYPE::NORMAL:
 						TextureUI("Normal", mapType, map, [&]() {
 							hasmapfunc("Material.HasNormalMap");
+						});
+						break;
+					case TEXTURE_MAP_TYPE::DISPLACEMENT:
+						TextureUI("Displacement", mapType, map, [&]() {
+							hasmapfunc("Material.HasDisplacementMap");
 						});
 						break;
 					case TEXTURE_MAP_TYPE::ROUGHNESS:
@@ -390,10 +407,7 @@ namespace choice
 
 			ImGui::Text(("Name :" + node->Name).c_str());
 
-			if (DrawNodeTransform(node->NodeTransform) && node->node_data_type == NODE_DATA_TYPE::NONE)
-			{
-				UpdateWorldTransform(node);
-			}
+			DrawNodeTransform(node->NodeTransform);
 
 			switch (node->node_data_type)
 			{

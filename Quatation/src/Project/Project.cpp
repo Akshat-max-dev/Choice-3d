@@ -1,5 +1,7 @@
 #include "Project.h"
 
+#include "Error.h"
+
 namespace choice
 {
 	Project::Project(const std::string& name, const std::string& path)
@@ -10,7 +12,8 @@ namespace choice
 		while (ghc::filesystem::exists(mDirectory + "\\" + mName + "\\" + mName + ".cproj"))
 		{
 			counter++;
-			std::cout << "Project Already Exists. Creating " + mName + std::to_string(counter) << std::endl;
+			std::string msg = "Project Already Exists. Creating " + mName + std::to_string(counter);
+			Message<WARNING>(msg.c_str(), MESSAGE_ORIGIN::FILESYSTEM);
 			mName += std::to_string(counter);
 		}
 
@@ -29,7 +32,8 @@ namespace choice
 		std::ifstream readcproj(cproj, std::ios::in);
 		if (readcproj.fail())
 		{
-			std::cout << "Cannot Open Project" << std::endl;
+			std::string msg = "Failed To Open " + cproj;
+			Message<ERROR_MSG>(msg.c_str(), MESSAGE_ORIGIN::FILESYSTEM);
 			return;
 		}
 
@@ -53,7 +57,7 @@ namespace choice
 		std::ofstream cproj(mDirectory + "\\" + mName + "\\" + mName + ".cproj", std::ios::out);
 		if (cproj.fail())
 		{
-			std::cout << "Error Saving Project" << std::endl;
+			Message<ERROR_MSG>("Failed To Save Project!", MESSAGE_ORIGIN::FILESYSTEM);
 			cproj.close(); 
 			return;
 		}

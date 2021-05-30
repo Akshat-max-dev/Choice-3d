@@ -10,7 +10,7 @@
 
 #include "Shader.h"
 #include "Project/Scene/Nodes/Mesh.h"
-#include "Choice.h"
+#include "Error.h"
 
 namespace choice
 {
@@ -24,7 +24,7 @@ namespace choice
 		int cmp_status = CMP_LoadTexture(srcFile.c_str(), &srcMipSet);
 		if (cmp_status != CMP_OK)
 		{
-			std::cout << "Failed To Load Texture" << std::endl;
+			Message<WARNING>("[COMPRESSONATOR] Failed To Load Texture", MESSAGE_ORIGIN::PIPELINE);
 			return {};
 		}
 
@@ -34,7 +34,7 @@ namespace choice
 			cmp_status = CMP_GenerateMIPLevels(&srcMipSet, minSize);
 			if (cmp_status != CMP_OK)
 			{
-				std::cout << "Failed To Generate Mips" << std::endl;
+				Message<WARNING>("[COMPRESSONATOR] Failed To Generate Mip-Maps", MESSAGE_ORIGIN::PIPELINE);
 				return {};
 			}
 		}
@@ -47,7 +47,7 @@ namespace choice
 		cmp_status = CMP_ProcessTexture(&srcMipSet, &dstMipSet, kerneloptions, nullptr);
 		if (cmp_status != CMP_OK)
 		{
-			std::cout << "Failed To Process Texture" << std::endl;
+			Message<WARNING>("[COMPRESSONATOR] Failed To Compress Texture", MESSAGE_ORIGIN::PIPELINE);
 			return {};
 		}
 
@@ -59,12 +59,12 @@ namespace choice
 		return dstFile;
 	}
 
-	const uint32_t LoadTexture2D(const std::string& ddsFile)
+	const uint32_t LoadTexture2D(const std::string& ddsFile, bool usetrilinearfiltering)
 	{
 		gli::texture _texture = gli::load(ddsFile);
 		if (_texture.empty())
 		{
-			std::cout << "Failed To Load Compressed Texture" << std::endl;
+			Message<WARNING>("[GLI] Failed To Load Compressed Texture", MESSAGE_ORIGIN::PIPELINE);
 			return 0;
 		}
 
@@ -74,20 +74,21 @@ namespace choice
 
 		if (!gli::is_compressed(_texture.format()))
 		{
-			std::cout << "Texture Is Not Compressed" << std::endl;
+			Message<WARNING>((ddsFile + " " + "Is Not Compressed Texture").c_str(), MESSAGE_ORIGIN::PIPELINE);
 			return 0;
 		}
 
 		if (_texture.target() != gli::TARGET_2D)
 		{
-			std::cout << "Texture Is Not 2D" << std::endl;
+			Message<WARNING>((ddsFile + " " + "Is Not A 2D Texture").c_str(), MESSAGE_ORIGIN::PIPELINE);
 			return 0;
 		}
 
 		uint32_t Id;
 		glCreateTextures(_target, 1, &Id);
 		glBindTexture(_target, Id);
-		glTexParameteri(_target, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+		GLenum minfilter = usetrilinearfiltering ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR;
+		glTexParameteri(_target, GL_TEXTURE_MIN_FILTER, minfilter);
 		glTexParameteri(_target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(_target, GL_TEXTURE_WRAP_S, GL_REPEAT);
 		glTexParameteri(_target, GL_TEXTURE_WRAP_T, GL_REPEAT);
@@ -146,7 +147,7 @@ namespace choice
 		uint32_t hdr;
 		if (!data)
 		{
-			std::cout << "Failed To Load HDR Image" << std::endl;
+			Message<WARNING>("Failed To Load HDRI Image", MESSAGE_ORIGIN::PIPELINE);
 			Ids.push_back(0); Ids.push_back(0); Ids.push_back(0); Ids.push_back(0);
 			return Ids;
 		}
@@ -203,14 +204,13 @@ namespace choice
 		glBindTextureUnit(reflectiondata.Samplers["hdrMap"], hdr);
 
 		shader->Use();
-		UniformBuffer* captureBuffer = reflectiondata.UniformBuffers["Capture"];
-		captureBuffer->SetData("Capture.uProjection", &captureProjection);
+		reflectiondata.UniformBuffers["Camera"]->SetData("Camera.Projection", &captureProjection);
 
 		glViewport(0, 0, 1024, 1024);
 		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
 		for (uint32_t i = 0; i < 6; i++)
 		{
-			captureBuffer->SetData("Capture.uView", &captureViews[i]);
+			reflectiondata.UniformBuffers["Camera"]->SetData("Camera.View", &captureViews[i]);
 			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, hdrcubemap, 0);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -243,7 +243,7 @@ namespace choice
 		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-		glBindTextureUnit(reflectiondata.Samplers["icHDRSkybox"], hdrcubemap);
+		glBindTextureUnit(reflectiondata.Samplers["hdrSkybox"], hdrcubemap);
 
 		shader->Use();
 
@@ -251,7 +251,7 @@ namespace choice
 		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
 		for (uint32_t i = 0; i < 6; i++)
 		{
-			captureBuffer->SetData("Capture.uView", &captureViews[i]);
+			reflectiondata.UniformBuffers["Camera"]->SetData("Camera.View", &captureViews[i]);
 			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, irradianceConvolution, 0);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -279,7 +279,7 @@ namespace choice
 		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
 
-		glBindTextureUnit(reflectiondata.Samplers["pfHDRSkybox"], hdrcubemap);
+		glBindTextureUnit(reflectiondata.Samplers["hdrSkybox"], hdrcubemap);
 
 		shader->Use();
 
@@ -294,7 +294,7 @@ namespace choice
 			reflectiondata.UniformBuffers["Roughness"]->SetData("Roughness.pfRoughness", &roughness);
 			for (uint32_t i = 0; i < 6; i++)
 			{
-				captureBuffer->SetData("Capture.uView", &captureViews[i]);
+				reflectiondata.UniformBuffers["Camera"]->SetData("Camera.View", &captureViews[i]);
 				glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, prefilterCubemap, mip);
 				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -383,7 +383,7 @@ namespace choice
 				static_cast<int>(buffer->size), &x, &y, &channels, 4);
 			if (!data)
 			{
-				std::cout << "Failed To Load Texture" << std::endl;
+				Message<WARNING>("[STB] Failed To Load Texture", MESSAGE_ORIGIN::PIPELINE);
 				return {};
 			}
 
@@ -391,7 +391,7 @@ namespace choice
 			int cmp_status = LoadTextureFromMemory(data, x, y, &srcMipSet);
 			if (cmp_status != CMP_OK)
 			{
-				std::cout << "Failed To Load Texture" << std::endl;
+				Message<WARNING>("[COMPRESSONATOR] Failed To Load Texture", MESSAGE_ORIGIN::PIPELINE);
 				return {};
 			}
 			stbi_image_free(data);
@@ -402,7 +402,7 @@ namespace choice
 				cmp_status = CMP_GenerateMIPLevels(&srcMipSet, minSize);
 				if (cmp_status != CMP_OK)
 				{
-					std::cout << "Failed To Generate Mips" << std::endl;
+					Message<WARNING>("[COMPRESSONATOR] Failed To Generate Mips", MESSAGE_ORIGIN::PIPELINE);
 					return {};
 				}
 			}
@@ -415,7 +415,7 @@ namespace choice
 			cmp_status = CMP_ProcessTexture(&srcMipSet, &dstMipSet, kerneloptions, nullptr);
 			if (cmp_status != CMP_OK)
 			{
-				std::cout << "Failed To Process Texture" << std::endl;
+				Message<WARNING>("[COMPRESSONATOR] Failed To Process Texture", MESSAGE_ORIGIN::PIPELINE);
 				return {};
 			}
 

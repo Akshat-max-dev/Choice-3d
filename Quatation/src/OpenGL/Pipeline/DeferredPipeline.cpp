@@ -2,7 +2,7 @@
 
 #include <glad/glad.h>
 #include "Input.h"
-#include "Choice.h"
+#include "Error.h"
 
 namespace choice
 {
@@ -91,8 +91,7 @@ namespace choice
 		if (!(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE))
 		{
 #ifdef DEBUG
-			std::cout << "Framebuffer Not Complete" << std::endl;
-			choiceassert(0);
+			Message<ERROR_MSG>("Geometry Pass Framebuffer Incomplete!", MESSAGE_ORIGIN::PIPELINE);
 #endif
 		}
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -115,7 +114,22 @@ namespace choice
 		mLightingPass.first = new DeferredLightingCapture(w, h);
 		mLightingPass.second = new Shader("Choice/assets/shaders/DeferredLightingPass.glsl");
 
-		global::CaptureBuffer.resize(global::GlobalReflectionData.UniformBuffers["Capture"]->GetBufferSize());
+#ifdef DEBUG
+		ReflectionData& reflectiondata = global::GlobalReflectionData;
+		for (auto& sampler : reflectiondata.Samplers)
+		{
+			std::string msg = "Sampler[" + sampler.first + "] =";
+			msg += " " + std::to_string(sampler.second);
+			Message<INFO>(msg.c_str(), MESSAGE_ORIGIN::PIPELINE);
+		}
+
+		for (auto& buffer : reflectiondata.UniformBuffers)
+		{
+			std::string msg = "Uniform Buffer[" + buffer.first + "]";
+			Message<INFO>(msg.c_str(), MESSAGE_ORIGIN::PIPELINE);
+		}
+#endif 
+		global::CameraBuffer.resize(global::GlobalReflectionData.UniformBuffers["Camera"]->GetBufferSize());
 		global::LightsBuffer.resize(global::GlobalReflectionData.UniformBuffers["Lights"]->GetBufferSize());
 	}
 
@@ -145,181 +159,138 @@ namespace choice
 
 	void DeferredPipeline::Update(Scene* scene, Camera* camera)
 	{
-		glEnable(GL_DEPTH_TEST);
-
 		ReflectionData& reflectiondata = global::GlobalReflectionData;
 
-		reflectiondata.UniformBuffers["Camera"]->SetData("Camera.uViewProjection", &camera->ViewProjection());
+		int directionallightcount = 0;
+		int pointlightcount = 0;
 
-		//Geometry Pass
-		mGeometryPass.first->Bind();
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		mGeometryPass.second->Use();
+		glm::mat4* projection = reflectiondata.UniformBuffers["Camera"]->MemberData<glm::mat4>("Camera.Projection", global::CameraBuffer);
+		glm::mat4* view = reflectiondata.UniformBuffers["Camera"]->MemberData<glm::mat4>("Camera.View", global::CameraBuffer);
+		glm::mat4* viewinv = reflectiondata.UniformBuffers["Camera"]->MemberData<glm::mat4>("Camera.ViewInv", global::CameraBuffer);
+		glm::mat4* projectionInv = reflectiondata.UniformBuffers["Camera"]->MemberData<glm::mat4>("Camera.ProjectionInv", global::CameraBuffer);
+		glm::vec3* camerapos = reflectiondata.UniformBuffers["Camera"]->MemberData<glm::vec3>("Camera.Position", global::CameraBuffer);
 
-		static auto geometrypassfunc = [&](Node* node) {
-			if (node->node_data_type == NODE_DATA_TYPE::MESH)
+		*camerapos = camera->Position();
+		*viewinv = glm::inverse(camera->View());
+		*projectionInv = glm::inverse(camera->Projection());
+		*projection = camera->Projection();
+		*view = camera->View();
+
+		reflectiondata.UniformBuffers["Camera"]->SetData(global::CameraBuffer);
+
+		auto func = [&](Node* node) {
+			switch (node->node_data_type)
 			{
-				Mesh* mesh = static_cast<Mesh*>(node);
-				UpdateWorldTransform(mesh);
-				reflectiondata.UniformBuffers["Transform"]->SetData("Transform.uTransform", &mesh->WorldTransform);
-
-				auto* materialBuffer = reflectiondata.UniformBuffers["Material"];
-
-				for (auto& primitive : mesh->primitives)
+			case NODE_DATA_TYPE::NONE:
+				UpdateWorldTransform(node);
+				break;
+			case NODE_DATA_TYPE::MESH:
 				{
-					materialBuffer->SetData(primitive->material->Data);
+					Mesh* mesh = static_cast<Mesh*>(node);
+					UpdateWorldTransform(mesh);
+					reflectiondata.UniformBuffers["Transform"]->SetData("Transform.uTransform", &mesh->WorldTransform);
 
-					for (auto&& [type, texturemap] : primitive->material->TextureMaps)
+					auto& materialBuffer = reflectiondata.UniformBuffers["Material"];
+
+					for (auto& primitive : mesh->primitives)
 					{
-						if (texturemap->texture)
-							texturemap->texture->Bind(GetBinding(type));
+						materialBuffer->SetData(primitive->material->Data);
+						int* hasdisplacementmap = materialBuffer->MemberData<int>("Material.HasDisplacementMap", primitive->material->Data);
+						reflectiondata.UniformBuffers["DisplacementMap"]->SetData("DisplacementMap.HasDisplacementMap", hasdisplacementmap);
+
+						for (auto&& [type, texturemap] : primitive->material->TextureMaps)
+						{
+							if (texturemap->texture)
+								texturemap->texture->Bind(GetBinding(type));
+						}
+
+						DrawPrimitive(primitive, mesh->mesh_type);
 					}
 
-					DrawPrimitive(primitive, mesh->mesh_type);
+					//Calculating Scene AABB
+					glm::vec4 min = mesh->NodeTransform->GetTransform() * glm::vec4(mesh->boundingbox.Min, 1.0f);
+					scene->GetBoundingBox().Min.x = min.x < scene->GetBoundingBox().Min.x ? min.x : scene->GetBoundingBox().Min.x;
+					scene->GetBoundingBox().Min.y = min.y < scene->GetBoundingBox().Min.y ? min.y : scene->GetBoundingBox().Min.y;
+					scene->GetBoundingBox().Min.z = min.z < scene->GetBoundingBox().Min.z ? min.z : scene->GetBoundingBox().Min.z;
+
+					glm::vec4 max = mesh->NodeTransform->GetTransform() * glm::vec4(mesh->boundingbox.Max, 1.0f);
+					scene->GetBoundingBox().Max.x = max.x > scene->GetBoundingBox().Max.x ? max.x : scene->GetBoundingBox().Max.x;
+					scene->GetBoundingBox().Max.y = max.y > scene->GetBoundingBox().Max.y ? max.y : scene->GetBoundingBox().Max.y;
+					scene->GetBoundingBox().Max.z = max.z > scene->GetBoundingBox().Max.z ? max.z : scene->GetBoundingBox().Max.z;
+					break;
 				}
-
-				//Calculating Scene AABB
-				glm::vec4 min = mesh->NodeTransform->GetTransform() *
-					glm::vec4(mesh->boundingbox.Min, 1.0f);
-				scene->GetBoundingBox().Min.x = min.x < scene->GetBoundingBox().Min.x ? min.x : scene->GetBoundingBox().Min.x;
-				scene->GetBoundingBox().Min.y = min.y < scene->GetBoundingBox().Min.y ? min.y : scene->GetBoundingBox().Min.y;
-				scene->GetBoundingBox().Min.z = min.z < scene->GetBoundingBox().Min.z ? min.z : scene->GetBoundingBox().Min.z;
-
-				glm::vec4 max = mesh->NodeTransform->GetTransform() *
-					glm::vec4(mesh->boundingbox.Max, 1.0f);
-				scene->GetBoundingBox().Max.x = max.x > scene->GetBoundingBox().Max.x ? max.x : scene->GetBoundingBox().Max.x;
-				scene->GetBoundingBox().Max.y = max.y > scene->GetBoundingBox().Max.y ? max.y : scene->GetBoundingBox().Max.y;
-				scene->GetBoundingBox().Max.z = max.z > scene->GetBoundingBox().Max.z ? max.z : scene->GetBoundingBox().Max.z;
-			}
-		};
-
-		for (auto& node : scene->GetNodes())
-		{
-			IterateNodes(node, geometrypassfunc);
-		}
-		mGeometryPass.first->UnBind();
-
-		//Shadow Map Pass
-		mShadowMapPass.first->Bind();
-		glClear(GL_DEPTH_BUFFER_BIT);
-		mShadowMapPass.second->Use();
-
-		static auto shadowmappassfunc = [&](Node* node) {
-			if (node->node_data_type == NODE_DATA_TYPE::LIGHT)
-			{
-				Light* light = static_cast<Light*>(node);
-				switch (light->Type)
+			case NODE_DATA_TYPE::LIGHT:
 				{
-				case LIGHT_TYPE::DIRECTIONAL:
-					reflectiondata.UniformBuffers["Camera"]->SetData("Camera.uViewProjection", &light->ViewProjection(&scene->GetBoundingBox())[0]);
-					for (auto& mesh_node : scene->GetNodes())
+					Light* light = static_cast<Light*>(node);
+
+					auto& lightBuffer = reflectiondata.UniformBuffers["Lights"];
+
+					int* directionallightactive = lightBuffer->MemberData<int>("Lights.ldLightsActive", global::LightsBuffer);
+					int* pointlightactive = lightBuffer->MemberData<int>("Lights.lpLightsActive", global::LightsBuffer);
+
+					switch (light->Type)
 					{
-						auto mesh_func = [&](Node* node) {
-							if (node->node_data_type == NODE_DATA_TYPE::MESH)
-							{
-								Mesh* mesh = static_cast<Mesh*>(node);
-								UpdateWorldTransform(mesh);
-								reflectiondata.UniformBuffers["Transform"]->SetData("Transform.uTransform", &mesh->WorldTransform);
-								for (auto& primitive : mesh->primitives)
-								{
-									DrawPrimitive(primitive, mesh->mesh_type);
-								}
-							}
-						};
-						IterateNodes(mesh_node, mesh_func);
+					case LIGHT_TYPE::DIRECTIONAL:
+						directionallightcount++;
+						{
+							glm::vec3* direction = lightBuffer->MemberData<glm::vec3>("Lights.ldLights.Direction", light->Data);
+							glm::mat4* lightVP = lightBuffer->MemberData<glm::mat4>("Lights.ldLights.LightVP", light->Data);
+
+							*direction = glm::normalize(glm::vec3(node->NodeTransform->GetTransform()[2]));
+							*lightVP = light->ViewProjection(&scene->GetBoundingBox())[0];
+
+							auto* lightdata = lightBuffer->MemberData<char*>(("Lights.ldLights[" + std::to_string(directionallightcount - 1) + "]").c_str(), global::LightsBuffer);
+							memcpy(lightdata, light->Data.data(), light->Data.size());
+						}
+						break;
+					case LIGHT_TYPE::POINT:
+						pointlightcount++;
+						{
+							auto* position = lightBuffer->MemberData<glm::vec3>("Lights.lpLights.Position", light->Data);
+							*position = node->NodeTransform->Position;
+
+							auto* lightdata = lightBuffer->MemberData<char*>(("Lights.lpLights[" + std::to_string(pointlightcount - 1) + "]").c_str(), global::LightsBuffer);
+							memcpy(lightdata, light->Data.data(), light->Data.size());
+						}
+						break;
 					}
+					*directionallightactive = directionallightcount;
+					*pointlightactive = pointlightcount;
 					break;
 				}
 			}
 		};
 
+		glEnable(GL_DEPTH_TEST);
+
+		mGeometryPass.first->Bind();
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		mGeometryPass.second->Use();
 		for (auto& node : scene->GetNodes())
 		{
-			IterateNodes(node, shadowmappassfunc);
+			IterateNodes(node, func);
 		}
+		mGeometryPass.first->UnBind();
 
-		mShadowMapPass.first->UnBind();
+		//TODO : Add Shadow Map Pass
 
 		BlitData();
 
-		glDepthMask(0x00);
-		glStencilMask(0x00);
 		glDisable(GL_DEPTH_TEST);
 
 		//Bind All Textures To Be Used In Lighting Pass
 		auto& samplers = reflectiondata.Samplers;
 
-		uint32_t slots[] = { samplers["lNormal"], samplers["lAlbedoS"], 
+		uint32_t slots[] = { samplers["lNormal"], samplers["lAlbedoS"],
 							 samplers["lRoughMetalAo"], samplers["lDepthMap"] };
 
 		mGeometryPass.first->BindGBuffer(slots);
 		scene->GetSkybox()->BindIBL({ samplers["lIrradianceMap"], samplers["lPreFilterMap"], samplers["lBRDFLookup"] });
 		mShadowMapPass.first->BindShadowMap(samplers["lShadowMap"]);
 
-		glm::mat4* projinv = reflectiondata.UniformBuffers["Capture"]->MemberData<glm::mat4>("Capture.uProjection", global::CaptureBuffer);
-		*projinv = glm::inverse(camera->Projection());
-		glm::mat4* viewinv = reflectiondata.UniformBuffers["Capture"]->MemberData<glm::mat4>("Capture.uView", global::CaptureBuffer);
-		*viewinv = glm::inverse(camera->View());
-
-		reflectiondata.UniformBuffers["Capture"]->SetData(global::CaptureBuffer);
-
-		//Lighting Pass
 		mLightingPass.first->Bind();
-		glClear(GL_COLOR_BUFFER_BIT);
-		int directinalLightCount = 0;
-		int pointLightCount = 0;
-
-		static auto lightingpassfunc = [&](Node* node) {
-			if (node->node_data_type == NODE_DATA_TYPE::LIGHT)
-			{
-				Light* light = static_cast<Light*>(node);
-				mLightingPass.second->Use();
-
-				auto* lightBuffer = reflectiondata.UniformBuffers["Lights"];
-
-				int* directionallightactive = lightBuffer->MemberData<int>("Lights.ldLightsActive", global::LightsBuffer);
-				int* pointlightactive = lightBuffer->MemberData<int>("Lights.lpLightsActive", global::LightsBuffer);
-				glm::vec3* viewpos = lightBuffer->MemberData<glm::vec3>("Lights.lViewpos", global::LightsBuffer);
-
-				switch (light->Type)
-				{
-				case LIGHT_TYPE::DIRECTIONAL:
-					directinalLightCount++;
-					{
-						glm::vec3* direction = lightBuffer->MemberData<glm::vec3>("Lights.ldLights.Direction", light->Data);
-						glm::mat4* lightVP = lightBuffer->MemberData<glm::mat4>("Lights.ldLights.LightVP", light->Data);
-
-						*direction = glm::normalize(glm::vec3(node->NodeTransform->GetTransform()[2]));
-						*lightVP = light->ViewProjection(&scene->GetBoundingBox())[0];
-
-						auto* lightdata = lightBuffer->MemberData<char*>(("Lights.ldLights[" + std::to_string(directinalLightCount - 1) + "]").c_str(), global::LightsBuffer);
-						memcpy(lightdata, light->Data.data(), light->Data.size());
-					}
-					break;
-				case LIGHT_TYPE::POINT:
-					pointLightCount++;
-					{
-						auto* position = lightBuffer->MemberData<glm::vec3>("Lights.lpLights.Position", light->Data);
-						*position = node->NodeTransform->Position;
-
-						auto* lightdata = lightBuffer->MemberData<char*>(("Lights.lpLights[" + std::to_string(directinalLightCount - 1) + "]").c_str(), global::LightsBuffer);
-						memcpy(lightdata, light->Data.data(), light->Data.size());
-					}
-					break;
-				}
-
-				*directionallightactive = directinalLightCount;
-				*pointlightactive = pointLightCount;
-				*viewpos = camera->Position();
-
-				lightBuffer->SetData(global::LightsBuffer);
-			}
-		};
-
-		for (auto& node : scene->GetNodes())
-		{
-			IterateNodes(node, lightingpassfunc);
-		}
+		mLightingPass.second->Use();
+		reflectiondata.UniformBuffers["Lights"]->SetData(global::LightsBuffer);
 		glDrawArrays(GL_TRIANGLES, 0, 3);
 
 		//Draw Skybox
@@ -329,8 +300,6 @@ namespace choice
 		glDepthFunc(GL_LESS);
 
 		mLightingPass.first->UnBind();
-
-		glDepthMask(0x01);
 
 		//Reset Scene AABB
 		scene->GetBoundingBox() = CalculateBoundingBox(nullptr, 0, 0);
@@ -415,8 +384,7 @@ namespace choice
 		if (!(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE))
 		{
 #ifdef DEBUG
-			std::cout << "Framebuffer Not Complete" << std::endl;
-			choiceassert(0);
+			Message<ERROR_MSG>("Lighting Pass Framebuffer Incomplete!", MESSAGE_ORIGIN::PIPELINE);
 #endif
 		}
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -469,11 +437,9 @@ namespace choice
 		if (!(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE))
 		{
 #ifdef DEBUG
-			std::cout << "Framebuffer Not Complete" << std::endl;
-			choiceassert(0);
+			Message<ERROR_MSG>("Shadow Map Pass Framebuffer Incomplete!", MESSAGE_ORIGIN::PIPELINE);
 #endif
 		}
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
-
 }

@@ -5,6 +5,8 @@
 #include <spirv_cross.hpp>
 #include <spirv_glsl.hpp>
 
+#include "Error.h"
+
 namespace choice
 {
 	GLenum getTypeFromString(const std::string& t)	
@@ -234,8 +236,8 @@ namespace choice
 
 				if (spv.GetCompilationStatus() != shaderc_compilation_status_success)
 				{
-					std::cout << spv.GetErrorMessage() << std::endl;
-					choiceassert(0);
+					Message<ERROR_MSG>(spv.GetErrorMessage().c_str(), MESSAGE_ORIGIN::SHADER_COMPILER);
+					return;
 				}
 
 				mOpenGLSPV[stage] = std::vector<uint32_t>(spv.cbegin(), spv.cend());
@@ -246,6 +248,7 @@ namespace choice
 					auto& data = mOpenGLSPV[stage];
 					outspv.write((char*)data.data(), data.size() * sizeof(uint32_t));
 					outspv.close();
+					Message<INFO>(cachedShaderStagePath.c_str(), MESSAGE_ORIGIN::SHADER_COMPILER);
 				}
 			}
 		}
@@ -282,8 +285,8 @@ namespace choice
 
 			glDeleteProgram(program);
 
-			std::cout << "Program Linking Failed" << std::endl;
-			choiceassert(0);
+			Message<ERROR_MSG>(infoLog.data(), MESSAGE_ORIGIN::SHADER_COMPILER);
+			return;
 		}
 
 		for (auto& shaderId : shadersIds)

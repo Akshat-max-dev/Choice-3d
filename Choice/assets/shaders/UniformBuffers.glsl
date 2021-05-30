@@ -2,8 +2,12 @@
 
 layout(std140, binding = 0)uniform Camera
 {
-    mat4 uViewProjection;
-};
+    mat4 Projection;
+	mat4 ProjectionInv;
+	mat4 View;
+	mat4 ViewInv;
+	vec3 Position;
+}camera;
 
 layout(std140, binding = 1)uniform Transform
 {
@@ -13,7 +17,7 @@ layout(std140, binding = 1)uniform Transform
 layout(std140, binding = 2)uniform Material
 {
 	vec3 Color;
-	float _padding1;
+	int IsPBR;
 	float Roughness;
 	float Metallic;
 	int HasAlbedoMap;
@@ -21,6 +25,12 @@ layout(std140, binding = 2)uniform Material
 	int HasRoughnessMap;
 	int HasMetallicMap;
 	int HasAoMap;
+	int HasDisplacementMap;
+};
+
+layout(std140, binding = 3)uniform DisplacementMap
+{
+	int HasDisplacementMap;
 };
 
 layout(std140, binding = 2)uniform Color
@@ -28,22 +38,15 @@ layout(std140, binding = 2)uniform Color
 	vec4 cColor;
 };
 
-layout(std140, binding = 0)uniform Lights
+layout(std140, binding = 1)uniform Lights
 {
 	DirectionalLight ldLights[8];
 	PointLight		 lpLights[32];
 	int ldLightsActive;
 	int lpLightsActive;
-	vec3 lViewpos;
 };
 
-layout(std140, binding = 1)uniform Capture
-{
-    mat4 uProjection;
-    mat4 uView;
-};
-
-layout(std140, binding = 2)uniform Roughness
+layout(std140, binding = 1)uniform Roughness
 {
     float pfRoughness;
 };

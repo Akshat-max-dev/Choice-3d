@@ -10,7 +10,7 @@ from UniformBuffers.glsl include uniform Camera;
 void main()
 {
 	vWorldPos = aPosition;
-	gl_Position = (uViewProjection * vec4(aPosition, 1.0)).xyww;
+	gl_Position = (camera.Projection * camera.View * vec4(aPosition, 1.0)).xyww;
 }
 
 #source fragment

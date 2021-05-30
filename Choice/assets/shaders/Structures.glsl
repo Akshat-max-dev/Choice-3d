@@ -4,6 +4,7 @@ struct GPVertexOutput
 	vec3 FragPos;
     vec2 TexCoords;
     vec3 Normal;
+	vec3 ViewPos;
 };
 
 struct DirectionalLight

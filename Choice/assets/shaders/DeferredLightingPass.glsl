@@ -32,7 +32,7 @@ layout(binding = 7)uniform sampler2D 	   lBRDFLookup;
 
 from Structures.glsl include struct DirectionalLight,struct PointLight;
 
-from UniformBuffers.glsl include uniform Lights,uniform Capture;
+from UniformBuffers.glsl include uniform Lights,uniform Camera;
 
 float CalculateShadows(vec4 fragPosLightSpace)
 {
@@ -63,6 +63,19 @@ float CalculateShadows(vec4 fragPosLightSpace)
     }
 
     return (0.5 + (Factor / 9.0));
+}
+
+vec3 FragPosFromDepth(float depth)
+{
+	float z = depth * 2.0 - 1.0;
+
+	vec4 clipspaceposition = vec4(vTexCoords * 2.0 - 1.0, z, 1.0);
+	vec4 viewspaceposition = camera.ProjectionInv * clipspaceposition;
+
+	viewspaceposition /= viewspaceposition.w;
+
+	vec4 worldspaceposition = camera.ViewInv * viewspaceposition;
+	return worldspaceposition.xyz;
 }
 
 const float PI = 3.14159265359;
@@ -141,76 +154,110 @@ vec3 CalculateLo(vec3 L, vec3 N, vec3 V, vec3 Ra, vec3 F0, float R, float M, vec
 
 // ----------------------------------------------------------------------------
 
-vec3 FragPosFromDepth(float depth)
-{
-	float z = depth * 2.0 - 1.0;
-
-	vec4 clipspaceposition = vec4(vTexCoords * 2.0 - 1.0, z, 1.0);
-	vec4 viewspaceposition = uProjection * clipspaceposition; //uProjection Inverse of Camera projection
-
-	viewspaceposition /= viewspaceposition.w;
-
-	vec4 worldspaceposition = uView * viewspaceposition; //uView Inverse of Camera view
-	return worldspaceposition.xyz;
-}
-
 void main()
 {
-	vec3 FragPos	= FragPosFromDepth(texture(lDepthMap, vTexCoords).r);
+  	vec3 FragPos	= FragPosFromDepth(texture(lDepthMap, vTexCoords).r);
 	vec3 N			= texture(lNormal, vTexCoords).rgb;
+	float IsPBR 	= texture(lNormal, vTexCoords).a;
 	vec3 Albedo		= texture(lAlbedoS, vTexCoords).rgb;
 	float Roughness = texture(lRoughMetalAo, vTexCoords).r;
 	float Metallic  = texture(lRoughMetalAo, vTexCoords).g;
 	float AO		= texture(lRoughMetalAo, vTexCoords).b;
 
 	N = normalize(N);
+	vec3 V = normalize(camera.Position - FragPos);
 
-	vec3 V = normalize(lViewpos - FragPos);
-	vec3 R = reflect(-V, N);
-
-	vec3 F0 = vec3(0.04);
-	F0 = mix(F0, Albedo, Metallic);
-
-	vec3 Lo = vec3(0.0);
-
-	for(int i = 0; i < ldLightsActive; i++)
+	if(IsPBR == 1)
 	{
-		Lo += CalculateLo(-ldLights[i].Direction, N, V, ldLights[i].Color, F0, Roughness, Metallic, Albedo);
+		vec3 R = reflect(-V, N);
+
+		vec3 F0 = vec3(0.04);
+		F0 = mix(F0, Albedo, Metallic);
+
+		vec3 Lo = vec3(0.0);
+
+		for(int i = 0; i < ldLightsActive; i++)
+		{
+			Lo += CalculateLo(-ldLights[i].Direction, N, V, ldLights[i].Color, F0, Roughness, Metallic, Albedo);
+			
+			vec4 FragPosLightSpace = ldLights[i].LightVP * vec4(FragPos, 1.0);
+			Lo = Lo * CalculateShadows(FragPosLightSpace);
+		}
+
+		for(int i = 0; i < lpLightsActive; i++)
+		{
+			vec3 L = normalize(lpLights[i].Position - FragPos);
+			float distance = length(lpLights[i].Position - FragPos);
+			float attenuation = 1.0/(distance * distance);
+			vec3 Ra = lpLights[i].Color * attenuation;
+			Lo += CalculateLo(L, N, V, Ra, F0, Roughness, Metallic, Albedo);
+		}
 		
-		vec4 FragPosLightSpace = ldLights[i].LightVP * vec4(FragPos, 1.0);
-		Lo = Lo * CalculateShadows(FragPosLightSpace);
-	}
+		vec3 F = FresnelSchlickRoughness(max(dot(N, V), 0.0), F0, Roughness);
 
-	for(int i = 0; i < lpLightsActive; i++)
+		vec3 Ks = F;
+		vec3 Kd = 1.0 - Ks;
+		Kd *= 1.0 - Metallic;
+		
+		vec3 Irradiance = texture(lIrradianceMap, N).rgb;
+		vec3 Diffuse    = Irradiance * Albedo;
+
+		const float MAX_REFLECTION_LOD = 4.0;
+		vec3 PreFilteredColor = textureLod(lPreFilterMap, R, Roughness * MAX_REFLECTION_LOD).rgb;    
+		vec2 BRDF  = texture(lBRDFLookup, vec2(max(dot(N, V), 0.0), Roughness)).rg;
+		vec3 Specular = PreFilteredColor * (F * BRDF.x + BRDF.y);
+
+		vec3 Ambient = (Kd * Diffuse + Specular) * AO;
+		vec3 Color = Ambient + Lo;
+
+		// HDR tonemapping
+		Color = Color / (Color + vec3(1.0));
+		// gamma correct
+		Color = pow(Color, vec3(1.0/2.2));
+
+		lResult = vec4(Color, 1.0);
+	}
+	else
 	{
-		vec3 L = normalize(lpLights[i].Position - FragPos);
-		float distance = length(lpLights[i].Position - FragPos);
-		float attenuation = 1.0/(distance * distance);
-		vec3 Ra = lpLights[i].Color * attenuation;
-		Lo += CalculateLo(L, N, V, Ra, F0, Roughness, Metallic, Albedo);
+		vec3 Lighting = Albedo;
+
+		for(int i = 0; i < ldLightsActive; i++)
+		{
+			vec3 lightDir = normalize(-ldLights[i].Direction);
+			vec3 diffuse = ldLights[i].Color * max(dot(N, lightDir), 0.0) * Albedo;
+			
+			vec3 halfwayDir = normalize(lightDir + V);  
+			float spec = pow(max(dot(N, halfwayDir), 0.0), 32.0);
+			vec3 specular = ldLights[i].Color * spec;
+
+			Lighting += diffuse + specular;
+			vec4 FragPosLightSpace = ldLights[i].LightVP * vec4(FragPos, 1.0);
+			Lighting *= CalculateShadows(FragPosLightSpace);
+		}
+
+		for(int i = 0; i < lpLightsActive; i++)
+		{
+			vec3 lightDir = normalize(lpLights[i].Position - FragPos);
+			vec3 diffuse = lpLights[i].Color * max(dot(N, lightDir), 0.0) * Albedo;
+
+			vec3 reflectDir = reflect(-lightDir, N);
+			float spec = pow(max(dot(V, reflectDir), 0.0), 32.0);
+			vec3 specular = lpLights[i].Color * spec;
+
+			float distance = length(lpLights[i].Position - FragPos);
+			float attenuation = 0.0;
+			if(lpLights[i].Radius != 0)
+			{
+				attenuation = 2.0/((distance * distance) + (lpLights[i].Radius * lpLights[i].Radius) + 
+									distance * (sqrt((distance * distance) + (lpLights[i].Radius * lpLights[i].Radius))));
+			}
+
+			diffuse *= attenuation;
+			specular *= attenuation;
+
+			Lighting += diffuse + specular;
+		}
+	
+		lResult = vec4(Lighting, 1.0);
 	}
-	
-	vec3 F = FresnelSchlickRoughness(max(dot(N, V), 0.0), F0, Roughness);
-
-	vec3 Ks = F;
-	vec3 Kd = 1.0 - Ks;
-	Kd *= 1.0 - Metallic;
-	
-	vec3 Irradiance = texture(lIrradianceMap, N).rgb;
-	vec3 Diffuse    = Irradiance * Albedo;
-
-	const float MAX_REFLECTION_LOD = 4.0;
-    vec3 PreFilteredColor = textureLod(lPreFilterMap, R, Roughness * MAX_REFLECTION_LOD).rgb;    
-    vec2 BRDF  = texture(lBRDFLookup, vec2(max(dot(N, V), 0.0), Roughness)).rg;
-    vec3 Specular = PreFilteredColor * (F * BRDF.x + BRDF.y);
-
-	vec3 Ambient = (Kd * Diffuse + Specular) * AO;
-	vec3 Color = Ambient + Lo;
-
-	// HDR tonemapping
-    Color = Color / (Color + vec3(1.0));
-    // gamma correct
-    Color = pow(Color, vec3(1.0/2.2));
-
-	lResult = vec4(Color, 1.0);
 }

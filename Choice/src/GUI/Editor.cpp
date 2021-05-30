@@ -11,6 +11,7 @@
 #include "Choice.h"
 #include "Project/Scene/Nodes/Mesh.h"
 #include "FileDialog.h"
+#include "Error.h"
 
 #include <glm/glm.hpp>
 
@@ -63,6 +64,7 @@ namespace choice
 		mSceneHierarchy = new SceneHierarchy();
 		mNodeInspector = new NodeInspector();
 		mProjectExplorer = new ProjectExplorer();
+		mConsole = new Console();
 	}
 
 	Editor::~Editor()
@@ -91,6 +93,7 @@ namespace choice
 		delete mSceneHierarchy;
 		delete mNodeInspector;
 		delete mProjectExplorer;
+		delete mConsole;
 	}
 
 	void Editor::Execute()
@@ -102,6 +105,9 @@ namespace choice
 			global::ActiveProjectName = mActiveProject->Name();
 			global::ActiveSceneName = mActiveProject->ActiveScene()->Name();
 		}
+
+		ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize, 12.0f);
+		ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarRounding, 2.0f);
 
 		auto dockspace_id = ImGui::GetID("Root_Dockspace");
 
@@ -140,6 +146,7 @@ namespace choice
 
 			ImGui::EndMainMenuBar();
 		}//Main Menu Bar
+
 
 		if (Input::IsKeyPressed(Key::LEFTCONTROL))
 		{
@@ -205,10 +212,7 @@ namespace choice
 						if (ImGuiFileDialog::Instance()->IsOk())
 						{
 							std::string dir = ImGuiFileDialog::Instance()->GetCurrentPath();
-							for (uint32_t i = 0; i < dir.size(); i++)
-							{
-								dirbuf[i] = dir[i];
-							}
+							memcpy(dirbuf, dir.data(), dir.size());
 						}
 						ImGuiFileDialog::Instance()->Close();
 					}
@@ -217,15 +221,35 @@ namespace choice
 
 					if (ImGui::Button("Create") || Input::IsKeyPressed(Key::ENTER))
 					{
-						if (strlen(namebuf) == 0) { std::cout << "Project Name Cant Be Empty" << std::endl; return; }
-						if (strlen(dirbuf) == 0) { std::cout << "No Directory Selected" << std::endl; return; }
+						if (strlen(namebuf) == 0) 
+						{ 
+							mShowModal = Message<ERROR_MSG>("Project Name Can't Be Empty", MESSAGE_ORIGIN::EDITOR);
+						}
 
-						if (mActiveProject) { delete mActiveProject; }
-						mActiveProject = new Project(namebuf, dirbuf);
-						memset(namebuf, 0, sizeof(namebuf));
-						memset(dirbuf, 0, sizeof(dirbuf));
+						if (strlen(dirbuf) == 0) 
+						{ 
+							mShowModal = Message<ERROR_MSG>("No Directory Selected", MESSAGE_ORIGIN::EDITOR);
+						}
+						else
+						{
+							if (!ghc::filesystem::exists(dirbuf))
+							{
+								std::string msg(dirbuf);
+								msg += " ";
+								msg += "Is Not A Valid Directory";
+								mShowModal = Message<ERROR_MSG>(msg.c_str(), MESSAGE_ORIGIN::FILESYSTEM);
+							}
+						}
+						
+						if (mShowModal)
+						{
+							if (mActiveProject) { delete mActiveProject; }
+							mActiveProject = new Project(namebuf, dirbuf);
+							memset(namebuf, 0, sizeof(namebuf));
+							memset(dirbuf, 0, sizeof(dirbuf));
 
-						Choice::Instance()->GetWindow()->UpdateTitle(("Choice | " + mActiveProject->Name() + " |").c_str());
+							Choice::Instance()->GetWindow()->UpdateTitle(("Choice | " + mActiveProject->Name() + " |").c_str());
+						}
 
 						mShowModal = false;
 						mModalPurpose = ModalPurpose::NONE;
@@ -251,11 +275,14 @@ namespace choice
 			mNodeInspector->Execute(mSceneHierarchy->SelectedNode());
 		}
 
+		//Console
+		mConsole->Execute();
+
 		//Viewport
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0.0f, 0.0f });
 		ImGui::Begin(ICON_FK_GAMEPAD" Viewport");
 
-		if (ImGui::IsWindowFocused() || ImGui::IsWindowHovered())
+		if (ImGui::IsWindowFocused() && ImGui::IsWindowHovered())
 		{
 			mCamera->AcceptInput(true);
 		}
@@ -311,18 +338,14 @@ namespace choice
 				DecomposeTransform(_transform, transform->Position, rotation, transform->Scale);
 				glm::vec3 deltaRotation = rotation - transform->Rotation;
 				transform->Rotation += deltaRotation;
-
-				//If Node Data Type Is None Update Its World Transform
-				if (selectednode->node_data_type == NODE_DATA_TYPE::NONE)
-				{
-					UpdateWorldTransform(selectednode);
-				}
 			}
 		}//Gizmo
 
 		ImGui::End();//Viewport
 
 		ImGui::End();//Dockspace
+
+		ImGui::PopStyleVar(2);
 	}
 
 	void Editor::Update()
@@ -366,9 +389,11 @@ namespace choice
 					std::string name = blenderpath.substr(blenderpath.find_last_of('\\') + 1, blenderpath.size() - 1);
 					if (name != "blender.exe")
 					{
-						std::cout << "The Selected File Is Not blender.exe" << std::endl;
-						choiceassert(0);
+						Message<ERROR_MSG>("Cannot Link Blender", MESSAGE_ORIGIN::EDITOR);
+						return;
 					}
+
+					mIsBlenderLinked = true;
 
 					char c = '"';
 					std::ofstream writebat("gltf.bat", std::ios::out);

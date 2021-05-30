@@ -9,6 +9,7 @@
 #include "SceneHierarchy.h"
 #include "NodeInspector.h"
 #include "ProjectExplorer.h"
+#include "Console.h"
 
 namespace choice
 {
@@ -40,6 +41,7 @@ namespace choice
 		SceneHierarchy* mSceneHierarchy;
 		NodeInspector* mNodeInspector;
 		ProjectExplorer* mProjectExplorer;
+		Console* mConsole;
 
 		enum class ModalPurpose
 		{

@@ -77,8 +77,6 @@ namespace choice
 		style.TabRounding = 5.0f;
 		style.FrameRounding = 5.0f;
 		style.PopupRounding = 5.0f;
-		style.ScrollbarRounding = 5.0f;
-		style.ScrollbarSize = 7.0f;
 		style.GrabRounding = 5.0f;
 		style.WindowTitleAlign = ImVec2(0.5f, 0.5f);
 

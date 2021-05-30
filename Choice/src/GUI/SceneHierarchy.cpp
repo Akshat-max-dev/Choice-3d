@@ -4,7 +4,7 @@
 #include <imgui.h>
 #include "FileDialog.h"
 #include "Project/Scene/Nodes/gltfImport.h"
-#include "Choice.h"
+#include "Error.h"
 
 namespace choice
 {
@@ -149,7 +149,7 @@ namespace choice
 				{
 					if (!ghc::filesystem::exists("gltf.bat"))
 					{
-						choiceassert(0);
+						Message<ERROR_MSG>("Blender Not Linked", MESSAGE_ORIGIN::EDITOR);
 					}
 
 					std::string ext = ghc::filesystem::path(filepath).extension().string();

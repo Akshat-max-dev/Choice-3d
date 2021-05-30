@@ -7,7 +7,7 @@ from UniformBuffers.glsl include uniform Camera,uniform Transform;
 
 void main()
 {
-	gl_Position = uViewProjection * uTransform * vec4(aPosition, 1.0);
+	gl_Position = camera.Projection * camera.View * uTransform * vec4(aPosition, 1.0);
 }
 
 #source fragment
