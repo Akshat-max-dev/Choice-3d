@@ -8,13 +8,6 @@
 
 namespace choice
 {
-	struct Primitive
-	{
-		VertexArray* vertexarray;
-		Material* material;
-		~Primitive();
-	};
-
 	enum class MESH_TYPE
 	{
 		NONE = -1, CUBE = 0, SPHERE = 1, IMPORTED = 2
@@ -22,7 +15,8 @@ namespace choice
 
 	struct Mesh :public Node
 	{
-		std::vector<Primitive*> primitives;
+		VertexArray* vertexarray;
+		std::vector<Material*> materials;
 		BoundingBox boundingbox;
 		MESH_TYPE mesh_type;
 

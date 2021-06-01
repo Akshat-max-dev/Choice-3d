@@ -9,7 +9,7 @@ namespace choice
 	{
 		//To Check If Already Exists
 		uint32_t counter = 0;
-		while (ghc::filesystem::exists(mDirectory + "\\" + mName + "\\" + mName + ".cproj"))
+		while (ghc::filesystem::exists(mDirectory + "\\" + mName))
 		{
 			counter++;
 			std::string msg = "Project Already Exists. Creating " + mName + std::to_string(counter);

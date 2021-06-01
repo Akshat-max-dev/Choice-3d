@@ -18,6 +18,8 @@ namespace choice
 		LIGHT_TYPE Type = LIGHT_TYPE::NONE;
 		std::vector<char> Data;
 		virtual std::vector<glm::mat4> ViewProjection(BoundingBox* box) = 0;
+
+		virtual ~Light();
 	};
 
 	struct DirectionalLight :public Light

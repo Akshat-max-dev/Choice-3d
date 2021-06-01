@@ -7,7 +7,7 @@ namespace choice
 {
 	enum class NODE_DATA_TYPE
 	{
-		NONE = 0, MESH = 1, LIGHT = 2
+		NONE = 0, MESH = 1, LIGHT = 2, JOINT = 3
 	};
 
 	namespace global
@@ -26,7 +26,7 @@ namespace choice
 		uint32_t Id;
 
 		Node();
-		~Node();
+		virtual ~Node();
 	};
 
 	void IterateNodes(Node* node, const std::function<void(Node*)>& func);

@@ -2,12 +2,6 @@
 
 namespace choice
 {
-	Primitive::~Primitive()
-	{
-		if (vertexarray) { delete vertexarray; }
-		if (material) { delete material; }
-	}
-
 	Mesh::Mesh()
 	{
 		node_data_type = NODE_DATA_TYPE::MESH;
@@ -15,7 +9,8 @@ namespace choice
 
 	Mesh::~Mesh()
 	{
-		for (auto& primitive : primitives) { if (primitive) { delete primitive; } }
+		if (vertexarray) { delete vertexarray; }
+		for (auto& material : materials) { if (material) { delete material; } }
 	}
 
 	Mesh* Cube(const std::string name /*= "Cube"*/)
@@ -68,11 +63,10 @@ namespace choice
 
 		cube->Name = name;
 		cube->mesh_type = MESH_TYPE::CUBE;
-		cube->primitives.push_back(new Primitive());
-		cube->primitives[0]->vertexarray = new VertexArray();
-		cube->primitives[0]->vertexarray->VertexBuffer(vertices, sizeof(vertices), "332");
-		cube->primitives[0]->vertexarray->IndexBuffer(nullptr, 0);
-		cube->primitives[0]->material = new Material();
+		cube->vertexarray = new VertexArray();
+		cube->vertexarray->VertexBuffer(vertices, sizeof(vertices), "332");
+		cube->vertexarray->IndexBuffer(nullptr, 0);
+		cube->materials.push_back(new Material());
 		cube->boundingbox = CalculateBoundingBox(vertices, 36 * 8, 8);
 
 		return cube;
@@ -151,11 +145,10 @@ namespace choice
 
 		sphere->Name = name;
 		sphere->mesh_type = MESH_TYPE::SPHERE;
-		sphere->primitives.push_back(new Primitive());
-		sphere->primitives[0]->vertexarray = new VertexArray();
-		sphere->primitives[0]->vertexarray->VertexBuffer(vertices.data(), vertices.size() * sizeof(float), "332");
-		sphere->primitives[0]->vertexarray->IndexBuffer(indices.data(), (uint32_t)indices.size());
-		sphere->primitives[0]->material = new Material();
+		sphere->vertexarray = new VertexArray();
+		sphere->vertexarray->VertexBuffer(vertices.data(), vertices.size() * sizeof(float), "332");
+		sphere->vertexarray->IndexBuffer(indices.data(), (uint32_t)indices.size());
+		sphere->materials.push_back(new Material());
 		sphere->boundingbox = CalculateBoundingBox(vertices.data(), (uint32_t)vertices.size(), 8);
 		
 		return sphere;

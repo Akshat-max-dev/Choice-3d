@@ -15,7 +15,7 @@ namespace choice
 		const std::string& Name()const { return mName; }
 		const std::string& Directory()const { return mDirectory; }
 
-		Scene* ActiveScene() { return mActiveScene; }
+		Scene*& ActiveScene() { return mActiveScene; }
 
 		void Save();
 	private:

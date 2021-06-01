@@ -4,6 +4,8 @@
 #include "Input.h"
 #include "Error.h"
 
+//TODO : Remove Deleted Light Data From Lights Buffer
+
 namespace choice
 {
 	DeferredGeometryCapture::DeferredGeometryCapture(uint32_t w, uint32_t h)
@@ -139,10 +141,10 @@ namespace choice
 		mLightingPass.first->Visible(w, h);
 	}
 
-	static void DrawPrimitive(Primitive* primitive, MESH_TYPE& type)
+	static void DrawMesh(VertexArray* vertexarray, MESH_TYPE& type)
 	{
-		primitive->vertexarray->Bind();
-		uint32_t count = primitive->vertexarray->GetCount();
+		vertexarray->Bind();
+		uint32_t count = vertexarray->GetCount();
 		switch (type)
 		{
 		case MESH_TYPE::CUBE:
@@ -192,20 +194,20 @@ namespace choice
 
 					auto& materialBuffer = reflectiondata.UniformBuffers["Material"];
 
-					for (auto& primitive : mesh->primitives)
+					for (auto& material : mesh->materials)
 					{
-						materialBuffer->SetData(primitive->material->Data);
-						int* hasdisplacementmap = materialBuffer->MemberData<int>("Material.HasDisplacementMap", primitive->material->Data);
+						materialBuffer->SetData(material->Data);
+						int* hasdisplacementmap = materialBuffer->MemberData<int>("Material.HasDisplacementMap", material->Data);
 						reflectiondata.UniformBuffers["DisplacementMap"]->SetData("DisplacementMap.HasDisplacementMap", hasdisplacementmap);
 
-						for (auto&& [type, texturemap] : primitive->material->TextureMaps)
+						for (auto&& [type, texturemap] : material->TextureMaps)
 						{
 							if (texturemap->texture)
 								texturemap->texture->Bind(GetBinding(type));
 						}
-
-						DrawPrimitive(primitive, mesh->mesh_type);
 					}
+
+					DrawMesh(mesh->vertexarray, mesh->mesh_type);
 
 					//Calculating Scene AABB
 					glm::vec4 min = mesh->NodeTransform->GetTransform() * glm::vec4(mesh->boundingbox.Min, 1.0f);

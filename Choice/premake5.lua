@@ -1,9 +1,10 @@
 project "Choice"
-    kind "ConsoleApp"
+    kind "WindowedApp"
     language "C++"
     cppdialect "C++17"
     staticruntime "on"
     systemversion "latest"
+    entrypoint "mainCRTStartup"
 
     targetdir(bindir)
     objdir(objbindir)

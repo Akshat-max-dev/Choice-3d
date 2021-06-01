@@ -16,6 +16,7 @@ namespace choice
 		~Scene();
 
 		void AddNode(Node* node);
+
 		void SetSkybox(Skybox* skybox) { mSkybox = skybox; }
 
 		std::vector<Node*>& GetNodes() { return mNodes; }

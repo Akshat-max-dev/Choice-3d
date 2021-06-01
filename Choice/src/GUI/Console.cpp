@@ -2,7 +2,7 @@
 
 #include <imgui.h>
 
-#include "FontAwesome.h"
+#include "IconsFontAwesome5.h"
 #include "Choice.h"
 
 namespace choice
@@ -19,7 +19,7 @@ namespace choice
 
 	void Console::Execute()
 	{
-		ImGui::Begin(ICON_FK_TERMINAL "Console");
+		ImGui::Begin(ICON_FA_TERMINAL "Console");
 
 		if (ImGui::IsWindowFocused() || ImGui::IsWindowHovered())
 		{
@@ -28,7 +28,7 @@ namespace choice
 
 		ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[ImGuiCol_WindowBg]);
 		ImGui::PushStyleColor(ImGuiCol_Text, { 0.2f, 0.6f, 0.8f, 1.0f });
-		if (ImGui::Button(ICON_FK_REFRESH))
+		if (ImGui::Button(ICON_FA_SYNC_ALT))
 		{
 			Messages.clear();
 		}
@@ -38,10 +38,15 @@ namespace choice
 
 		ImGui::Text("Show Messages ");
 		ImGui::SameLine();
+
 		static const char* comboitems[4] = { "All", "Error", "Warning", "Info" };
 		static int currentItem = 0;
 		ImGui::SetNextItemWidth(150.0f);
+
+		ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 1.0f);
+		ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
 		ImGui::Combo("##Show", &currentItem, comboitems, 4);
+		ImGui::PopStyleVar(2);
 
 		ImGui::Separator();
 
@@ -55,19 +60,19 @@ namespace choice
 			{
 			case MESSAGE_TYPE::ERROR_MSG:
 				ImGui::PushStyleColor(ImGuiCol_Text, { 1.0f, 0.0f, 0.0f, 1.0f });
-				icon = ICON_FK_BUG;
+				icon = ICON_FA_BUG;
 				break;
 			case MESSAGE_TYPE::WARNING:
 				ImGui::PushStyleColor(ImGuiCol_Text, { 1.0f, 1.0f, 0.0f, 1.0f });
-				icon = ICON_FK_INFO;
+				icon = ICON_FA_INFO;
 				break;
 			case MESSAGE_TYPE::INFO:
 				ImGui::PushStyleColor(ImGuiCol_Text, { 0.0f, 1.0f, 0.0f, 1.0f });
-				icon = ICON_FK_INFO;
+				icon = ICON_FA_INFO;
 				break;
 			default:
 				ImGui::PushStyleColor(ImGuiCol_Text, { 1.0f, 1.0f, 1.0f, 1.0f });
-				icon = ICON_FK_INFO;
+				icon = ICON_FA_INFO;
 				break;
 			}
 

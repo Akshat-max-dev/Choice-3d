@@ -11,10 +11,10 @@ namespace choice
 		SceneHierarchy();
 		~SceneHierarchy();
 
-		Node* SelectedNode() { return mSelectedNode; }
+		Node*& SelectedNode() { return mSelectedNode; }
 		void Execute(Scene* scene);
 	private:
-		void IterateNode(Node* node);
+		void IterateNode(Node*& node);
 	private:
 		Node* mSelectedNode = {};
 	};

@@ -11,7 +11,7 @@ def main():
 
     #Extract Extension To Use Similar Import Function
     FilepathData, Extension = os.path.splitext(ModelToExtract)
-    Extension = Extension.lower();
+    Extension = Extension.lower()
 
     #Import Scenes
     if Extension == ".obj":
@@ -26,6 +26,12 @@ def main():
     
     #Delete The Default Cube
     ToDelete = bpy.data.objects['Cube']
+    bpy.data.objects.remove(ToDelete, do_unlink = True)
+    #Delete The Default Light
+    ToDelete = bpy.data.objects['Light']
+    bpy.data.objects.remove(ToDelete, do_unlink = True)
+    #Delete The Default Camera
+    ToDelete = bpy.data.objects['Camera']
     bpy.data.objects.remove(ToDelete, do_unlink = True)
 
     #Export Gltf Scene

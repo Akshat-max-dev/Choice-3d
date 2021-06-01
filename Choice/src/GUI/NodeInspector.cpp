@@ -1,7 +1,7 @@
 #include "NodeInspector.h"
 
 #include <imgui.h>
-#include "FontAwesome.h"
+#include "IconsFontAwesome5.h"
 
 #include "ReflectionData.h"
 #include "Input.h"
@@ -72,7 +72,10 @@ namespace choice
 
 	static void DrawNodeTransform(Transform* transform) //Returns True If Something Changed In TransformUI
 	{
-		if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnArrow))
+		ImGui::PushStyleColor(ImGuiCol_Text, { 0.2f, 0.6f, 0.8f, 1.0f });
+		bool isopen = ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnArrow);
+		ImGui::PopStyleColor();
+		if (isopen)
 		{
 			if (ImGui::BeginTable("##Transform", 7, ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingFixedFit))
 			{
@@ -142,7 +145,7 @@ namespace choice
 	template<>
 	static void DrawNodeDataType<Mesh>(Mesh* mesh)
 	{
-		if (ImGui::CollapsingHeader(ICON_FK_CUBE "Mesh", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnArrow))
+		if (ImGui::CollapsingHeader(ICON_FA_CUBE" Mesh", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnArrow))
 		{
 			ImGui::Text("Materials Interface ");
 			ImGui::SameLine();
@@ -154,11 +157,11 @@ namespace choice
 				ImGui::Separator();
 
 				std::vector<const char*> comboItems;
-				if (comboItems.size() != mesh->primitives.size())
+				if (comboItems.size() != mesh->materials.size())
 				{
-					for (auto& primitve : mesh->primitives)
+					for (auto& material : mesh->materials)
 					{
-						comboItems.push_back(primitve->material->Name.c_str());
+						comboItems.push_back(material->Name.c_str());
 					}
 				}
 
@@ -188,7 +191,7 @@ namespace choice
 					ImGui::EndTable();
 				}
 
-				auto& material = mesh->primitives[currentitem]->material;
+				auto& material = mesh->materials[currentitem];
 
 				ReflectionData& reflectiondata = global::GlobalReflectionData;
 
@@ -354,7 +357,7 @@ namespace choice
 	template<>
 	static void DrawNodeDataType<Light>(Light* light)
 	{
-		if (ImGui::CollapsingHeader(ICON_FK_LIGHTBULB_O "Light", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnArrow))
+		if (ImGui::CollapsingHeader(ICON_FA_LIGHTBULB" Light", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnArrow))
 		{
 			ImGui::Text("Light Type ");
 			ImGui::SameLine();
@@ -398,14 +401,43 @@ namespace choice
 	{
 		if (node)
 		{
-			ImGui::Begin(ICON_FK_INFO_CIRCLE" Inspector");
+			ImGui::Begin(ICON_FA_INFO_CIRCLE" Inspector");
 
 			if (ImGui::IsWindowFocused() || ImGui::IsWindowHovered())
 			{
 				Choice::Instance()->GetEditor()->GetCamera()->AcceptInput(false);
 			}
 
-			ImGui::Text(("Name :" + node->Name).c_str());
+			ImGui::Text("Name ");
+
+			ImGui::SameLine();
+
+			static char namebuf[512] = "";
+			memset(namebuf, 0, sizeof(namebuf));
+			memcpy(namebuf, node->Name.data(), node->Name.size());
+			
+			ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 1.2f);
+			ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
+			ImGui::PushStyleColor(ImGuiCol_FrameBg, ImGui::GetStyle().Colors[ImGuiCol_WindowBg]);
+			ImGui::PushStyleColor(ImGuiCol_FrameBgActive, ImGui::GetStyle().Colors[ImGuiCol_WindowBg]);
+			ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, ImGui::GetStyle().Colors[ImGuiCol_WindowBg]);
+
+			ImGui::SetNextItemWidth(ImGui::GetContentRegionAvailWidth());
+
+			bool isnamechanged = ImGui::InputText("##name", namebuf, 512, ImGuiInputTextFlags_AutoSelectAll |
+				ImGuiInputTextFlags_EnterReturnsTrue);
+
+			ImGui::PopStyleColor(3);
+			ImGui::PopStyleVar(2);
+
+			if (isnamechanged)
+			{
+				if (strlen(namebuf) != 0)
+				{
+					node->Name.resize(strlen(namebuf));
+					memcpy(node->Name.data(), namebuf, strlen(namebuf));
+				}
+			}
 
 			DrawNodeTransform(node->NodeTransform);
 

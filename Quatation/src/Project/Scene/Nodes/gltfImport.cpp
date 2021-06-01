@@ -98,7 +98,6 @@ namespace choice
 		if (!cgltfnode->mesh)
 		{
 			node = new Node();
-			node->Id = ++global::NodeCounter;
 			node->node_data_type = NODE_DATA_TYPE::NONE;
 			node->Name = cgltfnode->name;
 			loadcgltfNodeTransform(cgltfnode, node->NodeTransform);
@@ -109,17 +108,15 @@ namespace choice
 			mesh->mesh_type = MESH_TYPE::IMPORTED;
 			mesh->node_data_type = NODE_DATA_TYPE::MESH;
 			mesh->Name = cgltfnode->name;
-			mesh->Id = ++global::NodeCounter;
 			loadcgltfNodeTransform(cgltfnode, mesh->NodeTransform);
 
-			mesh->primitives.resize(cgltfnode->mesh->primitives_count);
+			mesh->materials.resize(cgltfnode->mesh->primitives_count);
 
-			std::vector<BoundingBox> primitvebb;
+			std::vector<float> vertices;
+			std::vector<uint32_t> indices;
 
 			for (auto prim = 0; prim < cgltfnode->mesh->primitives_count; prim++)
 			{
-				mesh->primitives[prim] = new Primitive();
-
 				auto& primitive = cgltfnode->mesh->primitives[prim];
 
 				//Load Material
@@ -127,11 +124,11 @@ namespace choice
 
 				if (cgltfmaterial)
 				{
-					mesh->primitives[prim]->material = new Material();
-					Material* material = mesh->primitives[prim]->material;
+					mesh->materials[prim] = new Material();
+					Material* material = mesh->materials[prim];
 					material->Name = cgltfmaterial->name;
 
-					auto* materialBuffer = global::GlobalReflectionData.UniformBuffers["Material"];
+					auto& materialBuffer = global::GlobalReflectionData.UniformBuffers["Material"];
 
 					int* hasalbedoemap = materialBuffer->MemberData<int>("Material.HasAlbedoMap", material->Data);
 					int* hasnormalmap = materialBuffer->MemberData<int>("Material.HasNormalMap", material->Data);
@@ -242,8 +239,6 @@ namespace choice
 					}
 				}
 
-				std::vector<uint32_t> indices;
-
 				//Index Buffer
 				const cgltf_accessor* accessor = primitive.indices;
 				const auto* view = accessor->buffer_view;
@@ -275,8 +270,6 @@ namespace choice
 					choiceassert(0);
 				}
 
-				std::vector<float> vertices;
-
 				//Filling Vertex Buffer
 				for (auto i = 0; i < fullMeshData[0].size(); i++)
 				{
@@ -291,46 +284,31 @@ namespace choice
 					vertices.push_back(fullMeshData[2][i].x);
 					vertices.push_back(fullMeshData[2][i].y);
 				}
-
-				std::string meshname = mesh->Name;
-				meshname.erase(std::remove(meshname.begin(), meshname.end(), ' '), meshname.end());
-
-				meshname += std::to_string(prim);
-
-				std::vector<char> buffer;
-				auto* element = cmesh->GetFile()->NewElement(meshname.c_str());
-
-				buffer.resize(vertices.size() * sizeof(float));
-				memcpy(buffer.data(), (char*)vertices.data(), buffer.size());
-				element->InsertEndChild(WriteBinaryData(cmesh->GetFile(), "Vertices", buffer));
-
-				buffer.clear();
-				buffer.resize(indices.size() * sizeof(uint32_t));
-				memcpy(buffer.data(), (char*)indices.data(), buffer.size());
-				element->InsertEndChild(WriteBinaryData(cmesh->GetFile(), "Indices", buffer));
-
-				cmesh->GetFile()->InsertEndChild(element);
-				buffer.clear();
-
-				mesh->primitives[prim]->vertexarray = new VertexArray();
-				mesh->primitives[prim]->vertexarray->VertexBuffer(vertices.data(), vertices.size() * sizeof(float), "332");
-				mesh->primitives[prim]->vertexarray->IndexBuffer(indices.data(), (uint32_t)indices.size());
-
-				primitvebb.push_back(CalculateBoundingBox(vertices.data(), (uint32_t)vertices.size(), 8));
 			}
 
-			mesh->boundingbox = CalculateBoundingBox(nullptr, 0, 0);
+			std::string meshname = mesh->Name;
+			meshname.erase(std::remove(meshname.begin(), meshname.end(), ' '), meshname.end());
 
-			for (auto& bb : primitvebb)
-			{
-				mesh->boundingbox.Min.x = bb.Min.x < mesh->boundingbox.Min.x ? bb.Min.x : mesh->boundingbox.Min.x;
-				mesh->boundingbox.Min.y = bb.Min.y < mesh->boundingbox.Min.y ? bb.Min.y : mesh->boundingbox.Min.y;
-				mesh->boundingbox.Min.z = bb.Min.z < mesh->boundingbox.Min.z ? bb.Min.z : mesh->boundingbox.Min.z;
+			std::vector<char> buffer;
+			auto* element = cmesh->GetFile()->NewElement(meshname.c_str());
 
-				mesh->boundingbox.Max.x = bb.Max.x > mesh->boundingbox.Max.x ? bb.Max.x : mesh->boundingbox.Max.x;
-				mesh->boundingbox.Max.y = bb.Max.y > mesh->boundingbox.Max.y ? bb.Max.y : mesh->boundingbox.Max.y;
-				mesh->boundingbox.Max.z = bb.Max.z > mesh->boundingbox.Max.z ? bb.Max.z : mesh->boundingbox.Max.z;
-			}
+			buffer.resize(vertices.size() * sizeof(float));
+			memcpy(buffer.data(), (char*)vertices.data(), buffer.size());
+			element->InsertEndChild(WriteBinaryData(cmesh->GetFile(), "Vertices", buffer));
+
+			buffer.clear();
+			buffer.resize(indices.size() * sizeof(uint32_t));
+			memcpy(buffer.data(), (char*)indices.data(), buffer.size());
+			element->InsertEndChild(WriteBinaryData(cmesh->GetFile(), "Indices", buffer));
+
+			cmesh->GetFile()->InsertEndChild(element);
+			buffer.clear();
+
+			mesh->vertexarray = new VertexArray();
+			mesh->vertexarray->VertexBuffer(vertices.data(), vertices.size() * sizeof(float), "332");
+			mesh->vertexarray->IndexBuffer(indices.data(), (uint32_t)indices.size());
+
+			mesh->boundingbox = CalculateBoundingBox(vertices.data(), (uint32_t)vertices.size(), 8);
 
 			node = mesh;
 		}

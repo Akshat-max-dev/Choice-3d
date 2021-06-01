@@ -195,7 +195,7 @@ namespace choice
 		std::unique_ptr<Mesh> cube(Cube());
 		//Delete Unwanted Data In Cube
 		delete cube->NodeTransform; cube->NodeTransform = {};
-		delete cube->primitives[0]->material; cube->primitives[0]->material = {};
+		delete cube->materials[0]; cube->materials[0] = {};
 
 		ReflectionData& reflectiondata = global::GlobalReflectionData;
 
@@ -214,7 +214,7 @@ namespace choice
 			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, hdrcubemap, 0);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-			cube->primitives[0]->vertexarray->Bind();
+			cube->vertexarray->Bind();
 			glDrawArrays(GL_TRIANGLES, 0, 36);
 		}
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -255,7 +255,7 @@ namespace choice
 			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, irradianceConvolution, 0);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-			cube->primitives[0]->vertexarray->Bind();
+			cube->vertexarray->Bind();
 			glDrawArrays(GL_TRIANGLES, 0, 36);
 		}
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -298,7 +298,7 @@ namespace choice
 				glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, prefilterCubemap, mip);
 				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-				cube->primitives[0]->vertexarray->Bind();
+				cube->vertexarray->Bind();
 				glDrawArrays(GL_TRIANGLES, 0, 36);
 			}
 		}

@@ -72,31 +72,23 @@ namespace choice
 				{
 				case MESH_TYPE::CUBE:
 				case MESH_TYPE::SPHERE:
-					rootelement->InsertEndChild(WriteMaterial(mFile, mesh->primitives[0]->material));
+					rootelement->InsertEndChild(WriteMaterial(mFile, mesh->materials[0]));
 					break;
 				case MESH_TYPE::IMPORTED:
-					tinyxml2::XMLElement* primcountelement = mFile->NewElement("PrimitivesCount");
-					primcountelement->SetText(mesh->primitives.size());
-					rootelement->InsertEndChild(primcountelement);
-
 					std::string path = global::ActiveSceneDir + "Assets\\" + node->Parent->Name + std::to_string(node->Parent->Id) + ".cmesh";
 
-					for (uint32_t i = 0; i < mesh->primitives.size(); i++)
+					for (auto& material : mesh->materials)
 					{
-						rootelement->InsertEndChild(WriteMaterial(mFile, mesh->primitives[i]->material));
-
-						tinyxml2::XMLElement* meshdataelement = mFile->NewElement("MeshData");
-						rootelement->InsertEndChild(meshdataelement);
-
-						tinyxml2::XMLElement* pathelement = mFile->NewElement("Path");
-						pathelement->SetText(path.c_str());
-						meshdataelement->InsertEndChild(pathelement);
-
-						tinyxml2::XMLElement* primitvenameelement = mFile->NewElement("PrimitiveName");
-						std::string temp = mesh->Name + std::to_string(i);
-						primitvenameelement->SetText(temp.c_str());
-						meshdataelement->InsertEndChild(primitvenameelement);
+						rootelement->InsertEndChild(WriteMaterial(mFile, material));
 					}
+
+					tinyxml2::XMLElement* meshdataelement = mFile->NewElement("MeshData");
+					rootelement->InsertEndChild(meshdataelement);
+
+					tinyxml2::XMLElement* pathelement = mFile->NewElement("Path");
+					pathelement->SetText(path.c_str());
+					meshdataelement->InsertEndChild(pathelement);
+
 					break;
 				}
 
@@ -206,84 +198,62 @@ namespace choice
 				{
 				case MESH_TYPE::CUBE: 
 					mesh = Cube(nodename); 
-					ReadMaterial(rootelement->FirstChildElement("Material"), mesh->primitives[0]->material); 
+					ReadMaterial(rootelement->FirstChildElement("Material"), mesh->materials[0]); 
 					break;
 				case MESH_TYPE::SPHERE: 
 					mesh = Sphere(nodename);
-					ReadMaterial(rootelement->FirstChildElement("Material"), mesh->primitives[0]->material);
+					ReadMaterial(rootelement->FirstChildElement("Material"), mesh->materials[0]);
 					break;
 				case MESH_TYPE::IMPORTED:
 					mesh = new Mesh();
 					mesh->Name = nodename;
 					mesh->mesh_type = mesh_type;
-
-					uint32_t primitvescount;
-					rootelement->FirstChildElement("PrimitivesCount")->QueryUnsignedText(&primitvescount);
-
-					const tinyxml2::XMLElement* materialelement = rootelement->FirstChildElement("Material");
-					const tinyxml2::XMLElement* meshdataelement = rootelement->FirstChildElement("MeshData");
-
-					std::vector<BoundingBox> primitvebb;
-
-					mesh->primitives.resize(primitvescount);
-					for (auto& primitive : mesh->primitives)
-					{
-						primitive = new Primitive();
-
-						if (materialelement)
-						{
-							primitive->material = new Material();
-							ReadMaterial(materialelement, primitive->material);
-							materialelement = materialelement->NextSiblingElement("Material");
-						}
-
-						if (meshdataelement)
-						{
-							const char* path = meshdataelement->FirstChildElement("Path")->GetText();
-							const char* primitivename = meshdataelement->FirstChildElement("PrimitiveName")->GetText();
-
-							//Open cmesh File
-							XMLFile* cmesh = new XMLFile();
-							cmesh->Load(path);
-						
-							std::vector<char> buffer;
-
-							std::vector<float> vertices;
-							ReadBinaryData(cmesh->GetFile()->FirstChildElement(primitivename)->FirstChildElement("Vertices"), buffer);
-
-							vertices.resize(buffer.size() / sizeof(float));
-							memcpy(vertices.data(), buffer.data(), buffer.size());
-
-							buffer.clear();
-
-							std::vector<uint32_t> indices;
-							ReadBinaryData(cmesh->GetFile()->FirstChildElement(primitivename)->FirstChildElement("Indices"), buffer);
-
-							indices.resize(buffer.size() / sizeof(uint32_t));
-							memcpy(indices.data(), buffer.data(), buffer.size());
-
-							primitive->vertexarray = new VertexArray();
-							primitive->vertexarray->VertexBuffer(vertices.data(), vertices.size() * sizeof(float), "332");
-							primitive->vertexarray->IndexBuffer(indices.data(), (uint32_t)indices.size());
-
-							primitvebb.push_back(CalculateBoundingBox(vertices.data(), (uint32_t)vertices.size(), 8));
-
-							delete cmesh;
-						}
-					}
-
 					mesh->boundingbox = CalculateBoundingBox(nullptr, 0, 0);
 
-					for (auto& bb : primitvebb)
+					const tinyxml2::XMLElement* materialelement = rootelement->FirstChildElement("Material");
+					
+					while (materialelement)
 					{
-						mesh->boundingbox.Min.x = bb.Min.x < mesh->boundingbox.Min.x ? bb.Min.x : mesh->boundingbox.Min.x;
-						mesh->boundingbox.Min.y = bb.Min.y < mesh->boundingbox.Min.y ? bb.Min.y : mesh->boundingbox.Min.y;
-						mesh->boundingbox.Min.z = bb.Min.z < mesh->boundingbox.Min.z ? bb.Min.z : mesh->boundingbox.Min.z;
-
-						mesh->boundingbox.Max.x = bb.Max.x > mesh->boundingbox.Max.x ? bb.Max.x : mesh->boundingbox.Max.x;
-						mesh->boundingbox.Max.y = bb.Max.y > mesh->boundingbox.Max.y ? bb.Max.y : mesh->boundingbox.Max.y;
-						mesh->boundingbox.Max.z = bb.Max.z > mesh->boundingbox.Max.z ? bb.Max.z : mesh->boundingbox.Max.z;
+						mesh->materials.push_back(new Material());
+						ReadMaterial(materialelement, mesh->materials[mesh->materials.size() - 1]);
+						materialelement = materialelement->NextSiblingElement("Material");
 					}
+
+					const tinyxml2::XMLElement* meshdataelement = rootelement->FirstChildElement("MeshData");
+
+					const char* meshpath = meshdataelement->FirstChildElement("Path")->GetText();
+
+					//Open cmesh File
+					XMLFile* cmesh = new XMLFile();
+					if (cmesh->Load(meshpath))
+					{
+						std::string meshname = mesh->Name;
+						meshname.erase(std::remove(meshname.begin(), meshname.end(), ' '), meshname.end());
+
+						std::vector<char> buffer;
+
+						std::vector<float> vertices;
+						ReadBinaryData(cmesh->GetFile()->FirstChildElement(meshname.c_str())->FirstChildElement("Vertices"), buffer);
+
+						vertices.resize(buffer.size() / sizeof(float));
+						memcpy(vertices.data(), buffer.data(), buffer.size());
+
+						buffer.clear();
+
+						std::vector<uint32_t> indices;
+						ReadBinaryData(cmesh->GetFile()->FirstChildElement(meshname.c_str())->FirstChildElement("Indices"), buffer);
+
+						indices.resize(buffer.size() / sizeof(uint32_t));
+						memcpy(indices.data(), buffer.data(), buffer.size());
+
+						mesh->vertexarray = new VertexArray();
+						mesh->vertexarray->VertexBuffer(vertices.data(), vertices.size() * sizeof(float), "332");
+						mesh->vertexarray->IndexBuffer(indices.data(), (uint32_t)indices.size());
+
+						mesh->boundingbox = CalculateBoundingBox(vertices.data(), (uint32_t)vertices.size(), 8);
+					}
+
+					delete cmesh;
 					break;
 				}
 

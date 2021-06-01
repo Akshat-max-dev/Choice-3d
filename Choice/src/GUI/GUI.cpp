@@ -7,7 +7,7 @@
 #include <ImGuizmo.h>
 
 #include "Choice.h"
-#include "FontAwesome.h"
+#include "IconsFontAwesome5.h"
 
 namespace choice
 {
@@ -19,11 +19,13 @@ namespace choice
 		io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 		io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
-		static const ImWchar icons_ranges[] = { ICON_MIN_FK, ICON_MAX_FK, 0 };
-		ImFontConfig config;
-		config.MergeMode = true;
+		static const ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
+		ImFontConfig icons_config; 
+		icons_config.MergeMode = true; 
+		icons_config.PixelSnapH = true;
 		io.FontDefault = io.Fonts->AddFontFromFileTTF("Choice/assets/fonts/Roboto-Regular.ttf", 18.0f);
-		io.Fonts->AddFontFromFileTTF("Choice/assets/fonts/fontawesome-webfont.ttf", 20.0f, &config, icons_ranges);
+		io.Fonts->AddFontFromFileTTF("Choice/assets/fonts/fa-solid-900.ttf", 18.0f, &icons_config, icons_ranges);
+
 		ImGui::StyleColorsDark();
 
 		ImGuiStyle& style = ImGui::GetStyle();
@@ -98,9 +100,9 @@ namespace choice
 
 		colors[ImGuiCol_Tab] = ImVec4{ 0.15f, 0.1505f, 0.151f, 1.0f };
 		colors[ImGuiCol_TabHovered] = ImVec4{ 0.38f, 0.3805f, 0.381f, 1.0f };
-		colors[ImGuiCol_TabActive] = ImVec4{ 0.28f, 0.2805f, 0.281f, 1.0f };
-		colors[ImGuiCol_TabUnfocused] = ImVec4{ 0.15f, 0.1505f, 0.151f, 1.0f };
-		colors[ImGuiCol_TabUnfocusedActive] = ImVec4{ 0.2f, 0.205f, 0.21f, 1.0f };
+		colors[ImGuiCol_TabActive] = colors[ImGuiCol_WindowBg];
+		colors[ImGuiCol_TabUnfocused] = colors[ImGuiCol_WindowBg];
+		colors[ImGuiCol_TabUnfocusedActive] = colors[ImGuiCol_WindowBg];
 
 		colors[ImGuiCol_TitleBg] = ImVec4{ 0.15f, 0.1505f, 0.151f, 1.0f };
 		colors[ImGuiCol_TitleBgActive] = ImVec4{ 0.15f, 0.1505f, 0.151f, 1.0f };

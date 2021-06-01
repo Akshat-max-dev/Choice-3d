@@ -91,4 +91,9 @@ namespace choice
 		return pointlight;
 	}
 
+	Light::~Light()
+	{
+		Data.clear();
+	}
+
 }

@@ -11,7 +11,7 @@ namespace choice
 		mCube = Cube();
 		//Delete Unwanted Memory In Cube
 		delete mCube->NodeTransform; mCube->NodeTransform = nullptr;
-		delete mCube->primitives[0]->material; mCube->primitives[0]->material = nullptr;
+		delete mCube->materials[0]; mCube->materials[0] = nullptr;
 
 		mShader = new Shader("Choice/assets/shaders/HDRSkybox.glsl");
 
@@ -52,7 +52,7 @@ namespace choice
 		global::GlobalReflectionData.UniformBuffers["Camera"]->SetData(global::CameraBuffer);
 
 		//Draw Cube
-		mCube->primitives[0]->vertexarray->Bind();
+		mCube->vertexarray->Bind();
 		glDrawArrays(GL_TRIANGLES, 0, 36);
 	}
 

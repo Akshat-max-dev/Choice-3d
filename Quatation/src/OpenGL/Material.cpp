@@ -21,6 +21,7 @@ namespace choice
 		{
 			if (texturemap.second) { delete texturemap.second; }
 		}
+		Data.clear();
 	}
 
 	TextureMap::~TextureMap()

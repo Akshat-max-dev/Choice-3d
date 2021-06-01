@@ -66,8 +66,6 @@ namespace choice
 				}
 			}
 
-			global::NodeCounter = nodecount;
-
 			for (auto& node : nodes)
 			{
 				if (!node->Parent)
@@ -95,10 +93,6 @@ namespace choice
 	void Scene::AddNode(Node* node)
 	{
 		mNodes.push_back(node);
-		if (!node->Id)
-		{
-			node->Id = ++global::NodeCounter;
-		}
 	}
 
 	void Scene::Save()

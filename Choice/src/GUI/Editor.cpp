@@ -5,7 +5,7 @@
 #include <ImGuiFileDialog.h>
 #include <ImGuizmo.h>
 
-#include "FontAwesome.h"
+#include "IconsFontAwesome5.h"
 
 #include "Input.h"
 #include "Choice.h"
@@ -280,7 +280,12 @@ namespace choice
 
 		//Viewport
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0.0f, 0.0f });
-		ImGui::Begin(ICON_FK_GAMEPAD" Viewport");
+		ImGui::PushStyleColor(ImGuiCol_TabUnfocused, { 0.2f, 0.6f, 0.8f, 0.8f });
+		ImGui::PushStyleColor(ImGuiCol_TabUnfocusedActive, { 0.2f, 0.6f, 0.8f, 0.8f });
+		ImGui::PushStyleColor(ImGuiCol_TabActive, { 0.2f, 0.6f, 0.8f, 0.8f });
+		ImGui::Begin(ICON_FA_GAMEPAD" Viewport");
+
+		ImGui::PopStyleColor(3);
 
 		if (ImGui::IsWindowFocused() && ImGui::IsWindowHovered())
 		{

@@ -6,7 +6,7 @@ namespace choice
 	{
 		NodeTransform = new Transform();
 		WorldTransform = NodeTransform->GetTransform();
-		Id = 0;
+		Id = ++global::NodeCounter;
 		Parent = {};
 	}
 
